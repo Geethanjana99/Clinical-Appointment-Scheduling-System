@@ -12,6 +12,7 @@ import BookAppointment from './pages/patient/BookAppointment';
 import ViewQueue from './pages/patient/ViewQueue';
 import MedicalReports from './pages/patient/MedicalReports';
 import HealthPredictions from './pages/patient/HealthPredictions';
+import MyAppointments from './pages/patient/MyAppointments';
 // Doctor Pages
 import DoctorDashboard from './pages/doctor/Dashboard';
 import PatientDetails from './pages/doctor/PatientDetails';
@@ -73,6 +74,7 @@ export function App() {
           <Route path="queue" element={<ViewQueue />} />
           <Route path="medical-reports" element={<MedicalReports />} />
           <Route path="health-predictions" element={<HealthPredictions />} />
+          <Route path="my-appointments" element={<MyAppointments />} />
         </Route>{/* Doctor Routes */}
         <Route path="/doctor" element={<ProtectedRoute allowedRoles={['doctor']}>
               <Layout />

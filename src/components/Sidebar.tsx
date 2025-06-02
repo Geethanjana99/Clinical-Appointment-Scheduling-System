@@ -12,8 +12,7 @@ const Sidebar = () => {
   };
   // Navigation items based on user role
   const getNavItems = () => {
-    switch (user?.role) {
-      case 'patient':
+    switch (user?.role) {      case 'patient':
         return [{
           name: 'Dashboard',
           path: '/patient',
@@ -22,6 +21,10 @@ const Sidebar = () => {
           name: 'Book Appointment',
           path: '/patient/book-appointment',
           icon: <CalendarIcon className="w-5 h-5" />        }, {
+          name: 'My Appointments',
+          path: '/patient/my-appointments',
+          icon: <CalendarIcon className="w-5 h-5" />
+        }, {
           name: 'Medical Reports',
           path: '/patient/medical-reports',
           icon: <FileTextIcon className="w-5 h-5" />
