@@ -13,7 +13,7 @@ const Home = () => {
     {
       icon: UsersIcon,
       title: 'Multi-Role Support',
-      description: 'Dedicated interfaces for patients, doctors, operators, and billing staff.',
+      description: 'Dedicated interfaces for patients, doctors, admin staff, and billing staff.',
     },
     {
       icon: BarChartIcon,
