@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-export type UserRole = 'patient' | 'doctor' | 'operator' | 'billing';
+export type UserRole = 'patient' | 'doctor' | 'admin' | 'billing';
 interface User {
   id: string;
   name: string;
@@ -30,11 +30,11 @@ const mockUsers = {
     role: 'doctor' as UserRole,
     avatar: 'https://randomuser.me/api/portraits/women/65.jpg'
   },
-  operator: {
-    id: 'o1',
+  admin: {
+    id: 'a1',
     name: 'Mike Wilson',
-    email: 'operator@example.com',
-    role: 'operator' as UserRole,
+    email: 'admin@example.com',
+    role: 'admin' as UserRole,
     avatar: 'https://randomuser.me/api/portraits/men/45.jpg'
   },
   billing: {

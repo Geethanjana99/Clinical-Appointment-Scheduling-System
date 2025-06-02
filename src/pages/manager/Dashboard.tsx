@@ -1,9 +1,10 @@
-import React from 'react';
 import { Link } from 'react-router-dom';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import StatusBadge from '../../components/ui/StatusBadge';
-import { BarChartIcon, PieChartIcon, CalendarIcon, UserIcon, DollarSignIcon, FileTextIcon, ChevronRightIcon, TrendingUpIcon, TrendingDownIcon } from 'lucide-react';
+import AppointmentStatisticsChart from '../../components/charts/AppointmentStatisticsChart';
+import RevenueDistributionChart from '../../components/charts/RevenueDistributionChart';
+import { CalendarIcon, UserIcon, DollarSignIcon, FileTextIcon, ChevronRightIcon, TrendingUpIcon, TrendingDownIcon, UsersIcon } from 'lucide-react';
 // Mock data
 const overviewStats = [{
   title: 'Total Appointments',
@@ -123,15 +124,9 @@ const ManagerDashboard = () => {
               <Button variant="outline" size="sm">
                 Yearly
               </Button>
-            </div>
-          </div>
-          <div className="h-64 flex items-center justify-center bg-gray-50 rounded-lg">
-            <div className="text-center">
-              <BarChartIcon className="w-12 h-12 text-gray-400 mx-auto" />
-              <p className="mt-2 text-sm text-gray-500">
-                Monthly appointment statistics chart would appear here
-              </p>
-            </div>
+            </div>          </div>
+          <div className="h-64">
+            <AppointmentStatisticsChart />
           </div>
         </Card>
         <Card>
@@ -140,13 +135,8 @@ const ManagerDashboard = () => {
               Revenue Distribution
             </h2>
           </div>
-          <div className="h-64 flex items-center justify-center bg-gray-50 rounded-lg">
-            <div className="text-center">
-              <PieChartIcon className="w-12 h-12 text-gray-400 mx-auto" />
-              <p className="mt-2 text-sm text-gray-500">
-                Revenue distribution chart would appear here
-              </p>
-            </div>
+          <div className="h-64">
+            <RevenueDistributionChart />
           </div>
         </Card>
       </div>
