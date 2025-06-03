@@ -106,11 +106,10 @@ const Register = () => {
             <div>
               <label htmlFor="role" className="block text-sm font-medium text-gray-700">
                 Register as
-              </label>
-              <select id="role" name="role" value={role} onChange={e => setRole(e.target.value as UserRole)} className="mt-1 block w-full pl-3 pr-10 py-2 text-base border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+              </label>              <select id="role" name="role" value={role} onChange={e => setRole(e.target.value as UserRole)} className="mt-1 block w-full pl-3 pr-10 py-2 text-base border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                 <option value="patient">Patient</option>
                 <option value="doctor">Doctor</option>
-                <option value="operator">Admin Staff</option>
+                <option value="admin">Admin Staff</option>
                 <option value="billing">Billing Staff</option>
               </select>
             </div>

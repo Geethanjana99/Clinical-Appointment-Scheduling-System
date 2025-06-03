@@ -12,8 +12,7 @@ const Sidebar = () => {
   };
   // Navigation items based on user role
   const getNavItems = () => {
-    switch (user?.role) {
-      case 'patient':
+    switch (user?.role) {      case 'patient':
         return [{
           name: 'Dashboard',
           path: '/patient',
@@ -21,25 +20,23 @@ const Sidebar = () => {
         }, {
           name: 'Book Appointment',
           path: '/patient/book-appointment',
+          icon: <CalendarIcon className="w-5 h-5" />        }, {
+          name: 'My Appointments',
+          path: '/patient/my-appointments',
           icon: <CalendarIcon className="w-5 h-5" />
         }, {
           name: 'Medical Reports',
-          path: '/patient/reports',
+          path: '/patient/medical-reports',
           icon: <FileTextIcon className="w-5 h-5" />
-        }, {
-          name: 'Upload Reports',
-          path: '/patient/upload-reports',
-          icon: <UploadIcon className="w-5 h-5" />
         }, {
           name: 'View Queue',
           path: '/patient/queue',
           icon: <ClockIcon className="w-5 h-5" />
         }, {
           name: 'Health Predictions',
-          path: '/patient/predictions',
+          path: '/patient/health-predictions',
           icon: <ActivityIcon className="w-5 h-5" />
-        }];
-      case 'doctor':
+        }];case 'doctor':
         return [{
           name: 'Dashboard',
           path: '/doctor',
@@ -55,36 +52,34 @@ const Sidebar = () => {
         }, {
           name: 'Manage Queue',
           path: '/doctor/queue',
-          icon: <ClockIcon className="w-5 h-5" />
-        }, {
+          icon: <ClockIcon className="w-5 h-5" />        }, {
           name: 'AI Predictions',
-          path: '/doctor/predictions',
+          path: '/doctor/ai-predictions',
           icon: <ActivityIcon className="w-5 h-5" />
         }, {
           name: 'Availability',
           path: '/doctor/availability',
           icon: <CalendarIcon className="w-5 h-5" />
-        }];
-      case 'operator':
+        }];case 'admin':
         return [{
           name: 'Dashboard',
-          path: '/operator',
+          path: '/admin',
           icon: <HomeIcon className="w-5 h-5" />
         }, {
           name: 'Manage Patients',
-          path: '/operator/patients',
+          path: '/admin/patients',
           icon: <UsersIcon className="w-5 h-5" />
         }, {
           name: 'Manage Doctors',
-          path: '/operator/doctors',
+          path: '/admin/doctors',
           icon: <UserIcon className="w-5 h-5" />
         }, {
           name: 'Appointments',
-          path: '/operator/appointments',
+          path: '/admin/appointments',
           icon: <CalendarIcon className="w-5 h-5" />
         }, {
           name: 'Upload Reports',
-          path: '/operator/reports',
+          path: '/admin/reports',
           icon: <UploadIcon className="w-5 h-5" />
         }];
       case 'billing':
@@ -95,10 +90,9 @@ const Sidebar = () => {
         }, {
           name: 'Invoices',
           path: '/billing/invoices',
-          icon: <FileTextIcon className="w-5 h-5" />
-        }, {
+          icon: <FileTextIcon className="w-5 h-5" />        }, {
           name: 'Insurance Claims',
-          path: '/billing/insurance',
+          path: '/billing/insurance-claims',
           icon: <ShieldIcon className="w-5 h-5" />
         }, {
           name: 'Analytics',
