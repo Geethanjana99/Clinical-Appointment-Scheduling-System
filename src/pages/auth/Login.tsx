@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuthStore, UserRole } from '../../store/authStore';
+import { useAuthStore } from '../../store/authStore';
 import Button from '../../components/ui/Button';
 import { UserIcon, LockIcon, ArrowRightIcon } from 'lucide-react';
 const Login = () => {
@@ -8,30 +8,59 @@ const Login = () => {
   const {
     login,
     isAuthenticated,
-    user
+    user,
+    isLoading: authLoading,
+    error: authError,
+    clearError,
+    initializeAuth
   } = useAuthStore();
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<UserRole>('patient');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Initialize authentication on component mount
+  useEffect(() => {
+    initializeAuth();
+  }, [initializeAuth]);
+
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated && user) {
-      navigate(`/${user.role}`);
+      console.log('User object for navigation:', user);
+      console.log('User role:', user.role);
+      console.log('Navigation path would be:', `/${user.role}`);
+      
+      // Ensure user.role is valid before navigation
+      if (user.role && ['patient', 'doctor', 'admin', 'billing'].includes(user.role)) {
+        navigate(`/${user.role}`);
+      } else {
+        console.error('Invalid user role for navigation:', user.role);
+        setError('Invalid user role. Please contact support.');
+      }
     }
   }, [isAuthenticated, user, navigate]);
-  const handleSubmit = async (e: React.FormEvent) => {
+
+  // Handle auth errors
+  useEffect(() => {
+    if (authError) {
+      setError(authError);
+      clearError();
+    }
+  }, [authError, clearError]);  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    
     if (!email || !password) {
       setError('Please enter both email and password');
       return;
     }
+
     try {
       setIsLoading(true);
-      await login(email, password, role);
-      navigate(`/${role}`);
+      await login(email, password);
+      // Navigation will be handled by the useEffect hook
     } catch (err) {
       setError('Invalid credentials. Please try again.');
     } finally {
@@ -63,8 +92,7 @@ const Login = () => {
                 </div>
                 <input id="email" name="email" type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} required className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="email@example.com" />
               </div>
-            </div>
-            <div>
+            </div>            <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                 Password
               </label>
@@ -75,18 +103,9 @@ const Login = () => {
                 <input id="password" name="password" type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} required className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="••••••••" />
               </div>
             </div>
+
             <div>
-              <label htmlFor="role" className="block text-sm font-medium text-gray-700">
-                Login as
-              </label>              <select id="role" name="role" value={role} onChange={e => setRole(e.target.value as UserRole)} className="mt-1 block w-full pl-3 pr-10 py-2 text-base border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-                <option value="patient">Patient</option>
-                <option value="doctor">Doctor</option>
-                <option value="admin">Admin Staff</option>
-                <option value="billing">Billing Staff</option>
-              </select>
-            </div>
-            <div>
-              <Button type="submit" variant="primary" size="lg" isLoading={isLoading} className="w-full flex justify-center">
+              <Button type="submit" variant="primary" size="lg" isLoading={isLoading || authLoading} className="w-full flex justify-center">
                 Sign in <ArrowRightIcon className="ml-2 h-5 w-5" />
               </Button>
             </div>

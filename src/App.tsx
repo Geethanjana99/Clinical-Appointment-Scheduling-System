@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect } from 'react';
 import { useAuthStore } from './store/authStore';
 import type { UserRole } from './store/authStore';
 // Auth Pages
@@ -61,6 +62,12 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
   return <>{children}</>;
 };
 export function App() {
+  const { initializeAuth } = useAuthStore();
+
+  useEffect(() => {
+    initializeAuth();
+  }, [initializeAuth]);
+
   return <Router>
       <Routes>
         {/* Auth Routes */}

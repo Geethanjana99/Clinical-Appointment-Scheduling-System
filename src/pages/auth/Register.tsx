@@ -2,42 +2,91 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore, UserRole } from '../../store/authStore';
 import Button from '../../components/ui/Button';
-import { UserIcon, MailIcon, LockIcon, ArrowLeftIcon } from 'lucide-react';
+import { UserIcon, MailIcon, LockIcon, ArrowLeftIcon, PhoneIcon } from 'lucide-react';
 const Register = () => {
-  const navigate = useNavigate();
-  const {
+  const navigate = useNavigate();  const {
     register,
     isAuthenticated,
-    user
+    user,
+    error: authError,
+    clearError,
+    initializeAuth
   } = useAuthStore();
+
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [phone, setPhone] = useState('');
   const [role, setRole] = useState<UserRole>('patient');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Additional fields for doctor registration
+  const [specialization, setSpecialization] = useState('');
+  const [licenseNumber, setLicenseNumber] = useState('');
+  const [experienceYears, setExperienceYears] = useState('');
+  const [department, setDepartment] = useState('');
+
+  // Initialize authentication on component mount
+  useEffect(() => {
+    initializeAuth();
+  }, [initializeAuth]);
+
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated && user) {
       navigate(`/${user.role}`);
     }
   }, [isAuthenticated, user, navigate]);
-  const handleSubmit = async (e: React.FormEvent) => {
+
+  // Handle auth errors
+  useEffect(() => {
+    if (authError) {
+      setError(authError);
+      clearError();
+    }
+  }, [authError, clearError]);  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
     if (!name || !email || !password || !confirmPassword) {
       setError('Please fill in all fields');
       return;
     }
+
     if (password !== confirmPassword) {
       setError('Passwords do not match');
       return;
     }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long');
+      return;
+    }
+
     try {
       setIsLoading(true);
-      await register(name, email, password, role);
-      navigate(`/${role}`);
+      
+      const additionalData: any = {
+        phone: phone || undefined,
+      };
+
+      // Add doctor-specific data if registering as doctor
+      if (role === 'doctor') {
+        if (!specialization || !licenseNumber) {
+          setError('Please fill in all required doctor fields');
+          return;
+        }        additionalData.profileData = {
+          specialty: specialization, // Changed from specialization to specialty
+          license_number: licenseNumber,
+          experience_years: experienceYears ? parseInt(experienceYears) : undefined,
+          department: department || undefined,
+        };
+      }
+
+      await register(name, email, password, role, additionalData);
+      // Navigation will be handled by the useEffect hook
     } catch (err) {
       setError('Registration failed. Please try again.');
     } finally {
@@ -91,8 +140,7 @@ const Register = () => {
                 </div>
                 <input id="password" name="password" type="password" autoComplete="new-password" value={password} onChange={e => setPassword(e.target.value)} required className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="••••••••" />
               </div>
-            </div>
-            <div>
+            </div>            <div>
               <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
                 Confirm Password
               </label>
@@ -103,16 +151,98 @@ const Register = () => {
                 <input id="confirmPassword" name="confirmPassword" type="password" autoComplete="new-password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="••••••••" />
               </div>
             </div>
+
+            <div>
+              <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
+                Phone Number (Optional)
+              </label>
+              <div className="mt-1 relative rounded-md shadow-sm">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <PhoneIcon className="h-5 w-5 text-gray-400" />
+                </div>
+                <input id="phone" name="phone" type="tel" value={phone} onChange={e => setPhone(e.target.value)} className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="+1 (555) 123-4567" />
+              </div>
+            </div>
+
             <div>
               <label htmlFor="role" className="block text-sm font-medium text-gray-700">
                 Register as
-              </label>              <select id="role" name="role" value={role} onChange={e => setRole(e.target.value as UserRole)} className="mt-1 block w-full pl-3 pr-10 py-2 text-base border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+              </label>
+              <select id="role" name="role" value={role} onChange={e => setRole(e.target.value as UserRole)} className="mt-1 block w-full pl-3 pr-10 py-2 text-base border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                 <option value="patient">Patient</option>
                 <option value="doctor">Doctor</option>
                 <option value="admin">Admin Staff</option>
                 <option value="billing">Billing Staff</option>
               </select>
             </div>
+
+            {role === 'doctor' && (
+              <>
+                <div>
+                  <label htmlFor="specialization" className="block text-sm font-medium text-gray-700">
+                    Specialization *
+                  </label>
+                  <input
+                    id="specialization"
+                    name="specialization"
+                    type="text"
+                    value={specialization}
+                    onChange={e => setSpecialization(e.target.value)}
+                    required
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    placeholder="e.g., Cardiology, Pediatrics"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="licenseNumber" className="block text-sm font-medium text-gray-700">
+                    Medical License Number *
+                  </label>
+                  <input
+                    id="licenseNumber"
+                    name="licenseNumber"
+                    type="text"
+                    value={licenseNumber}
+                    onChange={e => setLicenseNumber(e.target.value)}
+                    required
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    placeholder="Medical License Number"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="experienceYears" className="block text-sm font-medium text-gray-700">
+                    Years of Experience
+                  </label>
+                  <input
+                    id="experienceYears"
+                    name="experienceYears"
+                    type="number"
+                    min="0"
+                    value={experienceYears}
+                    onChange={e => setExperienceYears(e.target.value)}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    placeholder="Years of practice"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="department" className="block text-sm font-medium text-gray-700">
+                    Department
+                  </label>
+                  <input
+                    id="department"
+                    name="department"
+                    type="text"
+                    value={department}
+                    onChange={e => setDepartment(e.target.value)}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    placeholder="Department/Unit"
+                  />
+                </div>
+              </>
+            )}
+
             <div>
               <Button type="submit" variant="primary" size="lg" isLoading={isLoading} className="w-full flex justify-center">
                 Register
