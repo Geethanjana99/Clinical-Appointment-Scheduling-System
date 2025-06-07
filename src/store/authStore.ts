@@ -71,24 +71,19 @@ export const useAuthStore = create<AuthState>()(
             error: null
           });
         }
-      },
-
-      login: async (email, password) => {
-        set({ isLoading: true, error: null });
-        
-        try {
+      },      login: async (email, password) => {
+        set({ isLoading: true, error: null });        try {
           const response = await apiService.login({ email, password });
           
           if (response.success && response.data) {
             // Store refresh token
             localStorage.setItem('refreshToken', response.data.refreshToken);
             
-            // Debug log the user object structure
-            console.log('Login response user object:', response.data.user);
-            console.log('User role from response:', response.data.user?.role);
+            // The backend returns: { data: { user: {...}, token, refreshToken } }
+            const userData = response.data.user;
             
             set({
-              user: response.data.user,
+              user: userData,
               isAuthenticated: true,
               isLoading: false,
               error: null

@@ -13,9 +13,7 @@ const Login = () => {
     error: authError,
     clearError,
     initializeAuth
-  } = useAuthStore();
-
-  const [email, setEmail] = useState('');
+  } = useAuthStore();  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -23,20 +21,15 @@ const Login = () => {
   // Initialize authentication on component mount
   useEffect(() => {
     initializeAuth();
-  }, [initializeAuth]);
-
-  // Redirect if already authenticated
+  }, [initializeAuth]);  // Redirect if already authenticated
   useEffect(() => {
-    if (isAuthenticated && user) {
-      console.log('User object for navigation:', user);
-      console.log('User role:', user.role);
-      console.log('Navigation path would be:', `/${user.role}`);
+    if (isAuthenticated && user && user.role) {
+      const validRoles = ['patient', 'doctor', 'admin', 'billing'];
       
-      // Ensure user.role is valid before navigation
-      if (user.role && ['patient', 'doctor', 'admin', 'billing'].includes(user.role)) {
+      if (validRoles.includes(user.role)) {
         navigate(`/${user.role}`);
       } else {
-        console.error('Invalid user role for navigation:', user.role);
+        console.warn('Invalid user role:', user.role);
         setError('Invalid user role. Please contact support.');
       }
     }
@@ -62,7 +55,8 @@ const Login = () => {
       await login(email, password);
       // Navigation will be handled by the useEffect hook
     } catch (err) {
-      setError('Invalid credentials. Please try again.');
+      const errorMessage = err instanceof Error ? err.message : 'Invalid credentials. Please try again.';
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
