@@ -214,37 +214,42 @@ const Home = () => {
       <section 
         className={`relative min-h-screen flex items-center justify-center text-white pt-16 ${styles.heroSection}`}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        {/* Overlay for better text readability */}
+        <div className={`absolute inset-0 ${isDarkMode ? styles.heroOverlayDark : styles.heroOverlay}`}></div>
+        
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
           <div className="max-w-4xl mx-auto">
-            <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
+            <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight drop-shadow-lg">
               Comprehensive Healthcare
               <span className="text-blue-300"> Management System</span>
             </h1>
             
-            <p className="text-xl md:text-2xl mb-8 text-blue-100 leading-relaxed">
+            <p className="text-xl md:text-2xl mb-8 text-gray-200 leading-relaxed drop-shadow">
               Streamline your healthcare operations with our integrated platform. 
               Easy access for patients, doctors, billing staff, and administrators.
             </p>
             
             {/* Key Benefits */}
             <div className="grid md:grid-cols-2 gap-6 mb-10 max-w-3xl mx-auto">
-              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 text-left">
-                <UserIcon className="text-blue-300 h-8 w-8 mb-2" />
-                <h4 className="font-semibold mb-1">For Patients</h4>
-                <p className="text-sm text-blue-200">Book appointments, view medical records, and manage your healthcare journey.</p>
+              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 text-left border border-white/20 shadow-xl">
+                <UserIcon className="text-blue-300 h-8 w-8 mb-3" />
+                <h4 className="font-semibold mb-2 text-white">For Patients</h4>
+                <p className="text-sm text-gray-200">Book appointments, view medical records, and manage your healthcare journey.</p>
               </div>
-              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 text-left">
-                <StethoscopeIcon className="text-blue-300 h-8 w-8 mb-2" />
-                <h4 className="font-semibold mb-1">For Healthcare Providers</h4>
-                <p className="text-sm text-blue-200">Manage schedules, patient records, and streamline clinical workflows.</p>
+              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 text-left border border-white/20 shadow-xl">
+                <StethoscopeIcon className="text-blue-300 h-8 w-8 mb-3" />
+                <h4 className="font-semibold mb-2 text-white">For Healthcare Providers</h4>
+                <p className="text-sm text-gray-200">Manage schedules, patient records, and streamline clinical workflows.</p>
               </div>
-            </div>            {/* Call-to-Action Buttons */}
+            </div>
+
+            {/* Call-to-Action Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
               <Link to="/login" className="w-full sm:w-auto">
                 <Button 
                   variant="secondary" 
                   size="lg" 
-                  className="w-full bg-white text-blue-700 hover:bg-blue-50 hover:scale-105 transform transition-all duration-300 shadow-xl border-2 border-white font-semibold"
+                  className="w-full bg-white bg-opacity-95 text-blue-700 hover:bg-opacity-100 hover:scale-105 transform transition-all duration-300 shadow-xl border-2 border-white font-semibold backdrop-blur-sm"
                 >
                   <CalendarIcon className="mr-2 h-5 w-5" />
                   Book Your Appointment
@@ -254,7 +259,7 @@ const Home = () => {
                 <Button 
                   variant="secondary" 
                   size="lg" 
-                  className="w-full bg-white text-blue-700 hover:bg-blue-50 hover:scale-105 transform transition-all duration-300 shadow-xl border-2 border-white font-semibold"
+                  className="w-full bg-white bg-opacity-95 text-blue-700 hover:bg-opacity-100 hover:scale-105 transform transition-all duration-300 shadow-xl border-2 border-white font-semibold backdrop-blur-sm"
                 >
                   Healthcare Provider Login
                 </Button>
@@ -263,19 +268,19 @@ const Home = () => {
             
             {/* Quick Access Info */}
             <div className="text-center">
-              <p className="text-blue-200 mb-4">Quick Access For:</p>
+              <p className="text-gray-200 mb-4 drop-shadow">Quick Access For:</p>
               <div className="flex flex-wrap justify-center gap-4 text-sm">
-                <span className="bg-white/20 px-3 py-1 rounded-full flex items-center">
-                  <UserIcon className="mr-1 h-4 w-4" />Patients
+                <span className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full flex items-center border border-white/30 shadow-lg">
+                  <UserIcon className="mr-2 h-4 w-4" />Patients
                 </span>
-                <span className="bg-white/20 px-3 py-1 rounded-full flex items-center">
-                  <StethoscopeIcon className="mr-1 h-4 w-4" />Doctors
+                <span className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full flex items-center border border-white/30 shadow-lg">
+                  <StethoscopeIcon className="mr-2 h-4 w-4" />Doctors
                 </span>
-                <span className="bg-white/20 px-3 py-1 rounded-full flex items-center">
-                  <CreditCardIcon className="mr-1 h-4 w-4" />Billing Staff
+                <span className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full flex items-center border border-white/30 shadow-lg">
+                  <CreditCardIcon className="mr-2 h-4 w-4" />Billing Staff
                 </span>
-                <span className="bg-white/20 px-3 py-1 rounded-full flex items-center">
-                  <SettingsIcon className="mr-1 h-4 w-4" />Administrators
+                <span className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full flex items-center border border-white/30 shadow-lg">
+                  <SettingsIcon className="mr-2 h-4 w-4" />Administrators
                 </span>
               </div>
             </div>
