@@ -3,18 +3,18 @@ import { useAuthStore } from '../../store/authStore';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import { UsersIcon, UserPlusIcon, CalendarIcon, FileUpIcon, SearchIcon, PlusIcon } from 'lucide-react';
-// Placeholder component for the Data Entry Dashboard
-const DataEntryDashboard: React.FC = () => {
+// Placeholder component for the Admin Dashboard
+const AdminDashboard: React.FC = () => {
   const {
     user
   } = useAuthStore();
   return <div className="container mx-auto">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">
-          Data Entry Dashboard
+          Admin Dashboard
         </h1>
         <p className="text-gray-600">
-          Manage patients, doctors, and appointments
+          Manage patients, doctors, appointments, and medical reports
         </p>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -235,4 +235,4 @@ const DataEntryDashboard: React.FC = () => {
       </div>
     </div>;
 };
-export default DataEntryDashboard;
+export default AdminDashboard;

@@ -7,12 +7,11 @@ const Header = () => {
     logout
   } = useAuthStore();
   const getRoleTitle = () => {
-    switch (user?.role) {
-      case 'patient':
+    switch (user?.role) {      case 'patient':
         return 'Patient Portal';
       case 'doctor':
         return 'Doctor Dashboard';
-      case 'operator':
+      case 'admin':
         return 'Admin Dashboard';
       case 'billing':
         return 'Billing Management';

@@ -1,7 +1,7 @@
-import React from 'react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
-import { BarChartIcon, DownloadIcon, CalendarIcon, TrendingUpIcon, TrendingDownIcon } from 'lucide-react';
+import RevenueTrackerChart from '../../components/charts/RevenueTrackerChart';
+import { DownloadIcon, CalendarIcon, TrendingUpIcon, TrendingDownIcon } from 'lucide-react';
 const BillingReports = () => {
   return <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -64,19 +64,13 @@ const BillingReports = () => {
           </div>
         </Card>
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">        <Card>
           <div className="p-6">
             <h2 className="text-lg font-medium text-gray-900 mb-4">
               Revenue Trend
             </h2>
-            <div className="h-64 flex items-center justify-center bg-gray-50 rounded-lg">
-              <div className="text-center">
-                <BarChartIcon className="w-12 h-12 text-gray-400 mx-auto" />
-                <p className="mt-2 text-sm text-gray-500">
-                  Monthly revenue trend chart would appear here
-                </p>
-              </div>
+            <div className="h-64">
+              <RevenueTrackerChart />
             </div>
           </div>
         </Card>
