@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore, UserRole } from '../../store/authStore';
 import Button from '../../components/ui/Button';
 import { UserIcon, MailIcon, LockIcon, ArrowLeftIcon, PhoneIcon } from 'lucide-react';
+import bg2 from '../../images/bg2.jpg';
 const Register = () => {
   const navigate = useNavigate();  const {
     register,
@@ -127,19 +128,24 @@ const Register = () => {
       setIsLoading(false);
     }
   };
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
+    <div 
+      className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative bg-cover bg-center bg-no-repeat"
+      style={{ backgroundImage: `url(${bg2})` }}
+    >
+      {/* Overlay for better text readability */}
+      <div className="absolute inset-0 bg-black bg-opacity-40"></div>
+      
+      <div className="max-w-md w-full space-y-8 relative z-10">
         <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-white drop-shadow-lg">
             Create an account
           </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
+          <p className="mt-2 text-center text-sm text-gray-200 drop-shadow">
             Join CareSync Healthcare Management System
           </p>
         </div>
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+        <div className="bg-white bg-opacity-95 backdrop-blur-sm py-8 px-4 shadow-xl sm:rounded-lg sm:px-10">
           <form className="space-y-6" onSubmit={handleSubmit}>
             {error && <div className="rounded-md bg-red-50 p-4">
                 <div className="text-sm text-red-700">{error}</div>

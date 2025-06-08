@@ -119,18 +119,10 @@ export const useAuthStore = create<AuthState>()(
             profileData: additionalData.profileData
           };          const response = await apiService.register(registerData);
           
-          console.log('Registration API response:', response);
-            if (response.success && response.data) {
-            // Store refresh token
+          if (response.success && response.data) {
             localStorage.setItem('refreshToken', response.data.refreshToken);
             
-            console.log('Registration API response:', response);
-            console.log('User data from response:', response.data.user);
-            console.log('User role from response:', response.data.user?.role);
-            console.log('User role type:', typeof response.data.user?.role);
-            
             const userData = response.data.user;
-            console.log('Setting user in auth store:', userData);
             
             set({
               user: userData,
