@@ -39,6 +39,10 @@ export interface User {
   email: string;
   role: 'patient' | 'doctor' | 'admin' | 'billing';
   phone?: string;
+  avatar_url?: string;
+  is_active?: boolean;
+  email_verified?: boolean;
+  last_login?: string;
   created_at?: string;
   updated_at?: string;
   profile?: any;

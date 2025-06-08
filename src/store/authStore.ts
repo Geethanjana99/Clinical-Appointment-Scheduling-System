@@ -10,7 +10,10 @@ interface User {
   email: string;
   role: UserRole;
   phone?: string;
-  avatar?: string;
+  avatar_url?: string;
+  is_active?: boolean;
+  email_verified?: boolean;
+  last_login?: string;
   profile?: any;
   created_at?: string;
   updated_at?: string;
@@ -29,7 +32,7 @@ interface AuthState {
 }
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
       isAuthenticated: false,
       isLoading: false,
@@ -114,19 +117,35 @@ export const useAuthStore = create<AuthState>()(
             role,
             phone: additionalData.phone,
             profileData: additionalData.profileData
-          };
-
-          const response = await apiService.register(registerData);
+          };          const response = await apiService.register(registerData);
           
-          if (response.success && response.data) {
+          console.log('Registration API response:', response);
+            if (response.success && response.data) {
             // Store refresh token
             localStorage.setItem('refreshToken', response.data.refreshToken);
             
+            console.log('Registration API response:', response);
+            console.log('User data from response:', response.data.user);
+            console.log('User role from response:', response.data.user?.role);
+            console.log('User role type:', typeof response.data.user?.role);
+            
+            const userData = response.data.user;
+            console.log('Setting user in auth store:', userData);
+            
             set({
-              user: response.data.user,
+              user: userData,
               isAuthenticated: true,
               isLoading: false,
               error: null
+            });
+            
+            // Immediately verify what was set
+            const currentState = get();
+            console.log('Auth store state after setting:', {
+              isAuthenticated: currentState.isAuthenticated,
+              userExists: !!currentState.user,
+              userRole: currentState.user?.role,
+              userRoleType: typeof currentState.user?.role
             });
           } else {
             throw new Error(response.message || 'Registration failed');

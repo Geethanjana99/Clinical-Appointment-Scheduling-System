@@ -31,12 +31,36 @@ const Register = () => {
   // Initialize authentication on component mount
   useEffect(() => {
     initializeAuth();
-  }, [initializeAuth]);
-
-  // Redirect if already authenticated
+  }, [initializeAuth]);  // Redirect if already authenticated
   useEffect(() => {
+    console.log('Register useEffect triggered:', {
+      isAuthenticated,
+      userExists: !!user,
+      userRole: user?.role,
+      userRoleType: typeof user?.role,
+      fullUser: user
+    });
+    
     if (isAuthenticated && user) {
-      navigate(`/${user.role}`);
+      if (user.role) {
+        console.log('Redirecting user with role:', user.role);
+        // Add a small delay to ensure state is fully updated
+        setTimeout(() => {
+          navigate(`/${user.role}`);
+        }, 100);
+      } else {
+        console.error('User authenticated but role is undefined:', user);
+        // Give it another chance in case the state update is delayed
+        setTimeout(() => {
+          if (user.role) {
+            console.log('Role found on retry, redirecting:', user.role);
+            navigate(`/${user.role}`);
+          } else {
+            console.error('Role still missing after retry:', user);
+            setError('Registration successful but user role is missing. Please contact support.');
+          }
+        }, 500);
+      }
     }
   }, [isAuthenticated, user, navigate]);
 
@@ -53,15 +77,22 @@ const Register = () => {
     if (!name || !email || !password || !confirmPassword) {
       setError('Please fill in all fields');
       return;
-    }
-
-    if (password !== confirmPassword) {
+    }    if (password !== confirmPassword) {
       setError('Passwords do not match');
       return;
     }
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters long');
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters long');
+      return;
+    }    // Check password complexity (matches backend validation)
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/;
+    if (!passwordRegex.test(password)) {
+      setError('Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character');
+      return;
+    }    // Validate phone number format if provided (Sri Lankan format: 0771234567)
+    if (phone && !/^0\d{9}$/.test(phone)) {
+      setError('Please enter a valid Sri Lankan phone number (10 digits starting with 0)');
       return;
     }
 
@@ -82,18 +113,23 @@ const Register = () => {
           license_number: licenseNumber,
           experience_years: experienceYears ? parseInt(experienceYears) : undefined,
           department: department || undefined,
-        };
-      }
+        };      }
 
+      console.log('Attempting registration with:', { name, email, role, phone: phone || 'none' });
       await register(name, email, password, role, additionalData);
+      console.log('Registration successful, waiting for redirect...');
       // Navigation will be handled by the useEffect hook
     } catch (err) {
-      setError('Registration failed. Please try again.');
-    } finally {
+      console.error('Registration error details:', err);
+      // Display the actual error message from the backend if available
+      const errorMessage = err instanceof Error ? err.message : 'Registration failed. Please try again.';
+      setError(errorMessage);    } finally {
       setIsLoading(false);
     }
   };
-  return <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
@@ -129,8 +165,7 @@ const Register = () => {
                 </div>
                 <input id="email" name="email" type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} required className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="email@example.com" />
               </div>
-            </div>
-            <div>
+            </div>            <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                 Password
               </label>
@@ -140,7 +175,10 @@ const Register = () => {
                 </div>
                 <input id="password" name="password" type="password" autoComplete="new-password" value={password} onChange={e => setPassword(e.target.value)} required className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="••••••••" />
               </div>
-            </div>            <div>
+              <p className="mt-1 text-xs text-gray-500">
+                Must be at least 8 characters with uppercase, lowercase, number, and special character
+              </p>
+            </div><div>
               <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
                 Confirm Password
               </label>
@@ -150,18 +188,18 @@ const Register = () => {
                 </div>
                 <input id="confirmPassword" name="confirmPassword" type="password" autoComplete="new-password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="••••••••" />
               </div>
-            </div>
-
-            <div>
+            </div>            <div>
               <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
                 Phone Number (Optional)
               </label>
               <div className="mt-1 relative rounded-md shadow-sm">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <PhoneIcon className="h-5 w-5 text-gray-400" />
-                </div>
-                <input id="phone" name="phone" type="tel" value={phone} onChange={e => setPhone(e.target.value)} className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="+1 (555) 123-4567" />
+                </div>                <input id="phone" name="phone" type="tel" value={phone} onChange={e => setPhone(e.target.value)} className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="0771234567" />
               </div>
+              <p className="mt-1 text-xs text-gray-500">
+                Enter 10-digit Sri Lankan phone number starting with 0 (e.g., 0771234567)
+              </p>
             </div>
 
             <div>
@@ -265,10 +303,10 @@ const Register = () => {
                 <ArrowLeftIcon className="mr-2 h-4 w-4" />
                 Back to Login
               </button>
-            </div>
-          </div>
+            </div>          </div>
         </div>
       </div>
-    </div>;
+    </div>
+  );
 };
 export default Register;
