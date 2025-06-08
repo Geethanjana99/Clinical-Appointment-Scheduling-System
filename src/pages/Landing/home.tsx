@@ -17,14 +17,18 @@ import {
   StethoscopeIcon,
   CreditCardIcon,
   SettingsIcon,
-  TrendingUpIcon
+  TrendingUpIcon,
+  SunIcon,
+  MoonIcon
 } from 'lucide-react';
 import Button from '../../components/ui/Button';
+import { useDarkMode } from '../../contexts/DarkModeContext';
 import styles from './home.module.css';
 
 const Home = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrollY, setScrollY] = useState(0);
+  const { isDarkMode, toggleDarkMode } = useDarkMode();
 
   useEffect(() => {
     const handleScroll = () => setScrollY(window.scrollY);
@@ -108,12 +112,11 @@ const Home = () => {
       description: 'Grows with your practice, from small clinics to large hospital systems.'
     }
   ];
-
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white dark:bg-gray-900 transition-colors duration-300">
       {/* Navigation Bar */}
       <nav className={`fixed w-full top-0 z-50 transition-all duration-300 ${
-        scrollY > 100 ? 'bg-white shadow-xl' : 'bg-white/90 backdrop-blur-sm'
+        scrollY > 100 ? 'bg-white dark:bg-gray-900 shadow-xl' : 'bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm'
       }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
@@ -123,22 +126,30 @@ const Home = () => {
                 <HeartIcon className="h-6 w-6" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-gray-900">CareSync</h1>
-                <p className="text-xs text-gray-500">Healthcare Management</p>
+                <h1 className="text-xl font-bold text-gray-900 dark:text-white">CareSync</h1>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Healthcare Management</p>
               </div>
             </div>
-            
-            {/* Desktop Navigation */}
+              {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-4">
-              <a href="#services" className="text-gray-700 hover:text-blue-600 transition-colors duration-300 px-3 py-2">
+              <a href="#services" className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-300 px-3 py-2">
                 Services
               </a>
-              <a href="#about" className="text-gray-700 hover:text-blue-600 transition-colors duration-300 px-3 py-2">
+              <a href="#about" className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-300 px-3 py-2">
                 About
               </a>
-              <a href="#contact" className="text-gray-700 hover:text-blue-600 transition-colors duration-300 px-3 py-2">
+              <a href="#contact" className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-300 px-3 py-2">
                 Contact
               </a>
+              
+              {/* Dark Mode Toggle */}
+              <button
+                onClick={toggleDarkMode}
+                className="p-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-300"
+                title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+              >
+                {isDarkMode ? <SunIcon className="h-5 w-5" /> : <MoonIcon className="h-5 w-5" />}
+              </button>
               
               <Link to="/login">
                 <Button variant="outline" className="ml-4">
@@ -151,32 +162,39 @@ const Home = () => {
                 </Button>
               </Link>
             </div>
-            
-            {/* Mobile Menu Button */}
-            <div className="md:hidden">
+              {/* Mobile Menu Button */}
+            <div className="md:hidden flex items-center space-x-2">
+              {/* Mobile Dark Mode Toggle */}
+              <button
+                onClick={toggleDarkMode}
+                className="p-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-300"
+                title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+              >
+                {isDarkMode ? <SunIcon className="h-5 w-5" /> : <MoonIcon className="h-5 w-5" />}
+              </button>
+              
               <button
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="text-gray-700 hover:text-blue-600 focus:outline-none"
+                className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 focus:outline-none"
               >
                 {isMenuOpen ? <XIcon className="h-6 w-6" /> : <MenuIcon className="h-6 w-6" />}
               </button>
             </div>
           </div>
-          
-          {/* Mobile Menu */}
+            {/* Mobile Menu */}
           {isMenuOpen && (
-            <div className="md:hidden bg-white border-t border-gray-200">
+            <div className="md:hidden bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700">
               <div className="px-4 py-4 space-y-3">
-                <a href="#services" className="block text-gray-700 hover:text-blue-600 transition-colors duration-300 py-2">
+                <a href="#services" className="block text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-300 py-2">
                   Services
                 </a>
-                <a href="#about" className="block text-gray-700 hover:text-blue-600 transition-colors duration-300 py-2">
+                <a href="#about" className="block text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-300 py-2">
                   About
                 </a>
-                <a href="#contact" className="block text-gray-700 hover:text-blue-600 transition-colors duration-300 py-2">
+                <a href="#contact" className="block text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-300 py-2">
                   Contact
                 </a>
-                <div className="pt-3 border-t border-gray-200 space-y-2">
+                <div className="pt-3 border-t border-gray-200 dark:border-gray-700 space-y-2">
                   <Link to="/login" className="block w-full">
                     <Button variant="outline" className="w-full">
                       Sign In
@@ -269,16 +287,14 @@ const Home = () => {
             <ArrowRightIcon className="h-6 w-6 rotate-90" />
           </a>
         </div>
-      </section>
-
-      {/* Features Section */}
-      <section id="features" className="py-20 bg-gradient-to-br from-blue-50 to-white">
+      </section>      {/* Features Section */}
+      <section id="features" className="py-20 bg-gradient-to-br from-blue-50 to-white dark:from-gray-800 dark:to-gray-900 transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
               Everything You Need to Manage Your Clinic
             </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            <p className="text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
               From appointment booking to billing management, we've got you covered with cutting-edge technology.
             </p>
           </div>
@@ -286,31 +302,29 @@ const Home = () => {
             {features.map((feature, index) => (
               <div 
                 key={index} 
-                className="text-center p-6 rounded-xl bg-white shadow-lg hover:shadow-xl hover:-translate-y-2 transition-all duration-300 border border-gray-100"
+                className="text-center p-6 rounded-xl bg-white dark:bg-gray-800 shadow-lg hover:shadow-xl hover:-translate-y-2 transition-all duration-300 border border-gray-100 dark:border-gray-700"
               >
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-xl mb-6">
-                  <feature.icon className="h-8 w-8 text-blue-600" />
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 dark:bg-blue-900 rounded-xl mb-6">
+                  <feature.icon className="h-8 w-8 text-blue-600 dark:text-blue-400" />
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                   {feature.title}
                 </h3>
-                <p className="text-gray-600">
+                <p className="text-gray-600 dark:text-gray-300">
                   {feature.description}
                 </p>
               </div>
             ))}
           </div>
         </div>
-      </section>
-
-      {/* Services Section */}
-      <section id="services" className="py-20 bg-gray-50">
+      </section>      {/* Services Section */}
+      <section id="services" className="py-20 bg-gray-50 dark:bg-gray-800 transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h3 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+            <h3 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
               Our Healthcare Services
             </h3>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
               Comprehensive digital solutions designed to enhance patient care and streamline healthcare operations.
             </p>
           </div>
@@ -319,14 +333,14 @@ const Home = () => {
             {services.map((service, index) => (
               <div 
                 key={index} 
-                className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl hover:-translate-y-2 transition-all duration-300"
+                className="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-lg hover:shadow-xl hover:-translate-y-2 transition-all duration-300"
               >
-                <div className="bg-blue-50 rounded-lg p-4 w-16 h-16 flex items-center justify-center mb-4">
-                  <service.icon className="text-blue-600 h-8 w-8" />
+                <div className="bg-blue-50 dark:bg-blue-900 rounded-lg p-4 w-16 h-16 flex items-center justify-center mb-4">
+                  <service.icon className="text-blue-600 dark:text-blue-400 h-8 w-8" />
                 </div>
-                <h4 className="text-xl font-semibold text-gray-900 mb-3">{service.title}</h4>
-                <p className="text-gray-600 mb-4">{service.description}</p>
-                <ul className="text-sm text-gray-500 space-y-1">
+                <h4 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">{service.title}</h4>
+                <p className="text-gray-600 dark:text-gray-300 mb-4">{service.description}</p>
+                <ul className="text-sm text-gray-500 dark:text-gray-400 space-y-1">
                   {service.features.map((feature, idx) => (
                     <li key={idx} className="flex items-center">
                       <CheckIcon className="text-green-500 mr-2 h-4 w-4" />
@@ -338,17 +352,15 @@ const Home = () => {
             ))}
           </div>
         </div>
-      </section>
-
-      {/* About Section */}
-      <section id="about" className="py-20 bg-white">
+      </section>      {/* About Section */}
+      <section id="about" className="py-20 bg-white dark:bg-gray-800 transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
-              <h3 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
+              <h3 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-6 transition-colors duration-300">
                 Why Choose CareSync?
               </h3>
-              <p className="text-lg text-gray-600 mb-8">
+              <p className="text-lg text-gray-600 dark:text-gray-300 mb-8 transition-colors duration-300">
                 Our healthcare management system is designed with the needs of modern medical practices in mind. 
                 We provide a comprehensive, user-friendly platform that enhances patient care while streamlining operations.
               </p>
@@ -356,12 +368,12 @@ const Home = () => {
               <div className="space-y-4 mb-8">
                 {benefits.map((benefit, index) => (
                   <div key={index} className="flex items-start space-x-3">
-                    <div className="bg-green-500 text-white rounded-full p-2 mt-1">
+                    <div className="bg-green-500 dark:bg-green-600 text-white rounded-full p-2 mt-1 transition-colors duration-300">
                       <CheckIcon className="h-4 w-4" />
                     </div>
                     <div>
-                      <h5 className="font-semibold text-gray-900">{benefit.title}</h5>
-                      <p className="text-gray-600">{benefit.description}</p>
+                      <h5 className="font-semibold text-gray-900 dark:text-white transition-colors duration-300">{benefit.title}</h5>
+                      <p className="text-gray-600 dark:text-gray-300 transition-colors duration-300">{benefit.description}</p>
                     </div>
                   </div>
                 ))}
@@ -378,40 +390,37 @@ const Home = () => {
                 </Button>
               </Link>
             </div>
-            
-            <div className="lg:order-first">
-              <div className="bg-gradient-to-br from-blue-100 to-blue-50 rounded-xl p-8 text-center">
+              <div className="lg:order-first">
+              <div className="bg-gradient-to-br from-blue-100 to-blue-50 dark:from-blue-900 dark:to-blue-800 rounded-xl p-8 text-center transition-colors duration-300">
                 <div className="grid grid-cols-2 gap-6">
-                  <div className="bg-white rounded-lg p-4 text-center shadow-sm">
-                    <div className="text-2xl font-bold text-blue-600">10,000+</div>
-                    <div className="text-sm text-gray-600">Appointments</div>
+                  <div className="bg-white dark:bg-gray-700 rounded-lg p-4 text-center shadow-sm transition-colors duration-300">
+                    <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">10,000+</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-300">Appointments</div>
                   </div>
-                  <div className="bg-white rounded-lg p-4 text-center shadow-sm">
-                    <div className="text-2xl font-bold text-green-600">500+</div>
-                    <div className="text-sm text-gray-600">Healthcare Providers</div>
+                  <div className="bg-white dark:bg-gray-700 rounded-lg p-4 text-center shadow-sm transition-colors duration-300">
+                    <div className="text-2xl font-bold text-green-600 dark:text-green-400">500+</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-300">Healthcare Providers</div>
                   </div>
-                  <div className="bg-white rounded-lg p-4 text-center shadow-sm">
-                    <div className="text-2xl font-bold text-purple-600">99.9%</div>
-                    <div className="text-sm text-gray-600">Uptime</div>
+                  <div className="bg-white dark:bg-gray-700 rounded-lg p-4 text-center shadow-sm transition-colors duration-300">
+                    <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">99.9%</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-300">Uptime</div>
                   </div>
-                  <div className="bg-white rounded-lg p-4 text-center shadow-sm">
-                    <div className="text-2xl font-bold text-orange-600">24/7</div>
-                    <div className="text-sm text-gray-600">Support</div>
+                  <div className="bg-white dark:bg-gray-700 rounded-lg p-4 text-center shadow-sm transition-colors duration-300">
+                    <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">24/7</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-300">Support</div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </section>
-
-      {/* Contact Section */}
-      <section id="contact" className="py-20 bg-blue-50">
+      </section>      {/* Contact Section */}
+      <section id="contact" className="py-20 bg-blue-50 dark:bg-gray-700 transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h3 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
+          <h3 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-6 transition-colors duration-300">
             Ready to Transform Your Healthcare Operations?
           </h3>
-          <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
+          <p className="text-xl text-gray-600 dark:text-gray-300 mb-8 max-w-3xl mx-auto transition-colors duration-300">
             Join thousands of healthcare providers who trust CareSync to manage their operations efficiently and securely.
           </p>
           
@@ -430,7 +439,7 @@ const Home = () => {
               <Button 
                 variant="outline" 
                 size="lg"
-                className="w-full border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white hover:scale-105 transform transition-all duration-300"
+                className="w-full border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white dark:border-blue-400 dark:text-blue-400 dark:hover:bg-blue-400 dark:hover:text-gray-900 hover:scale-105 transform transition-all duration-300"
               >
                 <PhoneIcon className="mr-2 h-5 w-5" />
                 Schedule a Demo
@@ -439,66 +448,64 @@ const Home = () => {
           </div>
           
           <div className="grid md:grid-cols-3 gap-8 text-center">
-            <div className="bg-white rounded-lg p-6 shadow-lg">
-              <MailIcon className="text-blue-600 h-8 w-8 mx-auto mb-3" />
-              <h5 className="font-semibold text-gray-900 mb-2">Email Support</h5>
-              <p className="text-gray-600">support@caresync.com</p>
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg border border-gray-200 dark:border-gray-600 transition-colors duration-300">
+              <MailIcon className="text-blue-600 dark:text-blue-400 h-8 w-8 mx-auto mb-3 transition-colors duration-300" />
+              <h5 className="font-semibold text-gray-900 dark:text-white mb-2 transition-colors duration-300">Email Support</h5>
+              <p className="text-gray-600 dark:text-gray-300 transition-colors duration-300">support@caresync.com</p>
             </div>
-            <div className="bg-white rounded-lg p-6 shadow-lg">
-              <PhoneIcon className="text-blue-600 h-8 w-8 mx-auto mb-3" />
-              <h5 className="font-semibold text-gray-900 mb-2">Phone Support</h5>
-              <p className="text-gray-600">+1 (800) 123-CARE</p>
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg border border-gray-200 dark:border-gray-600 transition-colors duration-300">
+              <PhoneIcon className="text-blue-600 dark:text-blue-400 h-8 w-8 mx-auto mb-3 transition-colors duration-300" />
+              <h5 className="font-semibold text-gray-900 dark:text-white mb-2 transition-colors duration-300">Phone Support</h5>
+              <p className="text-gray-600 dark:text-gray-300 transition-colors duration-300">+1 (800) 123-CARE</p>
             </div>
-            <div className="bg-white rounded-lg p-6 shadow-lg">
-              <ClockIcon className="text-blue-600 h-8 w-8 mx-auto mb-3" />
-              <h5 className="font-semibold text-gray-900 mb-2">Available</h5>
-              <p className="text-gray-600">24/7 Support</p>
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg border border-gray-200 dark:border-gray-600 transition-colors duration-300">
+              <ClockIcon className="text-blue-600 dark:text-blue-400 h-8 w-8 mx-auto mb-3 transition-colors duration-300" />
+              <h5 className="font-semibold text-gray-900 dark:text-white mb-2 transition-colors duration-300">Available</h5>
+              <p className="text-gray-600 dark:text-gray-300 transition-colors duration-300">24/7 Support</p>
             </div>
           </div>
         </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="bg-gray-900 text-white py-12">
+      </section>      {/* Footer */}
+      <footer className="bg-gray-900 dark:bg-gray-950 text-white py-12 transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-4 gap-8">
             <div className="md:col-span-2">
               <div className="flex items-center space-x-3 mb-4">
-                <div className="bg-blue-600 text-white rounded-lg p-2">
+                <div className="bg-blue-600 dark:bg-blue-500 text-white rounded-lg p-2 transition-colors duration-300">
                   <HeartIcon className="h-6 w-6" />
                 </div>
                 <div>
-                  <h4 className="text-xl font-bold">CareSync</h4>
-                  <p className="text-gray-300 text-sm">Healthcare Management System</p>
+                  <h4 className="text-xl font-bold text-white">CareSync</h4>
+                  <p className="text-gray-300 dark:text-gray-400 text-sm transition-colors duration-300">Healthcare Management System</p>
                 </div>
               </div>
-              <p className="text-gray-300 mb-4 max-w-md">
+              <p className="text-gray-300 dark:text-gray-400 mb-4 max-w-md transition-colors duration-300">
                 Empowering healthcare providers with comprehensive digital solutions for better patient care and operational efficiency.
               </p>
             </div>
             
             <div>
-              <h5 className="font-semibold mb-4">Quick Links</h5>
+              <h5 className="font-semibold mb-4 text-white">Quick Links</h5>
               <ul className="space-y-2">
-                <li><a href="#services" className="text-gray-300 hover:text-white transition-colors duration-300">Services</a></li>
-                <li><a href="#about" className="text-gray-300 hover:text-white transition-colors duration-300">About Us</a></li>
-                <li><Link to="/login" className="text-gray-300 hover:text-white transition-colors duration-300">Patient Portal</Link></li>
-                <li><Link to="/login" className="text-gray-300 hover:text-white transition-colors duration-300">Doctor Login</Link></li>
+                <li><a href="#services" className="text-gray-300 dark:text-gray-400 hover:text-white dark:hover:text-gray-200 transition-colors duration-300">Services</a></li>
+                <li><a href="#about" className="text-gray-300 dark:text-gray-400 hover:text-white dark:hover:text-gray-200 transition-colors duration-300">About Us</a></li>
+                <li><Link to="/login" className="text-gray-300 dark:text-gray-400 hover:text-white dark:hover:text-gray-200 transition-colors duration-300">Patient Portal</Link></li>
+                <li><Link to="/login" className="text-gray-300 dark:text-gray-400 hover:text-white dark:hover:text-gray-200 transition-colors duration-300">Doctor Login</Link></li>
               </ul>
             </div>
             
             <div>
-              <h5 className="font-semibold mb-4">Support</h5>
+              <h5 className="font-semibold mb-4 text-white">Support</h5>
               <ul className="space-y-2">
-                <li><a href="#contact" className="text-gray-300 hover:text-white transition-colors duration-300">Contact Us</a></li>
-                <li><a href="#" className="text-gray-300 hover:text-white transition-colors duration-300">Privacy Policy</a></li>
-                <li><a href="#" className="text-gray-300 hover:text-white transition-colors duration-300">Terms of Service</a></li>
+                <li><a href="#contact" className="text-gray-300 dark:text-gray-400 hover:text-white dark:hover:text-gray-200 transition-colors duration-300">Contact Us</a></li>
+                <li><a href="#" className="text-gray-300 dark:text-gray-400 hover:text-white dark:hover:text-gray-200 transition-colors duration-300">Privacy Policy</a></li>
+                <li><a href="#" className="text-gray-300 dark:text-gray-400 hover:text-white dark:hover:text-gray-200 transition-colors duration-300">Terms of Service</a></li>
               </ul>
             </div>
           </div>
           
-          <div className="border-t border-gray-600 mt-8 pt-8 text-center">
-            <p className="text-gray-300">
+          <div className="border-t border-gray-600 dark:border-gray-700 mt-8 pt-8 text-center transition-colors duration-300">
+            <p className="text-gray-300 dark:text-gray-400 transition-colors duration-300">
               © 2025 CareSync Healthcare Management System. All rights reserved.
             </p>
           </div>
