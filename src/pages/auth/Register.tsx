@@ -279,10 +279,13 @@ const Register = () => {
                   />
                 </div>
               </>
-            )}            <div>
+            )}
+
+            <div>
               <Button type="submit" variant="primary" size="lg" isLoading={isLoading} className="w-full flex justify-center">
                 Register
-              </Button>            </div>
+              </Button>
+            </div>
           </form>
           <div className="mt-6">
             <div className="relative">

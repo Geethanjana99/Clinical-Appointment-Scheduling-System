@@ -30,23 +30,59 @@ interface AuthState {
   clearError: () => void;
   initializeAuth: () => Promise<void>;
 }
-
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
       isAuthenticated: false,
       isLoading: false,
-      error: null,      clearError: () => set({ error: null }),
+      error: null,
 
-      login: async (email, password) => {
-        set({ isLoading: true, error: null });
-        
+      clearError: () => set({ error: null }),
+
+      initializeAuth: async () => {
+        const token = apiService.getToken();
+        if (!token) return;
+
+        set({ isLoading: true });
         try {
+          const response = await apiService.getProfile();
+          if (response.success && response.data) {
+            set({
+              user: response.data,
+              isAuthenticated: true,
+              isLoading: false,
+              error: null
+            });
+          } else {
+            // Invalid token, clear it
+            apiService.setToken(null);
+            set({
+              user: null,
+              isAuthenticated: false,
+              isLoading: false,
+              error: null
+            });
+          }
+        } catch (error) {
+          console.error('Auth initialization failed:', error);
+          apiService.setToken(null);
+          set({
+            user: null,
+            isAuthenticated: false,
+            isLoading: false,
+            error: null
+          });
+        }
+      },      login: async (email, password) => {
+        set({ isLoading: true, error: null });        try {
           const response = await apiService.login({ email, password });
           
           if (response.success && response.data) {
+            // Store refresh token
             localStorage.setItem('refreshToken', response.data.refreshToken);
+            
+            // The backend returns: { data: { user: {...}, token, refreshToken } }
             const userData = response.data.user;
             
             set({
@@ -83,10 +119,18 @@ export const useAuthStore = create<AuthState>()(
             profileData: additionalData.profileData
           };          const response = await apiService.register(registerData);
           
-          if (response.success && response.data) {
+          console.log('Registration API response:', response);
+            if (response.success && response.data) {
+            // Store refresh token
             localStorage.setItem('refreshToken', response.data.refreshToken);
             
+            console.log('Registration API response:', response);
+            console.log('User data from response:', response.data.user);
+            console.log('User role from response:', response.data.user?.role);
+            console.log('User role type:', typeof response.data.user?.role);
+            
             const userData = response.data.user;
+            console.log('Setting user in auth store:', userData);
             
             set({
               user: userData,
@@ -95,6 +139,14 @@ export const useAuthStore = create<AuthState>()(
               error: null
             });
             
+            // Immediately verify what was set
+            const currentState = get();
+            console.log('Auth store state after setting:', {
+              isAuthenticated: currentState.isAuthenticated,
+              userExists: !!currentState.user,
+              userRole: currentState.user?.role,
+              userRoleType: typeof currentState.user?.role
+            });
           } else {
             throw new Error(response.message || 'Registration failed');
           }
@@ -119,41 +171,6 @@ export const useAuthStore = create<AuthState>()(
           isLoading: false,
           error: null
         });
-      },
-
-      initializeAuth: async () => {
-        const token = apiService.getToken();
-        if (!token) return;
-
-        set({ isLoading: true });
-        try {
-          const response = await apiService.getProfile();
-          if (response.success && response.data) {
-            set({
-              user: response.data,
-              isAuthenticated: true,
-              isLoading: false,
-              error: null
-            });
-          } else {
-            apiService.setToken(null);
-            set({
-              user: null,
-              isAuthenticated: false,
-              isLoading: false,
-              error: null
-            });
-          }
-        } catch (error) {
-          console.error('Auth initialization failed:', error);
-          apiService.setToken(null);
-          set({
-            user: null,
-            isAuthenticated: false,
-            isLoading: false,
-            error: null
-          });
-        }
       }
     }),
     {
