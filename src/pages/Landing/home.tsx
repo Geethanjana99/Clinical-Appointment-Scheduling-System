@@ -1,9 +1,76 @@
-import React from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRightIcon, CalendarIcon, UsersIcon, BarChartIcon, ShieldCheckIcon } from 'lucide-react';
+import { 
+  ArrowRightIcon, 
+  CalendarIcon, 
+  UsersIcon, 
+  BarChartIcon, 
+  ShieldCheckIcon,
+  PhoneIcon,
+  MailIcon,
+  ClockIcon,
+  CheckIcon,
+  MenuIcon,
+  XIcon,
+  HeartIcon,
+  UserIcon,
+  StethoscopeIcon,
+  CreditCardIcon,
+  SettingsIcon,
+  TrendingUpIcon
+} from 'lucide-react';
 import Button from '../../components/ui/Button';
+import styles from './home.module.css';
 
 const Home = () => {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [scrollY, setScrollY] = useState(0);
+
+  useEffect(() => {
+    const handleScroll = () => setScrollY(window.scrollY);
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const services = [
+    {
+      icon: UserIcon,
+      title: 'Patient Management',
+      description: 'Complete patient record management, appointment scheduling, and medical history tracking.',
+      features: ['Digital Health Records', 'Appointment Booking', 'Medical History']
+    },
+    {
+      icon: StethoscopeIcon,
+      title: 'Doctor Portal',
+      description: 'Efficient tools for healthcare providers to manage patients and clinical workflows.',
+      features: ['Schedule Management', 'Patient Records', 'Prescription Management']
+    },
+    {
+      icon: CreditCardIcon,
+      title: 'Billing Management',
+      description: 'Comprehensive billing and payment processing with insurance integration.',
+      features: ['Automated Billing', 'Insurance Processing', 'Payment Tracking']
+    },
+    {
+      icon: BarChartIcon,
+      title: 'Analytics & Reports',
+      description: 'Comprehensive reporting and analytics for informed decision-making.',
+      features: ['Performance Metrics', 'Financial Reports', 'Operational Insights']
+    },
+    {
+      icon: ShieldCheckIcon,
+      title: 'Security & Compliance',
+      description: 'HIPAA-compliant security measures to protect sensitive patient information.',
+      features: ['Data Encryption', 'Access Controls', 'Audit Trails']
+    },
+    {
+      icon: HeartIcon,
+      title: '24/7 Support',
+      description: 'Round-the-clock technical support and system maintenance for uninterrupted service.',
+      features: ['Live Chat Support', 'System Monitoring', 'Regular Updates']
+    },
+  ];
+
   const features = [
     {
       icon: CalendarIcon,
@@ -16,9 +83,9 @@ const Home = () => {
       description: 'Dedicated interfaces for patients, doctors, admin staff, and billing staff.',
     },
     {
-      icon: BarChartIcon,
-      title: 'Analytics & Reports',
-      description: 'Comprehensive reporting and analytics for better healthcare management.',
+      icon: TrendingUpIcon,
+      title: 'AI-Powered Insights',
+      description: 'Advanced analytics and predictive insights for better healthcare outcomes.',
     },
     {
       icon: ShieldCheckIcon,
@@ -27,74 +94,202 @@ const Home = () => {
     },
   ];
 
+  const benefits = [
+    {
+      title: 'Integrated Platform',
+      description: 'All your healthcare management needs in one unified system.'
+    },
+    {
+      title: 'User-Friendly Interface',
+      description: 'Intuitive design that requires minimal training for staff and patients.'
+    },
+    {
+      title: 'Scalable Solution',
+      description: 'Grows with your practice, from small clinics to large hospital systems.'
+    }
+  ];
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
+    <div className="min-h-screen bg-white">
+      {/* Navigation Bar */}
+      <nav className={`fixed w-full top-0 z-50 transition-all duration-300 ${
+        scrollY > 100 ? 'bg-white shadow-xl' : 'bg-white/90 backdrop-blur-sm'
+      }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <h1 className="text-2xl font-bold text-blue-600">CareSync</h1>
+          <div className="flex justify-between items-center h-16">
+            {/* Logo */}
+            <div className="flex items-center space-x-3">
+              <div className="bg-blue-600 text-white rounded-lg p-2">
+                <HeartIcon className="h-6 w-6" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-gray-900">CareSync</h1>
+                <p className="text-xs text-gray-500">Healthcare Management</p>
               </div>
             </div>
-            <div className="flex items-center space-x-4">
+            
+            {/* Desktop Navigation */}
+            <div className="hidden md:flex items-center space-x-4">
+              <a href="#services" className="text-gray-700 hover:text-blue-600 transition-colors duration-300 px-3 py-2">
+                Services
+              </a>
+              <a href="#about" className="text-gray-700 hover:text-blue-600 transition-colors duration-300 px-3 py-2">
+                About
+              </a>
+              <a href="#contact" className="text-gray-700 hover:text-blue-600 transition-colors duration-300 px-3 py-2">
+                Contact
+              </a>
+              
               <Link to="/login">
-                <Button variant="outline">Sign In</Button>
+                <Button variant="outline" className="ml-4">
+                  Sign In
+                </Button>
               </Link>
               <Link to="/register">
-                <Button variant="primary">Get Started</Button>
+                <Button variant="primary">
+                  Get Started
+                </Button>
               </Link>
+            </div>
+            
+            {/* Mobile Menu Button */}
+            <div className="md:hidden">
+              <button
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                className="text-gray-700 hover:text-blue-600 focus:outline-none"
+              >
+                {isMenuOpen ? <XIcon className="h-6 w-6" /> : <MenuIcon className="h-6 w-6" />}
+              </button>
+            </div>
+          </div>
+          
+          {/* Mobile Menu */}
+          {isMenuOpen && (
+            <div className="md:hidden bg-white border-t border-gray-200">
+              <div className="px-4 py-4 space-y-3">
+                <a href="#services" className="block text-gray-700 hover:text-blue-600 transition-colors duration-300 py-2">
+                  Services
+                </a>
+                <a href="#about" className="block text-gray-700 hover:text-blue-600 transition-colors duration-300 py-2">
+                  About
+                </a>
+                <a href="#contact" className="block text-gray-700 hover:text-blue-600 transition-colors duration-300 py-2">
+                  Contact
+                </a>
+                <div className="pt-3 border-t border-gray-200 space-y-2">
+                  <Link to="/login" className="block w-full">
+                    <Button variant="outline" className="w-full">
+                      Sign In
+                    </Button>
+                  </Link>
+                  <Link to="/register" className="block w-full">
+                    <Button variant="primary" className="w-full">
+                      Get Started
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </nav>      {/* Hero Section */}
+      <section 
+        className={`relative min-h-screen flex items-center justify-center text-white pt-16 ${styles.heroSection}`}
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <div className="max-w-4xl mx-auto">
+            <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
+              Comprehensive Healthcare
+              <span className="text-blue-300"> Management System</span>
+            </h1>
+            
+            <p className="text-xl md:text-2xl mb-8 text-blue-100 leading-relaxed">
+              Streamline your healthcare operations with our integrated platform. 
+              Easy access for patients, doctors, billing staff, and administrators.
+            </p>
+            
+            {/* Key Benefits */}
+            <div className="grid md:grid-cols-2 gap-6 mb-10 max-w-3xl mx-auto">
+              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 text-left">
+                <UserIcon className="text-blue-300 h-8 w-8 mb-2" />
+                <h4 className="font-semibold mb-1">For Patients</h4>
+                <p className="text-sm text-blue-200">Book appointments, view medical records, and manage your healthcare journey.</p>
+              </div>
+              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 text-left">
+                <StethoscopeIcon className="text-blue-300 h-8 w-8 mb-2" />
+                <h4 className="font-semibold mb-1">For Healthcare Providers</h4>
+                <p className="text-sm text-blue-200">Manage schedules, patient records, and streamline clinical workflows.</p>
+              </div>
+            </div>            {/* Call-to-Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
+              <Link to="/login" className="w-full sm:w-auto">
+                <Button 
+                  variant="secondary" 
+                  size="lg" 
+                  className="w-full bg-white text-blue-700 hover:bg-blue-50 hover:scale-105 transform transition-all duration-300 shadow-xl border-2 border-white font-semibold"
+                >
+                  <CalendarIcon className="mr-2 h-5 w-5" />
+                  Book Your Appointment
+                </Button>
+              </Link>
+              <Link to="/login" className="w-full sm:w-auto">
+                <Button 
+                  variant="secondary" 
+                  size="lg" 
+                  className="w-full bg-white text-blue-700 hover:bg-blue-50 hover:scale-105 transform transition-all duration-300 shadow-xl border-2 border-white font-semibold"
+                >
+                  Healthcare Provider Login
+                </Button>
+              </Link>
+            </div>
+            
+            {/* Quick Access Info */}
+            <div className="text-center">
+              <p className="text-blue-200 mb-4">Quick Access For:</p>
+              <div className="flex flex-wrap justify-center gap-4 text-sm">
+                <span className="bg-white/20 px-3 py-1 rounded-full flex items-center">
+                  <UserIcon className="mr-1 h-4 w-4" />Patients
+                </span>
+                <span className="bg-white/20 px-3 py-1 rounded-full flex items-center">
+                  <StethoscopeIcon className="mr-1 h-4 w-4" />Doctors
+                </span>
+                <span className="bg-white/20 px-3 py-1 rounded-full flex items-center">
+                  <CreditCardIcon className="mr-1 h-4 w-4" />Billing Staff
+                </span>
+                <span className="bg-white/20 px-3 py-1 rounded-full flex items-center">
+                  <SettingsIcon className="mr-1 h-4 w-4" />Administrators
+                </span>
+              </div>
             </div>
           </div>
         </div>
-      </header>
-
-      {/* Hero Section */}
-      <section className="py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6">
-              Clinical Appointment
-              <span className="text-blue-600"> Scheduling Made Simple</span>
-            </h1>
-            <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
-              Streamline your healthcare facility's operations with our comprehensive 
-              appointment scheduling and patient management system.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link to="/register">
-                <Button variant="primary" size="lg" className="w-full sm:w-auto">
-                  Start Free Trial
-                  <ArrowRightIcon className="ml-2 h-5 w-5" />
-                </Button>
-              </Link>
-              <Link to="/login">
-                <Button variant="outline" size="lg" className="w-full sm:w-auto">
-                  Sign In to Your Account
-                </Button>
-              </Link>
-            </div>
-          </div>
+          {/* Scroll Down Indicator */}
+        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 animate-bounce">
+          <a href="#features" className="text-white hover:text-blue-300 transition-colors duration-300" title="Scroll to features">
+            <ArrowRightIcon className="h-6 w-6 rotate-90" />
+          </a>
         </div>
       </section>
 
       {/* Features Section */}
-      <section className="py-20 bg-white">
+      <section id="features" className="py-20 bg-gradient-to-br from-blue-50 to-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
               Everything You Need to Manage Your Clinic
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              From appointment booking to billing management, we've got you covered.
+              From appointment booking to billing management, we've got you covered with cutting-edge technology.
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {features.map((feature, index) => (
-              <div key={index} className="text-center p-6 rounded-lg border border-gray-200 hover:shadow-lg transition-shadow">
-                <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-100 rounded-lg mb-4">
-                  <feature.icon className="h-6 w-6 text-blue-600" />
+              <div 
+                key={index} 
+                className="text-center p-6 rounded-xl bg-white shadow-lg hover:shadow-xl hover:-translate-y-2 transition-all duration-300 border border-gray-100"
+              >
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-xl mb-6">
+                  <feature.icon className="h-8 w-8 text-blue-600" />
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
                   {feature.title}
@@ -108,22 +303,157 @@ const Home = () => {
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-20 bg-blue-600">
+      {/* Services Section */}
+      <section id="services" className="py-20 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h3 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+              Our Healthcare Services
+            </h3>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              Comprehensive digital solutions designed to enhance patient care and streamline healthcare operations.
+            </p>
+          </div>
+          
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {services.map((service, index) => (
+              <div 
+                key={index} 
+                className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl hover:-translate-y-2 transition-all duration-300"
+              >
+                <div className="bg-blue-50 rounded-lg p-4 w-16 h-16 flex items-center justify-center mb-4">
+                  <service.icon className="text-blue-600 h-8 w-8" />
+                </div>
+                <h4 className="text-xl font-semibold text-gray-900 mb-3">{service.title}</h4>
+                <p className="text-gray-600 mb-4">{service.description}</p>
+                <ul className="text-sm text-gray-500 space-y-1">
+                  {service.features.map((feature, idx) => (
+                    <li key={idx} className="flex items-center">
+                      <CheckIcon className="text-green-500 mr-2 h-4 w-4" />
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* About Section */}
+      <section id="about" className="py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <div>
+              <h3 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
+                Why Choose CareSync?
+              </h3>
+              <p className="text-lg text-gray-600 mb-8">
+                Our healthcare management system is designed with the needs of modern medical practices in mind. 
+                We provide a comprehensive, user-friendly platform that enhances patient care while streamlining operations.
+              </p>
+              
+              <div className="space-y-4 mb-8">
+                {benefits.map((benefit, index) => (
+                  <div key={index} className="flex items-start space-x-3">
+                    <div className="bg-green-500 text-white rounded-full p-2 mt-1">
+                      <CheckIcon className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <h5 className="font-semibold text-gray-900">{benefit.title}</h5>
+                      <p className="text-gray-600">{benefit.description}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              <Link to="/register">
+                <Button 
+                  variant="primary" 
+                  size="lg"
+                  className="hover:scale-105 transform transition-all duration-300"
+                >
+                  <ArrowRightIcon className="mr-2 h-5 w-5" />
+                  Get Started Today
+                </Button>
+              </Link>
+            </div>
+            
+            <div className="lg:order-first">
+              <div className="bg-gradient-to-br from-blue-100 to-blue-50 rounded-xl p-8 text-center">
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="bg-white rounded-lg p-4 text-center shadow-sm">
+                    <div className="text-2xl font-bold text-blue-600">10,000+</div>
+                    <div className="text-sm text-gray-600">Appointments</div>
+                  </div>
+                  <div className="bg-white rounded-lg p-4 text-center shadow-sm">
+                    <div className="text-2xl font-bold text-green-600">500+</div>
+                    <div className="text-sm text-gray-600">Healthcare Providers</div>
+                  </div>
+                  <div className="bg-white rounded-lg p-4 text-center shadow-sm">
+                    <div className="text-2xl font-bold text-purple-600">99.9%</div>
+                    <div className="text-sm text-gray-600">Uptime</div>
+                  </div>
+                  <div className="bg-white rounded-lg p-4 text-center shadow-sm">
+                    <div className="text-2xl font-bold text-orange-600">24/7</div>
+                    <div className="text-sm text-gray-600">Support</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Contact Section */}
+      <section id="contact" className="py-20 bg-blue-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-            Ready to Transform Your Healthcare Management?
-          </h2>
-          <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
-            Join thousands of healthcare providers who trust CareSync for their daily operations.
+          <h3 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
+            Ready to Transform Your Healthcare Operations?
+          </h3>
+          <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
+            Join thousands of healthcare providers who trust CareSync to manage their operations efficiently and securely.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/register">
-              <Button variant="primary" size="lg" className="bg-white text-blue-600 hover:bg-gray-50 w-full sm:w-auto">
-                Get Started Today
-                <ArrowRightIcon className="ml-2 h-5 w-5" />
+          
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
+            <Link to="/register" className="w-full sm:w-auto">
+              <Button 
+                variant="primary" 
+                size="lg"
+                className="w-full hover:scale-105 transform transition-all duration-300"
+              >
+                <ArrowRightIcon className="mr-2 h-5 w-5" />
+                Start Your Free Trial
               </Button>
             </Link>
+            <Link to="/login" className="w-full sm:w-auto">
+              <Button 
+                variant="outline" 
+                size="lg"
+                className="w-full border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white hover:scale-105 transform transition-all duration-300"
+              >
+                <PhoneIcon className="mr-2 h-5 w-5" />
+                Schedule a Demo
+              </Button>
+            </Link>
+          </div>
+          
+          <div className="grid md:grid-cols-3 gap-8 text-center">
+            <div className="bg-white rounded-lg p-6 shadow-lg">
+              <MailIcon className="text-blue-600 h-8 w-8 mx-auto mb-3" />
+              <h5 className="font-semibold text-gray-900 mb-2">Email Support</h5>
+              <p className="text-gray-600">support@caresync.com</p>
+            </div>
+            <div className="bg-white rounded-lg p-6 shadow-lg">
+              <PhoneIcon className="text-blue-600 h-8 w-8 mx-auto mb-3" />
+              <h5 className="font-semibold text-gray-900 mb-2">Phone Support</h5>
+              <p className="text-gray-600">+1 (800) 123-CARE</p>
+            </div>
+            <div className="bg-white rounded-lg p-6 shadow-lg">
+              <ClockIcon className="text-blue-600 h-8 w-8 mx-auto mb-3" />
+              <h5 className="font-semibold text-gray-900 mb-2">Available</h5>
+              <p className="text-gray-600">24/7 Support</p>
+            </div>
           </div>
         </div>
       </section>
@@ -131,19 +461,46 @@ const Home = () => {
       {/* Footer */}
       <footer className="bg-gray-900 text-white py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h3 className="text-2xl font-bold mb-4">CareSync</h3>
-            <p className="text-gray-400 mb-8">
-              Simplifying healthcare management, one appointment at a time.
-            </p>
-            <div className="flex justify-center space-x-6">
-              <Link to="/login" className="text-gray-400 hover:text-white">
-                Sign In
-              </Link>
-              <Link to="/register" className="text-gray-400 hover:text-white">
-                Register
-              </Link>
+          <div className="grid md:grid-cols-4 gap-8">
+            <div className="md:col-span-2">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="bg-blue-600 text-white rounded-lg p-2">
+                  <HeartIcon className="h-6 w-6" />
+                </div>
+                <div>
+                  <h4 className="text-xl font-bold">CareSync</h4>
+                  <p className="text-gray-300 text-sm">Healthcare Management System</p>
+                </div>
+              </div>
+              <p className="text-gray-300 mb-4 max-w-md">
+                Empowering healthcare providers with comprehensive digital solutions for better patient care and operational efficiency.
+              </p>
             </div>
+            
+            <div>
+              <h5 className="font-semibold mb-4">Quick Links</h5>
+              <ul className="space-y-2">
+                <li><a href="#services" className="text-gray-300 hover:text-white transition-colors duration-300">Services</a></li>
+                <li><a href="#about" className="text-gray-300 hover:text-white transition-colors duration-300">About Us</a></li>
+                <li><Link to="/login" className="text-gray-300 hover:text-white transition-colors duration-300">Patient Portal</Link></li>
+                <li><Link to="/login" className="text-gray-300 hover:text-white transition-colors duration-300">Doctor Login</Link></li>
+              </ul>
+            </div>
+            
+            <div>
+              <h5 className="font-semibold mb-4">Support</h5>
+              <ul className="space-y-2">
+                <li><a href="#contact" className="text-gray-300 hover:text-white transition-colors duration-300">Contact Us</a></li>
+                <li><a href="#" className="text-gray-300 hover:text-white transition-colors duration-300">Privacy Policy</a></li>
+                <li><a href="#" className="text-gray-300 hover:text-white transition-colors duration-300">Terms of Service</a></li>
+              </ul>
+            </div>
+          </div>
+          
+          <div className="border-t border-gray-600 mt-8 pt-8 text-center">
+            <p className="text-gray-300">
+              © 2025 CareSync Healthcare Management System. All rights reserved.
+            </p>
           </div>
         </div>
       </footer>

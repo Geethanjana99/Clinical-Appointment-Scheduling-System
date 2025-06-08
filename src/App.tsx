@@ -2,6 +2,8 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { useEffect } from 'react';
 import { useAuthStore } from './store/authStore';
 import type { UserRole } from './store/authStore';
+// Landing Page
+import Home from './pages/Landing/home';
 // Auth Pages
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
@@ -67,9 +69,11 @@ export function App() {
   useEffect(() => {
     initializeAuth();
   }, [initializeAuth]);
-
   return <Router>
       <Routes>
+        {/* Landing Page */}
+        <Route path="/" element={<Home />} />
+        
         {/* Auth Routes */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />        {/* Patient Routes */}
@@ -109,11 +113,8 @@ export function App() {
           <Route index element={<BillingDashboard />} />
           <Route path="invoices" element={<Invoices />} />
           <Route path="reports" element={<BillingReports />} />
-          <Route path="insurance-claims" element={<InsuranceClaims />} />
-          <Route path="analytics" element={<AnalyticsDashboard />} />
+          <Route path="insurance-claims" element={<InsuranceClaims />} />          <Route path="analytics" element={<AnalyticsDashboard />} />
         </Route>
-        {/* Default Route */}
-        <Route path="/" element={<Navigate to="/login" replace />} />
       </Routes>
     </Router>;
 }
