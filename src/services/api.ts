@@ -208,29 +208,60 @@ class ApiService {
     return this.makeRequest<any>(`/doctors/${id}`);
   }
 
-  // Appointment methods
-  async getAppointments(): Promise<ApiResponse<any[]>> {
-    return this.makeRequest<any[]>('/appointments');
+  // Doctor Dashboard methods
+  async getDoctorDashboard(): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>('/doctors/dashboard');
   }
 
-  async createAppointment(appointmentData: any): Promise<ApiResponse<any>> {
-    return this.makeRequest<any>('/appointments', {
-      method: 'POST',
-      body: JSON.stringify(appointmentData),
+  async getDoctorAppointments(params?: { 
+    page?: number; 
+    limit?: number; 
+    status?: string; 
+    startDate?: string; 
+    endDate?: string; 
+  }): Promise<ApiResponse<any>> {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined) {
+          queryParams.append(key, value.toString());
+        }
+      });
+    }
+    const queryString = queryParams.toString();
+    return this.makeRequest<any>(`/doctors/appointments${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async getDoctorStatistics(): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>('/doctors/statistics');
+  }
+
+  async getDoctorEarnings(): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>('/doctors/earnings');
+  }
+  async updateAppointmentStatus(appointmentId: string, status: string, notes?: string): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>(`/appointments/${appointmentId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status, notes }),
     });
   }
 
-  async updateAppointment(id: string, appointmentData: any): Promise<ApiResponse<any>> {
-    return this.makeRequest<any>(`/appointments/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(appointmentData),
+  async handleAppointmentAction(appointmentId: string, action: 'start' | 'complete' | 'cancel'): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>(`/doctors/appointments/${appointmentId}/action`, {
+      method: 'PATCH',
+      body: JSON.stringify({ action }),
     });
   }
 
-  async deleteAppointment(id: string): Promise<ApiResponse<any>> {
-    return this.makeRequest<any>(`/appointments/${id}`, {
-      method: 'DELETE',
+  async completeAppointment(appointmentId: string, notes?: string, actualWaitTime?: number): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>(`/appointments/${appointmentId}/complete`, {
+      method: 'PATCH',
+      body: JSON.stringify({ notes, actualWaitTime }),
     });
+  }
+
+  async getDoctorProfile(): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>('/doctors/profile');
   }
 }
 
