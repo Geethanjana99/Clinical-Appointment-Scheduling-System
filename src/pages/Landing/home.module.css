@@ -1,0 +1,15 @@
+.heroSection {
+  background-image: url('../../images/bg2.jpg');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+}
+
+.heroOverlay {
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.heroOverlayDark {
+  background-color: rgba(0, 0, 0, 0.6);
+}
