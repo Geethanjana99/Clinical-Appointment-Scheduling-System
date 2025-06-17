@@ -55,12 +55,11 @@ const PatientDashboard = () => {
         </Link>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="md:col-span-2">
-          <div className="flex items-center justify-between mb-4">
+        <Card className="md:col-span-2">          <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-medium text-gray-900">
               Upcoming Appointments
             </h2>
-            <Link to="/patient/book-appointment" className="text-sm text-blue-600 hover:text-blue-800 flex items-center">
+            <Link to="/patient/my-appointments" className="text-sm text-blue-600 hover:text-blue-800 flex items-center">
               View all <ChevronRightIcon className="w-4 h-4 ml-1" />
             </Link>
           </div>
@@ -98,12 +97,17 @@ const PatientDashboard = () => {
         <Card>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-medium text-gray-900">Quick Actions</h2>
-          </div>
-          <div className="space-y-3">
+          </div>          <div className="space-y-3">
             <Link to="/patient/book-appointment">
               <Button variant="outline" className="w-full justify-start">
                 <CalendarIcon className="w-4 h-4 mr-2" />
                 Book New Appointment
+              </Button>
+            </Link>
+            <Link to="/patient/my-appointments">
+              <Button variant="outline" className="w-full justify-start">
+                <CalendarIcon className="w-4 h-4 mr-2" />
+                View My Appointments
               </Button>
             </Link>
             <Link to="/patient/upload-reports">
