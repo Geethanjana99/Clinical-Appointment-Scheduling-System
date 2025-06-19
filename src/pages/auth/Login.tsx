@@ -25,7 +25,7 @@ const Login = () => {
   }, [initializeAuth]);  // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated && user && user.role) {
-      const validRoles = ['patient', 'doctor', 'admin', 'billing'];
+      const validRoles = ['patient', 'doctor', 'admin', 'nurse'];
       
       if (validRoles.includes(user.role)) {
         navigate(`/${user.role}`);

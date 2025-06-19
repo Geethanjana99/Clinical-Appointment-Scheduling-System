@@ -14,11 +14,12 @@ export interface LoginRequest {
 }
 
 export interface RegisterRequest {
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   password: string;
-  role: 'patient' | 'doctor' | 'admin' | 'billing';
-  phone?: string;
+  role: 'patient' | 'doctor' | 'admin' | 'nurse';
+  phoneNumber?: string;
   profileData?: {
     gender?: string;
     date_of_birth?: string;
@@ -35,15 +36,16 @@ export interface RegisterRequest {
 
 export interface User {
   id: string;
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
-  role: 'patient' | 'doctor' | 'admin' | 'billing';
-  phone?: string;
+  role: 'patient' | 'doctor' | 'admin' | 'nurse';
+  phoneNumber?: string;
   avatar_url?: string;
-  is_active?: boolean;
+  isActive?: boolean;
   email_verified?: boolean;
   last_login?: string;
-  created_at?: string;
+  createdAt?: string;
   updated_at?: string;
   profile?: any;
 }
@@ -51,7 +53,6 @@ export interface User {
 export interface AuthResponse {
   user: User;
   token: string;
-  refreshToken: string;
 }
 
 class ApiService {

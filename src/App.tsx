@@ -31,12 +31,8 @@ import ManagePatients from './pages/admin/ManagePatients';
 import ManageAppointments from './pages/admin/ManageAppointments';
 import ManageDoctors from './pages/admin/ManageDoctors';
 import UploadReports from './pages/admin/UploadReports';
-// Billing Pages
-import BillingDashboard from './pages/billing/Dashboard';
-import Invoices from './pages/billing/Invoices';
-import BillingReports from './pages/billing/Reports';
-import InsuranceClaims from './pages/billing/InsuranceClaims';
-import AnalyticsDashboard from './pages/billing/AnalyticsDashboard';
+// Nurse Pages
+import NurseDashboard from './pages/nurse/Dashboard';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -50,14 +46,13 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
-  
-  if (allowedRoles && user && !allowedRoles.includes(user.role)) {
+    if (allowedRoles && user && !allowedRoles.includes(user.role)) {
     // Redirect to the appropriate dashboard based on role
     const dashboardRoutes: Record<UserRole, string> = {
       patient: '/patient',
       doctor: '/doctor',
       admin: '/admin',
-      billing: '/billing'
+      nurse: '/nurse'
     };
     return <Navigate to={dashboardRoutes[user.role] || '/login'} replace />;
   }
@@ -101,7 +96,7 @@ export function App() {
           <Route path="appointments" element={<DoctorAppointments />} />
           <Route path="ai-predictions" element={<AIPredictions />} />
           <Route path="availability" element={<DoctorAvailability />} />
-        </Route>{/* Admin Routes */}
+        </Route>        {/* Admin Routes */}
         <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}>
               <Layout />
             </ProtectedRoute>}>
@@ -110,14 +105,14 @@ export function App() {
           <Route path="doctors" element={<ManageDoctors />} />
           <Route path="appointments" element={<ManageAppointments />} />
           <Route path="reports" element={<UploadReports />} />
-        </Route>        {/* Billing Routes */}
-        <Route path="/billing" element={<ProtectedRoute allowedRoles={['billing']}>
+        </Route>
+
+        {/* Nurse Routes */}
+        <Route path="/nurse" element={<ProtectedRoute allowedRoles={['nurse']}>
               <Layout />
             </ProtectedRoute>}>
-          <Route index element={<BillingDashboard />} />
-          <Route path="invoices" element={<Invoices />} />
-          <Route path="reports" element={<BillingReports />} />
-          <Route path="insurance-claims" element={<InsuranceClaims />} />          <Route path="analytics" element={<AnalyticsDashboard />} />        </Route>
+          <Route index element={<NurseDashboard />} />
+        </Route>
       </Routes>
     </Router>
     </DarkModeProvider>

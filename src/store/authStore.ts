@@ -2,20 +2,21 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { apiService, type RegisterRequest } from '../services/api';
 
-export type UserRole = 'patient' | 'doctor' | 'admin' | 'billing';
+export type UserRole = 'patient' | 'doctor' | 'admin' | 'nurse';
 
 interface User {
   id: string;
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   role: UserRole;
-  phone?: string;
+  phoneNumber?: string;
   avatar_url?: string;
-  is_active?: boolean;
+  isActive?: boolean;
   email_verified?: boolean;
   last_login?: string;
   profile?: any;
-  created_at?: string;
+  createdAt?: string;
   updated_at?: string;
 }
 
@@ -75,14 +76,10 @@ export const useAuthStore = create<AuthState>()(
           });
         }
       },      login: async (email, password) => {
-        set({ isLoading: true, error: null });        try {
-          const response = await apiService.login({ email, password });
+        set({ isLoading: true, error: null });        try {          const response = await apiService.login({ email, password });
           
           if (response.success && response.data) {
-            // Store refresh token
-            localStorage.setItem('refreshToken', response.data.refreshToken);
-            
-            // The backend returns: { data: { user: {...}, token, refreshToken } }
+            // The backend returns: { data: { user: {...}, token } }
             const userData = response.data.user;
             
             set({
@@ -104,24 +101,26 @@ export const useAuthStore = create<AuthState>()(
           });
           throw error;
         }
-      },
-
-      register: async (name, email, password, role, additionalData = {}) => {
+      },      register: async (name, email, password, role, additionalData = {}) => {
         set({ isLoading: true, error: null });
         
         try {
+          // Split name into firstName and lastName
+          const nameParts = name.trim().split(' ');
+          const firstName = nameParts[0] || '';
+          const lastName = nameParts.slice(1).join(' ') || 'User';
+          
           const registerData: RegisterRequest = {
-            name,
+            firstName,
+            lastName,
             email,
             password,
             role,
-            phone: additionalData.phone,
+            phoneNumber: additionalData.phone,
             profileData: additionalData.profileData
           };          const response = await apiService.register(registerData);
           
           if (response.success && response.data) {
-            localStorage.setItem('refreshToken', response.data.refreshToken);
-            
             const userData = response.data.user;
             
             set({
@@ -152,11 +151,8 @@ export const useAuthStore = create<AuthState>()(
           });
           throw error;
         }
-      },
-
-      logout: () => {
+      },      logout: () => {
         apiService.logout();
-        localStorage.removeItem('refreshToken');
         set({
           user: null,
           isAuthenticated: false,
