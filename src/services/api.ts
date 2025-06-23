@@ -54,6 +54,11 @@ export interface AuthResponse {
   refreshToken: string;
 }
 
+export interface RegisterResponse {
+  user: User;
+  requiresLogin: boolean;
+}
+
 class ApiService {
   private static instance: ApiService;
   private token: string | null = null;
@@ -132,17 +137,13 @@ class ApiService {
     }
 
     return response;
-  }
-
-  async register(userData: RegisterRequest): Promise<ApiResponse<AuthResponse>> {
-    const response = await this.makeRequest<AuthResponse>('/auth/register', {
+  }  async register(userData: RegisterRequest): Promise<ApiResponse<RegisterResponse>> {
+    const response = await this.makeRequest<RegisterResponse>('/auth/register', {
       method: 'POST',
       body: JSON.stringify(userData),
     });
 
-    if (response.success && response.data) {
-      this.setToken(response.data.token);
-    }
+    // Don't set token on registration - user must login explicitly
 
     return response;
   }

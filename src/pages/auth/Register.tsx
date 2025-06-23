@@ -37,31 +37,12 @@ const Register = () => {
     console.log('Register useEffect triggered:', {
       isAuthenticated,
       userExists: !!user,
-      userRole: user?.role,
-      userRoleType: typeof user?.role,
-      fullUser: user
+      userRole: user?.role
     });
     
     if (isAuthenticated && user) {
-      if (user.role) {
-        console.log('Redirecting user with role:', user.role);
-        // Add a small delay to ensure state is fully updated
-        setTimeout(() => {
-          navigate(`/${user.role}`);
-        }, 100);
-      } else {
-        console.error('User authenticated but role is undefined:', user);
-        // Give it another chance in case the state update is delayed
-        setTimeout(() => {
-          if (user.role) {
-            console.log('Role found on retry, redirecting:', user.role);
-            navigate(`/${user.role}`);
-          } else {
-            console.error('Role still missing after retry:', user);
-            setError('Registration successful but user role is missing. Please contact support.');
-          }
-        }, 500);
-      }
+      console.log('User already authenticated, redirecting to dashboard');
+      navigate(`/${user.role}`);
     }
   }, [isAuthenticated, user, navigate]);
 
@@ -114,12 +95,17 @@ const Register = () => {
           license_number: licenseNumber,
           experience_years: experienceYears ? parseInt(experienceYears) : undefined,
           department: department || undefined,
-        };      }
-
-      console.log('Attempting registration with:', { name, email, role, phone: phone || 'none' });
+        };      }      console.log('Attempting registration with:', { name, email, role, phone: phone || 'none' });
       await register(name, email, password, role, additionalData);
-      console.log('Registration successful, waiting for redirect...');
-      // Navigation will be handled by the useEffect hook
+      console.log('Registration successful, redirecting to login...');
+      
+      // After successful registration, redirect to login page
+      navigate('/login', { 
+        state: { 
+          message: 'Registration successful! Please login to continue.',
+          email: email 
+        } 
+      });
     } catch (err) {
       console.error('Registration error details:', err);
       // Display the actual error message from the backend if available
