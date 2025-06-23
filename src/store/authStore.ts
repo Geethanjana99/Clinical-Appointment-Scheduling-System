@@ -119,26 +119,16 @@ export const useAuthStore = create<AuthState>()(
             profileData: additionalData.profileData
           };          const response = await apiService.register(registerData);
           
-          if (response.success && response.data) {
-            localStorage.setItem('refreshToken', response.data.refreshToken);
-            
-            const userData = response.data.user;
-            
+          if (response.success) {
+            // Don't auto-login after registration - user must login explicitly
             set({
-              user: userData,
-              isAuthenticated: true,
+              user: null,
+              isAuthenticated: false,
               isLoading: false,
               error: null
             });
             
-            // Immediately verify what was set
-            const currentState = get();
-            console.log('Auth store state after setting:', {
-              isAuthenticated: currentState.isAuthenticated,
-              userExists: !!currentState.user,
-              userRole: currentState.user?.role,
-              userRoleType: typeof currentState.user?.role
-            });
+            console.log('Registration successful - user must login');
           } else {
             throw new Error(response.message || 'Registration failed');
           }
