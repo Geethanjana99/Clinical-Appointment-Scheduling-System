@@ -1,15 +1,49 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import StatusBadge from '../../components/ui/StatusBadge';
-import { CalendarIcon, SearchIcon, PlusIcon, FilterIcon, UserIcon } from 'lucide-react';
+import Modal from '../../components/ui/Modal';
+import { SearchIcon, PlusIcon, FilterIcon, UserIcon } from 'lucide-react';
 const ManageAppointments = () => {
-  return <div className="space-y-6">
-      <div className="flex items-center justify-between">
+  const [showAppointmentForm, setShowAppointmentForm] = useState(false);
+  const [formData, setFormData] = useState({
+    patientName: '',
+    patientEmail: '',
+    doctorName: '',
+    appointmentDate: '',
+    appointmentTime: '',
+    reason: '',
+    notes: ''
+  });
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Here you would typically call an API to create the appointment
+    console.log('Creating appointment:', formData);
+    setShowAppointmentForm(false);
+    setFormData({
+      patientName: '',
+      patientEmail: '',
+      doctorName: '',
+      appointmentDate: '',
+      appointmentTime: '',
+      reason: '',
+      notes: ''
+    });
+  };
+  return <div className="space-y-6">      <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">
           Manage Appointments
         </h1>
-        <Button variant="primary">
+        <Button variant="primary" onClick={() => setShowAppointmentForm(true)}>
           <PlusIcon className="w-4 h-4 mr-2" />
           New Appointment
         </Button>
@@ -105,10 +139,160 @@ const ManageAppointments = () => {
               <Button variant="outline" size="sm">
                 Next
               </Button>
-            </div>
-          </div>
+            </div>          </div>
         </div>
       </Card>
+
+      {/* New Appointment Modal */}
+      <Modal 
+        isOpen={showAppointmentForm} 
+        onClose={() => setShowAppointmentForm(false)}
+        title="Schedule New Appointment"
+      >
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="patientName" className="block text-sm font-medium text-gray-700">
+                Patient Name *
+              </label>
+              <input
+                type="text"
+                id="patientName"
+                name="patientName"
+                value={formData.patientName}
+                onChange={handleInputChange}
+                required
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Enter patient name"
+              />
+            </div>
+            <div>
+              <label htmlFor="patientEmail" className="block text-sm font-medium text-gray-700">
+                Patient Email
+              </label>
+              <input
+                type="email"
+                id="patientEmail"
+                name="patientEmail"
+                value={formData.patientEmail}
+                onChange={handleInputChange}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                placeholder="patient@example.com"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="doctorName" className="block text-sm font-medium text-gray-700">
+              Doctor *
+            </label>
+            <select
+              id="doctorName"
+              name="doctorName"
+              value={formData.doctorName}
+              onChange={handleInputChange}
+              required
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">Select a doctor</option>
+              <option value="Dr. Sarah Johnson">Dr. Sarah Johnson - Cardiology</option>
+              <option value="Dr. Michael Chen">Dr. Michael Chen - Neurology</option>
+              <option value="Dr. Emily Davis">Dr. Emily Davis - Pediatrics</option>
+              <option value="Dr. James Wilson">Dr. James Wilson - Orthopedics</option>
+              <option value="Dr. Lisa Anderson">Dr. Lisa Anderson - Dermatology</option>
+            </select>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="appointmentDate" className="block text-sm font-medium text-gray-700">
+                Appointment Date *
+              </label>
+              <input
+                type="date"
+                id="appointmentDate"
+                name="appointmentDate"
+                value={formData.appointmentDate}
+                onChange={handleInputChange}
+                required
+                min={new Date().toISOString().split('T')[0]}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label htmlFor="appointmentTime" className="block text-sm font-medium text-gray-700">
+                Appointment Time *
+              </label>
+              <select
+                id="appointmentTime"
+                name="appointmentTime"
+                value={formData.appointmentTime}
+                onChange={handleInputChange}
+                required
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Select time</option>
+                <option value="09:00">09:00 AM</option>
+                <option value="09:30">09:30 AM</option>
+                <option value="10:00">10:00 AM</option>
+                <option value="10:30">10:30 AM</option>
+                <option value="11:00">11:00 AM</option>
+                <option value="11:30">11:30 AM</option>
+                <option value="14:00">02:00 PM</option>
+                <option value="14:30">02:30 PM</option>
+                <option value="15:00">03:00 PM</option>
+                <option value="15:30">03:30 PM</option>
+                <option value="16:00">04:00 PM</option>
+                <option value="16:30">04:30 PM</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="reason" className="block text-sm font-medium text-gray-700">
+              Reason for Visit *
+            </label>
+            <input
+              type="text"
+              id="reason"
+              name="reason"
+              value={formData.reason}
+              onChange={handleInputChange}
+              required
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              placeholder="e.g., Regular checkup, Follow-up visit, etc."
+            />
+          </div>
+
+          <div>
+            <label htmlFor="notes" className="block text-sm font-medium text-gray-700">
+              Additional Notes
+            </label>
+            <textarea
+              id="notes"
+              name="notes"
+              value={formData.notes}
+              onChange={handleInputChange}
+              rows={3}
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Any additional information or special requirements..."
+            />
+          </div>
+
+          <div className="flex justify-end space-x-3 pt-4">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => setShowAppointmentForm(false)}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary">
+              Schedule Appointment
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>;
 };
 export default ManageAppointments;

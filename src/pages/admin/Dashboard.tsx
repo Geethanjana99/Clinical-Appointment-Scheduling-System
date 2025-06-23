@@ -1,10 +1,12 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import { UsersIcon, UserPlusIcon, CalendarIcon, FileUpIcon, SearchIcon, PlusIcon } from 'lucide-react';
 // Placeholder component for the Admin Dashboard
 const AdminDashboard: React.FC = () => {
+  const navigate = useNavigate();
   const {
     user
   } = useAuthStore();
@@ -23,10 +25,9 @@ const AdminDashboard: React.FC = () => {
           <div className="flex flex-col items-center text-center p-4">
             <div className="bg-blue-100 rounded-full p-3 mb-3">
               <UserPlusIcon className="h-6 w-6 text-blue-600" />
-            </div>
-            <h3 className="font-medium text-blue-800">Add New Patient</h3>
+            </div>            <h3 className="font-medium text-blue-800">Add New Patient</h3>
             <p className="text-sm text-blue-600 mt-1">Register a new patient</p>
-            <Button variant="primary" size="sm" className="mt-3">
+            <Button variant="primary" size="sm" className="mt-3" onClick={() => navigate('/admin/patients')}>
               Add Patient
             </Button>
           </div>
@@ -35,10 +36,9 @@ const AdminDashboard: React.FC = () => {
           <div className="flex flex-col items-center text-center p-4">
             <div className="bg-green-100 rounded-full p-3 mb-3">
               <UsersIcon className="h-6 w-6 text-green-600" />
-            </div>
-            <h3 className="font-medium text-green-800">Add New Doctor</h3>
+            </div>            <h3 className="font-medium text-green-800">Add New Doctor</h3>
             <p className="text-sm text-green-600 mt-1">Register a new doctor</p>
-            <Button variant="success" size="sm" className="mt-3">
+            <Button variant="success" size="sm" className="mt-3" onClick={() => navigate('/admin/doctors')}>
               Add Doctor
             </Button>
           </div>
@@ -50,11 +50,10 @@ const AdminDashboard: React.FC = () => {
             </div>
             <h3 className="font-medium text-purple-800">
               Schedule Appointment
-            </h3>
-            <p className="text-sm text-purple-600 mt-1">
+            </h3>            <p className="text-sm text-purple-600 mt-1">
               Create a new appointment
             </p>
-            <Button variant="primary" size="sm" className="mt-3 bg-purple-600 hover:bg-purple-700 focus:ring-purple-500">
+            <Button variant="primary" size="sm" className="mt-3 bg-purple-600 hover:bg-purple-700 focus:ring-purple-500" onClick={() => navigate('/admin/appointments')}>
               Schedule
             </Button>
           </div>
@@ -64,11 +63,10 @@ const AdminDashboard: React.FC = () => {
             <div className="bg-yellow-100 rounded-full p-3 mb-3">
               <FileUpIcon className="h-6 w-6 text-yellow-600" />
             </div>
-            <h3 className="font-medium text-yellow-800">Upload Reports</h3>
-            <p className="text-sm text-yellow-600 mt-1">
+            <h3 className="font-medium text-yellow-800">Upload Reports</h3>            <p className="text-sm text-yellow-600 mt-1">
               Upload patient reports
             </p>
-            <Button variant="primary" size="sm" className="mt-3 bg-yellow-600 hover:bg-yellow-700 focus:ring-yellow-500">
+            <Button variant="primary" size="sm" className="mt-3 bg-yellow-600 hover:bg-yellow-700 focus:ring-yellow-500" onClick={() => navigate('/admin/reports')}>
               Upload
             </Button>
           </div>
@@ -85,9 +83,9 @@ const AdminDashboard: React.FC = () => {
               <input type="text" placeholder="Search patients..." className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" />
               <div className="absolute left-3 top-2.5 text-gray-400">
                 <SearchIcon className="h-5 w-5" />
-              </div>
-            </div>
-            <Button variant="primary" icon={<PlusIcon className="h-5 w-5" />}>
+              </div>            </div>
+            <Button variant="primary" onClick={() => navigate('/admin/patients')}>
+              <PlusIcon className="h-5 w-5 mr-2" />
               Add Patient
             </Button>
           </div>
