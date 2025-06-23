@@ -14,12 +14,11 @@ export interface LoginRequest {
 }
 
 export interface RegisterRequest {
-  firstName: string;
-  lastName: string;
+  name: string;
   email: string;
   password: string;
-  role: 'patient' | 'doctor' | 'admin' | 'nurse';
-  phoneNumber?: string;
+  role: 'patient' | 'doctor' | 'admin' | 'billing';
+  phone?: string;
   profileData?: {
     gender?: string;
     date_of_birth?: string;
@@ -27,7 +26,7 @@ export interface RegisterRequest {
     emergency_contact_name?: string;
     emergency_contact_phone?: string;
     preferred_language?: string;
-    specialization?: string;
+    specialty?: string;
     license_number?: string;
     experience_years?: number;
     department?: string;
@@ -36,16 +35,15 @@ export interface RegisterRequest {
 
 export interface User {
   id: string;
-  firstName: string;
-  lastName: string;
+  name: string;
   email: string;
-  role: 'patient' | 'doctor' | 'admin' | 'nurse';
-  phoneNumber?: string;
+  role: 'patient' | 'doctor' | 'admin' | 'billing';
+  phone?: string;
   avatar_url?: string;
-  isActive?: boolean;
+  is_active?: boolean;
   email_verified?: boolean;
   last_login?: string;
-  createdAt?: string;
+  created_at?: string;
   updated_at?: string;
   profile?: any;
 }

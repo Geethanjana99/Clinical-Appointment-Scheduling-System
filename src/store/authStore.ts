@@ -2,21 +2,20 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { apiService, type RegisterRequest } from '../services/api';
 
-export type UserRole = 'patient' | 'doctor' | 'admin' | 'nurse';
+export type UserRole = 'patient' | 'doctor' | 'admin' | 'billing';
 
 interface User {
   id: string;
-  firstName: string;
-  lastName: string;
+  name: string;
   email: string;
   role: UserRole;
-  phoneNumber?: string;
+  phone?: string;
   avatar_url?: string;
-  isActive?: boolean;
+  is_active?: boolean;
   email_verified?: boolean;
   last_login?: string;
   profile?: any;
-  createdAt?: string;
+  created_at?: string;
   updated_at?: string;
 }
 
@@ -101,33 +100,20 @@ export const useAuthStore = create<AuthState>()(
           });
           throw error;
         }
-      },      register: async (name, email, password, role, additionalData = {}) => {
-        set({ isLoading: true, error: null });
+      },      register: async (name, email, password, role, additionalData = {}) => {        set({ isLoading: true, error: null });
         
         try {
-          // Split name into firstName and lastName
-          const nameParts = name.trim().split(' ');
-          const firstName = nameParts[0] || '';
-          const lastName = nameParts.slice(1).join(' ') || 'User';
-          
           const registerData: RegisterRequest = {
-            firstName,
-            lastName,
+            name,
             email,
             password,
             role,
-            phoneNumber: additionalData.phone,
+            phone: additionalData.phone,
             profileData: additionalData.profileData
-          };          const response = await apiService.register(registerData);
+          };const response = await apiService.register(registerData);
           
-<<<<<<< HEAD
-          if (response.success && response.data) {
-            const userData = response.data.user;
-            
-=======
           if (response.success) {
             // Don't auto-login after registration - user must login explicitly
->>>>>>> 983b82377098394d641946ab8415db17dbdc623b
             set({
               user: null,
               isAuthenticated: false,
