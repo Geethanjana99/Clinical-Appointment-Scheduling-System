@@ -3,12 +3,142 @@ import { Link } from 'react-router-dom';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import StatusBadge from '../../components/ui/StatusBadge';
+import GenerateInvoiceModal from '../../components/modals/GenerateInvoiceModal';
+import ViewInvoiceModal from '../../components/modals/ViewInvoiceModal';
 import { DollarSignIcon, FileTextIcon, ChevronRightIcon, TrendingUpIcon, CalendarIcon, UserIcon } from 'lucide-react';
 const BillingDashboard = () => {
-  return <div className="space-y-6">
-      <div className="flex items-center justify-between">
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = React.useState(false);
+  const [isViewModalOpen, setIsViewModalOpen] = React.useState(false);
+  const [selectedInvoice, setSelectedInvoice] = React.useState<any>(null);
+
+  // Mock invoice data for demonstration - using state to allow updates
+  const [invoices, setInvoices] = React.useState([
+    {
+      id: 1,
+      invoiceNumber: 'INV-20231001',
+      patientName: 'John Smith',
+      patientId: 'P-1001',
+      appointmentDate: '2023-10-10',
+      dueDate: '2023-10-25',
+      generatedDate: '2023-10-11',
+      status: 'paid' as const,
+      totalAmount: 150,
+      items: [
+        {
+          id: '1',
+          description: 'General Consultation',
+          quantity: 1,
+          rate: 150,
+          amount: 150
+        }
+      ],
+      notes: 'Regular checkup appointment'
+    },
+    {
+      id: 2,
+      invoiceNumber: 'INV-20232001',
+      patientName: 'John Smith',
+      patientId: 'P-2001',
+      appointmentDate: '2023-10-12',
+      dueDate: '2023-10-27',
+      generatedDate: '2023-10-12',
+      status: 'unpaid' as const,
+      totalAmount: 300,
+      items: [
+        {
+          id: '1',
+          description: 'Specialist Consultation',
+          quantity: 1,
+          rate: 250,
+          amount: 250
+        },
+        {
+          id: '2',
+          description: 'Blood Test',
+          quantity: 1,
+          rate: 50,
+          amount: 50
+        }
+      ],
+      notes: 'Follow-up required'
+    },    {
+      id: 3,
+      invoiceNumber: 'INV-20233001',
+      patientName: 'John Smith',
+      patientId: 'P-3001',
+      appointmentDate: '2023-10-14',
+      dueDate: '2023-10-29',
+      generatedDate: '2023-10-14',
+      status: 'unpaid' as const,
+      totalAmount: 450,
+      items: [
+        {
+          id: '1',
+          description: 'X-Ray',
+          quantity: 2,
+          rate: 80,
+          amount: 160
+        },
+        {
+          id: '2',
+          description: 'Emergency Visit',
+          quantity: 1,
+          rate: 290,
+          amount: 290
+        }
+      ],
+      notes: 'Emergency treatment completed'
+    }
+  ]);
+  const handleGenerateInvoice = (invoiceData: any) => {
+    console.log('Generated Invoice:', invoiceData);
+    // Here you would typically send the data to your backend API
+    // For now, we'll just log it and show a success message
+    alert(`Invoice ${invoiceData.invoiceNumber} generated successfully for ${invoiceData.patientName}!`);
+  };
+
+  const handleViewInvoice = (index: number) => {
+    setSelectedInvoice(invoices[index]);
+    setIsViewModalOpen(true);
+  };
+  const handleRecordPaymentFromModal = (invoice: any) => {
+    // Find the invoice index
+    const index = invoices.findIndex(inv => inv.id === invoice.id);
+    if (index !== -1) {
+      handleRecordPayment(index);
+    }
+  };
+
+  const handleRecordPayment = (index: number) => {
+    const invoice = invoices[index];
+    if (invoice.status === 'unpaid') {
+      // Show confirmation dialog
+      const confirmPayment = window.confirm(
+        `Are you sure you want to record payment for Invoice ${invoice.invoiceNumber}?\nAmount: $${invoice.totalAmount.toFixed(2)}`
+      );
+      
+      if (confirmPayment) {
+        // Update the invoice status to paid
+        setInvoices(prevInvoices => 
+          prevInvoices.map((inv, i) => 
+            i === index ? { ...inv, status: 'paid' as const } : inv
+          )
+        );
+        
+        // Show success message
+        alert(`Payment recorded successfully for Invoice ${invoice.invoiceNumber}!`);
+        
+        // Update selected invoice if it's currently being viewed
+        if (selectedInvoice && selectedInvoice.id === invoice.id) {
+          setSelectedInvoice({ ...invoice, status: 'paid' });
+        }
+      }
+    }
+  };
+
+  return <div className="space-y-6">      <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Billing Dashboard</h1>
-        <Button variant="primary">
+        <Button variant="primary" onClick={() => setIsInvoiceModalOpen(true)}>
           <FileTextIcon className="w-4 h-4 mr-2" />
           Generate Invoice
         </Button>
@@ -87,9 +217,9 @@ const BillingDashboard = () => {
                   Actions
                 </th>
               </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {[1, 2, 3].map(index => <tr key={index}>
+            </thead>            <tbody className="bg-white divide-y divide-gray-200">
+              {invoices.map((invoice, index) => (
+                <tr key={invoice.id}>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className="flex-shrink-0 h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
@@ -97,38 +227,51 @@ const BillingDashboard = () => {
                       </div>
                       <div className="ml-4">
                         <div className="text-sm font-medium text-gray-900">
-                          John Smith
+                          {invoice.patientName}
                         </div>
                         <div className="text-sm text-gray-500">
-                          ID: P-{index}001
+                          ID: {invoice.patientId}
                         </div>
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">
-                      INV-2023{index}001
+                      {invoice.invoiceNumber}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">${150 * index}</div>
+                    <div className="text-sm text-gray-900">${invoice.totalAmount}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <StatusBadge status={index === 1 ? 'paid' : 'unpaid'} />
+                    <StatusBadge status={invoice.status} />
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <Button variant="outline" size="sm" className="mr-2">
+                    <Button variant="outline" size="sm" className="mr-2" onClick={() => handleViewInvoice(index)}>
                       View
                     </Button>
-                    {index !== 1 && <Button variant="primary" size="sm">
+                    {invoice.status === 'unpaid' && (
+                      <Button variant="primary" size="sm" onClick={() => handleRecordPayment(index)}>
                         Record Payment
-                      </Button>}
+                      </Button>
+                    )}
                   </td>
-                </tr>)}
-            </tbody>
-          </table>
+                </tr>
+              ))}
+            </tbody></table>
         </div>
-      </Card>
+      </Card>      {/* Generate Invoice Modal */}
+      <GenerateInvoiceModal
+        isOpen={isInvoiceModalOpen}
+        onClose={() => setIsInvoiceModalOpen(false)}
+        onGenerate={handleGenerateInvoice}
+      />      {/* View Invoice Modal */}
+      <ViewInvoiceModal
+        isOpen={isViewModalOpen}
+        onClose={() => setIsViewModalOpen(false)}
+        invoiceData={selectedInvoice}
+        onRecordPayment={handleRecordPaymentFromModal}
+      />
     </div>;
 };
 export default BillingDashboard;

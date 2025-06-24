@@ -2,12 +2,21 @@ import React from 'react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import StatusBadge from '../../components/ui/StatusBadge';
+import GenerateInvoiceModal from '../../components/modals/GenerateInvoiceModal';
 import { SearchIcon, FilterIcon, DownloadIcon, PlusIcon, UserIcon } from 'lucide-react';
+
 const Invoices = () => {
-  return <div className="space-y-6">
-      <div className="flex items-center justify-between">
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = React.useState(false);
+
+  const handleGenerateInvoice = (invoiceData: any) => {
+    console.log('Generated Invoice:', invoiceData);
+    // Here you would typically send the data to your backend API
+    // For now, we'll just log it and show a success message
+    alert(`Invoice ${invoiceData.invoiceNumber} generated successfully for ${invoiceData.patientName}!`);
+  };
+  return <div className="space-y-6">      <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Invoices</h1>
-        <Button variant="primary">
+        <Button variant="primary" onClick={() => setIsInvoiceModalOpen(true)}>
           <PlusIcon className="w-4 h-4 mr-2" />
           New Invoice
         </Button>
@@ -114,10 +123,16 @@ const Invoices = () => {
               <Button variant="outline" size="sm">
                 Next
               </Button>
-            </div>
-          </div>
+            </div>          </div>
         </div>
       </Card>
+
+      {/* Generate Invoice Modal */}
+      <GenerateInvoiceModal
+        isOpen={isInvoiceModalOpen}
+        onClose={() => setIsInvoiceModalOpen(false)}
+        onGenerate={handleGenerateInvoice}
+      />
     </div>;
 };
 export default Invoices;
