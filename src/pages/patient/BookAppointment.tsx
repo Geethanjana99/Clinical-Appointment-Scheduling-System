@@ -1,81 +1,141 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
-import { CalendarIcon, UserIcon, ClockIcon, CheckCircleIcon, StarIcon } from 'lucide-react';
-import { useAuthStore } from '../../store/authStore';
-import { useQueueStore } from '../../store/queueStore';
+import { CalendarIcon, UserIcon, ClockIcon, CheckCircleIcon, StarIcon, SearchIcon, FilterIcon } from 'lucide-react';
 import { toast } from 'sonner';
+import { apiService } from '../../services/api';
 
 interface Doctor {
   id: string;
+  doctor_id: string;
   name: string;
   specialty: string;
   rating: number;
-  availability: string;
-  avatar: string;
-  experience: string;
-  consultationFee: string;
+  total_reviews: number;
+  consultation_fee: number;
+  availability_status: string;
+  avatar_url?: string;
+  years_of_experience: number;
+  bio?: string;
+  working_hours?: any;
+  email: string;
+  phone: string;
 }
 
 // Mock doctors data
-const doctors: Doctor[] = [
-  {
-    id: 'doctor-1',
-    name: 'Dr. Sarah Johnson',
-    specialty: 'Cardiologist',
-    rating: 4.8,
-    availability: '9:00 AM - 5:00 PM',
-    avatar: 'https://randomuser.me/api/portraits/women/65.jpg',
-    experience: '15 years',
-    consultationFee: '$150'
-  },
-  {
-    id: 'doctor-2',
-    name: 'Dr. Michael Wong',
-    specialty: 'Neurologist',
-    rating: 4.7,
-    availability: '8:00 AM - 4:00 PM',
-    avatar: 'https://randomuser.me/api/portraits/men/45.jpg',
-    experience: '12 years',
-    consultationFee: '$180'
-  },
-  {
-    id: 'doctor-3',
-    name: 'Dr. Emily Davis',
-    specialty: 'Pediatrician',
-    rating: 4.9,
-    availability: '10:00 AM - 6:00 PM',
-    avatar: 'https://randomuser.me/api/portraits/women/28.jpg',
-    experience: '8 years',
-    consultationFee: '$120'
-  },
-  {
-    id: 'doctor-4',
-    name: 'Dr. Robert Chen',
-    specialty: 'Orthopedic Surgeon',
-    rating: 4.6,
-    availability: '7:00 AM - 3:00 PM',
-    avatar: 'https://randomuser.me/api/portraits/men/35.jpg',
-    experience: '20 years',
-    consultationFee: '$200'
-  }
-];
-
-// Available time slots
-const timeSlots = [
-  '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM',
-  '02:00 PM', '02:30 PM', '03:00 PM', '03:30 PM', '04:00 PM', '04:30 PM'
-];
+// Note: timeSlots are now fetched dynamically from the backend
 
 const BookAppointment = () => {
-  const { user } = useAuthStore();
+  // State for doctors and booking
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [filteredDoctors, setFilteredDoctors] = useState<Doctor[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+    // Search and filter state
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedSpecialty, setSelectedSpecialty] = useState('');
+  const [specialties, setSpecialties] = useState<string[]>([]);
+  
+  // Booking state
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
   const [reason, setReason] = useState('');
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Available slots state
+  const [availableSlots, setAvailableSlots] = useState<string[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [slotsError, setSlotsError] = useState<string | null>(null);
   const [step, setStep] = useState(1); // 1: Select Doctor, 2: Select Date/Time, 3: Confirm
+  
+  // Success state
+  const [bookingSuccess, setBookingSuccess] = useState(false);
+  const [bookedAppointment, setBookedAppointment] = useState<any>(null);
+
+  // Fetch doctors from backend
+  useEffect(() => {
+    fetchDoctors();
+  }, []);
+
+  // Filter doctors based on search and specialty
+  useEffect(() => {
+    let filtered = doctors;
+    
+    if (searchTerm) {
+      filtered = filtered.filter(doctor => 
+        doctor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        doctor.specialty.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    
+    if (selectedSpecialty) {
+      filtered = filtered.filter(doctor => doctor.specialty === selectedSpecialty);
+    }
+    
+    setFilteredDoctors(filtered);
+  }, [doctors, searchTerm, selectedSpecialty]);
+
+  // Fetch available slots when doctor or date changes
+  useEffect(() => {
+    if (selectedDoctor && selectedDate) {
+      fetchAvailableSlots(selectedDoctor.id, selectedDate);
+    } else {
+      setAvailableSlots([]);
+      setSelectedTime('');
+    }
+  }, [selectedDoctor, selectedDate]);
+
+  const fetchDoctors = async () => {
+    try {
+      setLoading(true);
+      const response = await apiService.searchDoctors({});
+      
+      if (response.success && response.data) {
+        setDoctors(response.data);
+        setFilteredDoctors(response.data);
+        
+        // Extract unique specialties
+        const uniqueSpecialties = [...new Set(response.data.map((doctor: Doctor) => doctor.specialty))];
+        setSpecialties(uniqueSpecialties);
+      } else {
+        setError('Failed to load doctors');
+      }
+    } catch (err) {
+      console.error('Error fetching doctors:', err);
+      setError('Failed to load doctors');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch available time slots for selected doctor and date
+  const fetchAvailableSlots = async (doctorId: string, date: string) => {
+    if (!doctorId || !date) {
+      setAvailableSlots([]);
+      return;
+    }
+
+    try {
+      setLoadingSlots(true);
+      setSlotsError(null);
+      setSelectedTime(''); // Reset selected time when fetching new slots
+      
+      const response = await apiService.getAvailableSlots(doctorId, date);      if (response.success && response.data) {
+        setAvailableSlots(response.data.slots || []);
+      } else {
+        setAvailableSlots([]);
+        setSlotsError('No available slots found for this date');
+      }
+    } catch (err) {
+      console.error('Error fetching available slots:', err);
+      setAvailableSlots([]);
+      setSlotsError('Failed to load available slots');
+    } finally {
+      setLoadingSlots(false);
+    }
+  };
 
   // Get tomorrow's date as minimum date
   const tomorrow = new Date();
@@ -86,10 +146,14 @@ const BookAppointment = () => {
   const maxDate = new Date();
   maxDate.setMonth(maxDate.getMonth() + 3);
   const maxDateString = maxDate.toISOString().split('T')[0];
-
   const handleDoctorSelect = (doctor: Doctor) => {
     setSelectedDoctor(doctor);
     setStep(2);
+    // Hide success banner when starting new booking
+    if (bookingSuccess) {
+      setBookingSuccess(false);
+      setBookedAppointment(null);
+    }
   };
 
   const handleDateTimeSelect = () => {
@@ -99,7 +163,6 @@ const BookAppointment = () => {
     }
     setStep(3);
   };
-
   const handleBookAppointment = async () => {
     if (!selectedDoctor || !selectedDate || !selectedTime || !reason.trim()) {
       toast.error('Please fill in all required fields');
@@ -108,21 +171,50 @@ const BookAppointment = () => {
 
     setIsSubmitting(true);
 
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      // Here you would typically add to queue store or make an API call
-      toast.success('Appointment booked successfully!');
+    try {      const appointmentData = {
+        doctorId: selectedDoctor.id,
+        appointmentDate: selectedDate,
+        appointmentTime: selectedTime,
+        appointmentType: 'consultation',
+        reasonForVisit: reason,
+        symptoms: notes,
+        priority: 'medium'
+      };      const response = await apiService.bookAppointment(appointmentData);
       
-      // Reset form
-      setSelectedDoctor(null);
-      setSelectedDate('');
-      setSelectedTime('');
-      setReason('');
-      setNotes('');
-      setStep(1);
+      if (response.success) {
+        // Store appointment data with doctor info before resetting
+        const appointmentWithDoctorInfo = {
+          ...response.data.appointment,
+          doctorName: selectedDoctor.name,
+          doctorSpecialty: selectedDoctor.specialty
+        };
+        
+        setBookedAppointment(appointmentWithDoctorInfo);
+        setBookingSuccess(true);
+        
+        // Show success toast message
+        toast.success(`🎉 Booking Successful! Appointment confirmed with ${selectedDoctor.name}`, {
+          duration: 4000
+        });
+        
+        // Reset form
+        setSelectedDoctor(null);
+        setSelectedDate('');
+        setSelectedTime('');
+        setReason('');
+        setNotes('');
+        setStep(1);
+        
+        // Reset success state after a delay
+        setTimeout(() => {
+          setBookingSuccess(false);
+          setBookedAppointment(null);
+        }, 8000);
+      } else {
+        toast.error(response.message || 'Failed to book appointment');
+      }
     } catch (error) {
+      console.error('Error booking appointment:', error);
       toast.error('Failed to book appointment. Please try again.');
     } finally {
       setIsSubmitting(false);
@@ -141,13 +233,48 @@ const BookAppointment = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6">      <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Book Appointment</h1>
           <p className="text-gray-600 mt-1">Schedule your visit with our healthcare professionals</p>
         </div>
       </div>
+
+      {/* Success Banner */}
+      {bookingSuccess && bookedAppointment && (
+        <Card>
+          <div className="p-6 bg-green-50 border border-green-200 rounded-lg">
+            <div className="flex items-center">
+              <CheckCircleIcon className="h-8 w-8 text-green-600 mr-3" />
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-green-800 mb-2">
+                  🎉 Booking Successful!
+                </h3>                <div className="text-green-700 space-y-1">
+                  <p><strong>Appointment ID:</strong> {bookedAppointment.appointment_id}</p>
+                  <p><strong>Doctor:</strong> {bookedAppointment.doctorName} ({bookedAppointment.doctorSpecialty})</p>
+                  <p><strong>Date:</strong> {new Date(bookedAppointment.appointment_date).toLocaleDateString()}</p>
+                  <p><strong>Time:</strong> {bookedAppointment.appointment_time}</p>
+                  <p><strong>Status:</strong> {bookedAppointment.status}</p>
+                </div><div className="mt-3 text-sm text-green-600">
+                  <p>You will receive a confirmation shortly. Please arrive 15 minutes before your appointment.</p>
+                </div>
+                <div className="mt-4">
+                  <Button
+                    onClick={() => {
+                      setBookingSuccess(false);
+                      setBookedAppointment(null);
+                      setStep(1);
+                    }}
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    Book Another Appointment
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Progress Indicator */}
       <Card>
@@ -187,15 +314,81 @@ const BookAppointment = () => {
             <span className="ml-2 font-medium">Confirm</span>
           </div>
         </div>
-      </Card>
-
-      {/* Step 1: Select Doctor */}
+      </Card>      {/* Step 1: Select Doctor */}
       {step === 1 && (
         <Card>
           <div className="p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Choose Your Doctor</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {doctors.map((doctor) => (
+            <h2 className="text-lg font-semibold text-gray-900 mb-6">Choose Your Doctor</h2>
+            
+            {/* Search and Filter Controls */}
+            <div className="mb-6 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">                {/* Search Bar */}
+                <div className="relative">
+                  <label htmlFor="doctor-search" className="sr-only">Search doctors</label>
+                  <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <input
+                    id="doctor-search"
+                    type="text"
+                    placeholder="Search doctors by name or specialty..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                
+                {/* Specialty Filter */}
+                <div className="relative">
+                  <label htmlFor="specialty-filter" className="sr-only">Filter by specialty</label>
+                  <FilterIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <select
+                    id="specialty-filter"
+                    value={selectedSpecialty}
+                    onChange={(e) => setSelectedSpecialty(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 appearance-none"
+                  >
+                    <option value="">All Specialties</option>
+                    {specialties.map((specialty) => (
+                      <option key={specialty} value={specialty}>
+                        {specialty}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Loading State */}
+            {loading && (
+              <div className="flex justify-center items-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent"></div>
+                <span className="ml-2 text-gray-600">Loading doctors...</span>
+              </div>
+            )}
+
+            {/* Error State */}
+            {error && !loading && (
+              <div className="text-center py-12">
+                <div className="text-red-600 mb-4">{error}</div>
+                <Button onClick={fetchDoctors} variant="outline">
+                  Try Again
+                </Button>
+              </div>
+            )}
+
+            {/* No Results */}
+            {!loading && !error && filteredDoctors.length === 0 && (
+              <div className="text-center py-12">
+                <div className="text-gray-600 mb-4">No doctors found matching your criteria.</div>
+                <Button onClick={() => { setSearchTerm(''); setSelectedSpecialty(''); }} variant="outline">
+                  Clear Filters
+                </Button>
+              </div>
+            )}
+
+            {/* Doctor Cards */}
+            {!loading && !error && filteredDoctors.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {filteredDoctors.map((doctor) => (
                 <div
                   key={doctor.id}
                   className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all cursor-pointer"
@@ -203,7 +396,7 @@ const BookAppointment = () => {
                 >
                   <div className="flex items-start space-x-4">
                     <img
-                      src={doctor.avatar}
+                      src={doctor.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(doctor.name)}&background=0D8ABC&color=fff`}
                       alt={doctor.name}
                       className="w-16 h-16 rounded-full object-cover"
                     />
@@ -217,25 +410,31 @@ const BookAppointment = () => {
                       <div className="mt-2 space-y-1">
                         <div className="flex items-center text-sm text-gray-600">
                           <ClockIcon className="w-4 h-4 mr-1" />
-                          {doctor.availability}
+                          <span className={`px-2 py-1 rounded text-xs ${
+                          doctor.availability_status === 'available' 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {doctor.availability_status}
+                        </span>
                         </div>
                         <div className="text-sm text-gray-600">
-                          Experience: {doctor.experience}
+                          {doctor.years_of_experience} years
                         </div>
                         <div className="text-sm font-medium text-green-600">
-                          Consultation: {doctor.consultationFee}
+                          Rs. {doctor.consultation_fee}
                         </div>
                       </div>
                     </div>
-                  </div>
-                  <div className="mt-4 flex justify-end">
+                  </div>                  <div className="mt-4 flex justify-end">
                     <Button variant="primary" size="sm">
                       Select Doctor
                     </Button>
                   </div>
                 </div>
               ))}
-            </div>
+              </div>
+            )}
           </div>
         </Card>
       )}
@@ -257,9 +456,8 @@ const BookAppointment = () => {
 
             {/* Selected Doctor Summary */}
             <div className="bg-blue-50 rounded-lg p-4 mb-6">
-              <div className="flex items-center space-x-3">
-                <img
-                  src={selectedDoctor.avatar}
+              <div className="flex items-center space-x-3">                <img
+                  src={selectedDoctor.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedDoctor.name)}&background=0D8ABC&color=fff`}
                   alt={selectedDoctor.name}
                   className="w-12 h-12 rounded-full"
                 />
@@ -270,51 +468,66 @@ const BookAppointment = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Date Selection */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">              {/* Date Selection */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="appointment-date" className="block text-sm font-medium text-gray-700 mb-2">
                   Select Date
                 </label>
                 <input
+                  id="appointment-date"
                   type="date"
                   min={minDate}
                   max={maxDateString}
                   value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedDate(e.target.value);
+                    fetchAvailableSlots(selectedDoctor.id, e.target.value); // Fetch slots when date changes
+                  }}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
                 />
-              </div>
-
-              {/* Time Selection */}
+              </div>              {/* Time Selection */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Select Time
                 </label>
                 <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
-                  {timeSlots.map((time) => (
-                    <button
-                      key={time}
-                      onClick={() => setSelectedTime(time)}
-                      className={`p-2 text-sm border rounded-md transition-colors ${
-                        selectedTime === time
-                          ? 'bg-blue-600 text-white border-blue-600'
-                          : 'border-gray-300 hover:border-blue-300 hover:bg-blue-50'
-                      }`}
-                    >
-                      {time}
-                    </button>
-                  ))}
+                  {loadingSlots ? (
+                    <div className="flex justify-center items-center col-span-2 py-4">
+                      <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent"></div>
+                      <span className="ml-2 text-gray-600">Loading slots...</span>
+                    </div>
+                  ) : slotsError ? (
+                    <div className="text-red-600 text-center py-4 col-span-2">
+                      {slotsError}
+                    </div>
+                  ) : availableSlots.length === 0 ? (
+                    <div className="text-gray-500 text-center py-4 col-span-2">
+                      Please select a doctor and date first
+                    </div>
+                  ) : (
+                    availableSlots.map((time) => (
+                      <button
+                        key={time}
+                        onClick={() => setSelectedTime(time)}
+                        className={`p-2 text-sm border rounded-md transition-colors ${
+                          selectedTime === time
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : 'border-gray-300 hover:border-blue-300 hover:bg-blue-50'
+                        }`}
+                      >
+                        {time}
+                      </button>
+                    ))
+                  )}
                 </div>
               </div>
-            </div>
-
-            {/* Reason for Visit */}
+            </div>{/* Reason for Visit */}
             <div className="mt-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="visit-reason" className="block text-sm font-medium text-gray-700 mb-2">
                 Reason for Visit *
               </label>
               <select
+                id="visit-reason"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
@@ -360,9 +573,8 @@ const BookAppointment = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <h3 className="font-medium text-gray-900 mb-4">Doctor Information</h3>
-                  <div className="flex items-center space-x-3 mb-4">
-                    <img
-                      src={selectedDoctor.avatar}
+                  <div className="flex items-center space-x-3 mb-4">                    <img
+                      src={selectedDoctor.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedDoctor.name)}&background=0D8ABC&color=fff`}
                       alt={selectedDoctor.name}
                       className="w-16 h-16 rounded-full"
                     />
@@ -375,9 +587,8 @@ const BookAppointment = () => {
                       </div>
                     </div>
                   </div>
-                  <div className="text-sm text-gray-600 space-y-1">
-                    <p>Experience: {selectedDoctor.experience}</p>
-                    <p className="font-medium text-green-600">Fee: {selectedDoctor.consultationFee}</p>
+                  <div className="text-sm text-gray-600 space-y-1">                    <p>Experience: {selectedDoctor.years_of_experience} years</p>
+                    <p className="font-medium text-green-600">Fee: Rs. {selectedDoctor.consultation_fee}</p>
                   </div>
                 </div>
 
