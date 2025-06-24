@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
+import RescheduleModal from '../../components/ui/RescheduleModal';
 import { CalendarIcon, ClockIcon, UserIcon, MapPinIcon, PhoneIcon, FilterIcon, SearchIcon, Loader2 } from 'lucide-react';
 import { apiService } from '../../services/api';
+import { toast } from 'sonner';
 
 interface Appointment {
   id: number;
@@ -21,9 +23,16 @@ interface Appointment {
 const MyAppointments = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [error, setError] = useState<string | null>(null);  const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [cancellingId, setCancellingId] = useState<number | null>(null);
+  const [rescheduleModal, setRescheduleModal] = useState<{
+    isOpen: boolean;
+    appointment: Appointment | null;
+  }>({
+    isOpen: false,
+    appointment: null
+  });
   
   // Fetch appointments from API
   useEffect(() => {
@@ -47,14 +56,29 @@ const MyAppointments = () => {
     };
 
     fetchAppointments();
-  }, []);
-
-  // Handle appointment cancellation
+  }, []);  // Handle appointment cancellation
   const handleCancelAppointment = async (appointmentId: number) => {
+    // Show confirmation dialog
+    const confirmCancel = window.confirm(
+      'Are you sure you want to cancel this appointment? This action cannot be undone.'
+    );
+    
+    if (!confirmCancel) {
+      return;
+    }
+
+    // Get cancellation reason from user
+    const reason = window.prompt(
+      'Please provide a reason for cancellation (optional):'
+    );
+
+    setCancellingId(appointmentId);
+
     try {
-      const response = await apiService.cancelAppointment(appointmentId.toString(), 'Cancelled by patient');
+      const response = await apiService.cancelAppointment(appointmentId.toString(), reason || undefined);
+      
       if (response.success) {
-        // Update local state
+        // Remove appointment from local state (since it's cancelled/deleted)
         setAppointments(prev => 
           prev.map(apt => 
             apt.id === appointmentId 
@@ -62,18 +86,51 @@ const MyAppointments = () => {
               : apt
           )
         );
+        
+        // Show success notification
+        toast.success('Appointment cancelled successfully', {
+          description: 'You will receive a confirmation email shortly.'
+        });
       } else {
-        alert(`Failed to cancel appointment: ${response.message}`);
+        toast.error('Failed to cancel appointment', {
+          description: response.message || 'Please try again or contact support.'
+        });
       }
     } catch (err) {
       console.error('Error cancelling appointment:', err);
-      alert('An error occurred while cancelling the appointment');
+      toast.error('An error occurred while cancelling the appointment', {
+        description: 'Please try again or contact support.'
+      });
+    } finally {
+      setCancellingId(null);
+    }
+  };  // Handle appointment rescheduling
+  const handleRescheduleAppointment = async (appointmentId: number) => {
+    const appointment = appointments.find(apt => apt.id === appointmentId);
+    if (appointment) {
+      setRescheduleModal({
+        isOpen: true,
+        appointment: appointment
+      });
     }
   };
-  // Handle appointment rescheduling (placeholder - would need a modal for date/time selection)
-  const handleRescheduleAppointment = async (_appointmentId: number) => {
-    // For now, just show an alert - in a real app, this would open a modal
-    alert('Reschedule functionality coming soon! Please contact the clinic directly.');
+
+  const handleRescheduleSuccess = (appointmentId: number, newDate: string, newTime: string) => {
+    // Update the appointment in local state
+    setAppointments(prev => 
+      prev.map(apt => 
+        apt.id === appointmentId 
+          ? { ...apt, appointment_date: newDate, appointment_time: newTime }
+          : apt
+      )
+    );
+  };
+
+  const handleCloseRescheduleModal = () => {
+    setRescheduleModal({
+      isOpen: false,
+      appointment: null
+    });
   };
     // Filter appointments based on search term and status
   const filteredAppointments = appointments.filter(appointment => {
@@ -294,15 +351,22 @@ const MyAppointments = () => {
                     >
                       Reschedule
                     </Button>
-                  )}
-                  {canCancel(appointment.status, appointment.appointment_date) && (
+                  )}                  {canCancel(appointment.status, appointment.appointment_date) && (
                     <Button 
                       variant="outline" 
                       size="sm" 
                       className="text-red-600 hover:text-red-700"
                       onClick={() => handleCancelAppointment(appointment.id)}
+                      disabled={cancellingId === appointment.id}
                     >
-                      Cancel
+                      {cancellingId === appointment.id ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                          Cancelling...
+                        </>
+                      ) : (
+                        'Cancel'
+                      )}
                     </Button>
                   )}
                   {appointment.status === 'completed' && (
@@ -358,7 +422,16 @@ const MyAppointments = () => {
               <div className="text-sm text-gray-600">Total</div>
             </div>
           </div>
-        </Card>
+        </Card>      )}
+      
+      {/* Reschedule Modal */}
+      {rescheduleModal.appointment && (
+        <RescheduleModal
+          isOpen={rescheduleModal.isOpen}
+          onClose={handleCloseRescheduleModal}
+          appointment={rescheduleModal.appointment}
+          onRescheduleSuccess={handleRescheduleSuccess}
+        />
       )}
     </div>
   );

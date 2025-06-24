@@ -323,11 +323,10 @@ class ApiService {
   async getMyUpcomingAppointments(): Promise<ApiResponse<any[]>> {
     return this.makeRequest<any[]>('/patients/appointments/upcoming');
   }
-
   async cancelAppointment(appointmentId: string, reason?: string): Promise<ApiResponse<any>> {
-    return this.makeRequest<any>(`/appointments/${appointmentId}/cancel`, {
-      method: 'PUT',
-      body: JSON.stringify({ cancellation_reason: reason }),
+    return this.makeRequest<any>(`/appointments/${appointmentId}`, {
+      method: 'DELETE',
+      body: JSON.stringify({ reason }),
     });
   }
 
