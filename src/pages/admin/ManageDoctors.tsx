@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Modal from '../../components/ui/Modal';
-import { UserPlus, Edit, Trash2 } from 'lucide-react';
+import { UserPlus, Edit, Trash2, AlertCircle, CheckCircle } from 'lucide-react';
 
 interface Doctor {
   id: string;
@@ -16,27 +16,10 @@ interface Doctor {
 }
 
 const ManageDoctors = () => {
-  const [doctors, setDoctors] = useState<Doctor[]>([
-    {
-      id: '1',
-      name: 'Dr. Sarah Johnson',
-      email: 'sarah.johnson@example.com',
-      specialty: 'Cardiology',
-      phone: '+1 234 567 8901',
-      availability: ['Monday', 'Tuesday', 'Wednesday'],
-      status: 'active'
-    },
-    {
-      id: '2',
-      name: 'Dr. Michael Chen',
-      email: 'michael.chen@example.com',
-      specialty: 'Neurology',
-      phone: '+1 234 567 8902',
-      availability: ['Tuesday', 'Thursday', 'Friday'],
-      status: 'active'
-    }
-  ]);
-
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [dataSource, setDataSource] = useState<string>('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDoctor, setEditingDoctor] = useState<Doctor | null>(null);
   const [formData, setFormData] = useState({
@@ -47,6 +30,127 @@ const ManageDoctors = () => {
     availability: [] as string[],
     status: 'active' as 'active' | 'inactive'
   });
+
+  // API base URL
+  const API_BASE_URL = 'http://localhost:5000/api';
+
+  // Fetch doctors from API
+  const fetchDoctors = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      // Try mock API first (no authentication required)
+      const response = await fetch(`${API_BASE_URL}/mock/doctors`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setDoctors(result.data || []);
+        setDataSource(result.source || 'mock_api');
+        console.log('Doctors loaded from:', result.source);
+      } else {
+        throw new Error(result.message || 'Failed to fetch doctors');
+      }
+    } catch (err) {
+      console.error('Error fetching doctors:', err);
+      setError(`Failed to load doctors: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      // Set empty array as fallback
+      setDoctors([]);
+      setDataSource('error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load doctors on component mount
+  useEffect(() => {
+    fetchDoctors();
+  }, []);
+
+  // Add new doctor via API
+  const addDoctor = async (doctorData: Omit<Doctor, 'id'>) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/mock/doctors`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(doctorData),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Refresh the doctors list
+        await fetchDoctors();
+        setError(null);
+        return result.data;
+      } else {
+        throw new Error(result.message || 'Failed to add doctor');
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to add doctor';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    }
+  };
+
+  // Update doctor via API
+  const updateDoctor = async (id: string, doctorData: Omit<Doctor, 'id'>) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/mock/doctors/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(doctorData),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Refresh the doctors list
+        await fetchDoctors();
+        setError(null);
+        return result.data;
+      } else {
+        throw new Error(result.message || 'Failed to update doctor');
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update doctor';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    }
+  };
+
+  // Delete doctor via API
+  const deleteDoctor = async (id: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/mock/doctors/${id}`, {
+        method: 'DELETE',
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Refresh the doctors list
+        await fetchDoctors();
+        setError(null);
+        return result.data;
+      } else {
+        throw new Error(result.message || 'Failed to delete doctor');
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete doctor';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    }
+  };
 
   const handleAddDoctor = () => {
     setEditingDoctor(null);
@@ -74,28 +178,32 @@ const ManageDoctors = () => {
     setIsModalOpen(true);
   };
 
-  const handleDeleteDoctor = (id: string) => {
-    setDoctors(doctors.filter(doctor => doctor.id !== id));
+  const handleDeleteDoctor = async (id: string) => {
+    if (window.confirm('Are you sure you want to delete this doctor?')) {
+      try {
+        await deleteDoctor(id);
+        // Success message could be added here
+      } catch (err) {
+        // Error is already handled in deleteDoctor function
+        console.error('Failed to delete doctor:', err);
+      }
+    }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (editingDoctor) {
-      setDoctors(doctors.map(doctor => 
-        doctor.id === editingDoctor.id 
-          ? { ...doctor, ...formData }
-          : doctor
-      ));
-    } else {
-      const newDoctor: Doctor = {
-        id: Date.now().toString(),
-        ...formData
-      };
-      setDoctors([...doctors, newDoctor]);
+    try {
+      if (editingDoctor) {
+        await updateDoctor(editingDoctor.id, formData);
+      } else {
+        await addDoctor(formData);
+      }
+      setIsModalOpen(false);
+    } catch (err) {
+      // Error is already handled in addDoctor/updateDoctor functions
+      console.error('Failed to save doctor:', err);
     }
-    
-    setIsModalOpen(false);
   };
 
   const handleAvailabilityChange = (day: string) => {
@@ -112,96 +220,135 @@ const ManageDoctors = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-900">Manage Doctors</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Manage Doctors</h1>
+          {dataSource && (
+            <p className="text-sm text-gray-500 mt-1">
+              Data source: {dataSource === 'mock_api' ? 'Mock API (Permanent Storage)' : dataSource}
+            </p>
+          )}
+        </div>
         <Button onClick={handleAddDoctor} className="flex items-center gap-2">
           <UserPlus className="w-4 h-4" />
           Add Doctor
         </Button>
       </div>
 
-      <Card>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Doctor
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Specialty
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Contact
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Availability
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {doctors.map((doctor) => (
-                <tr key={doctor.id}>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">{doctor.name}</div>
-                      <div className="text-sm text-gray-500">{doctor.email}</div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {doctor.specialty}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {doctor.phone}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex flex-wrap gap-1">
-                      {doctor.availability.map((day) => (
-                        <span key={day} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          {day.slice(0, 3)}
-                        </span>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                      doctor.status === 'active' 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-red-100 text-red-800'
-                    }`}>
-                      {doctor.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEditDoctor(doctor)}
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDeleteDoctor(doctor.id)}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-md p-4">
+          <div className="flex">
+            <AlertCircle className="h-5 w-5 text-red-400" />
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">Error</h3>
+              <div className="mt-2 text-sm text-red-700">
+                <p>{error}</p>
+              </div>
+              <div className="mt-4">
+                <Button 
+                  onClick={fetchDoctors}
+                  size="sm"
+                  variant="outline"
+                  className="text-red-800 border-red-300 hover:bg-red-50"
+                >
+                  Try Again
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
-      </Card>
+      )}
+
+      {loading ? (
+        <Card>
+          <div className="flex justify-center items-center py-8">
+            <div className="text-gray-500">Loading doctors...</div>
+          </div>
+        </Card>
+      ) : (
+        <Card>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Doctor
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Specialty
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Contact
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Availability
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {doctors.map((doctor) => (
+                  <tr key={doctor.id}>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div>
+                        <div className="text-sm font-medium text-gray-900">{doctor.name}</div>
+                        <div className="text-sm text-gray-500">{doctor.email}</div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {doctor.specialty}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {doctor.phone}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex flex-wrap gap-1">
+                        {doctor.availability.map((day) => (
+                          <span key={day} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            {day.slice(0, 3)}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                        doctor.status === 'active' 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-red-100 text-red-800'
+                      }`}>
+                        {doctor.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditDoctor(doctor)}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeleteDoctor(doctor.id)}
+                          className="text-red-600 hover:text-red-900"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
 
       <Modal
         isOpen={isModalOpen}
