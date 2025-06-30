@@ -39,20 +39,55 @@ const BookAppointment = () => {
   // Booking state
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
   const [selectedDate, setSelectedDate] = useState('');
-  const [selectedTime, setSelectedTime] = useState('');
   const [reason, setReason] = useState('');
   const [notes, setNotes] = useState('');
+  const [isEmergency, setIsEmergency] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Available slots state
-  const [availableSlots, setAvailableSlots] = useState<string[]>([]);
-  const [loadingSlots, setLoadingSlots] = useState(false);
-  const [slotsError, setSlotsError] = useState<string | null>(null);
+  // Available slots state - removed for queue system
+  // const [availableSlots, setAvailableSlots] = useState<string[]>([]);
+  // const [loadingSlots, setLoadingSlots] = useState(false);
+  // const [slotsError, setSlotsError] = useState<string | null>(null);
   const [step, setStep] = useState(1); // 1: Select Doctor, 2: Select Date/Time, 3: Confirm
   
   // Success state
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [bookedAppointment, setBookedAppointment] = useState<any>(null);
+
+  // Helper function to format working hours
+  const formatWorkingHours = (workingHours: any) => {
+    if (!workingHours || typeof workingHours !== 'object') {
+      return 'Hours not specified';
+    }
+
+    const daysOfWeek = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const todayName = daysOfWeek[new Date().getDay()];
+    
+    // Show today's hours if available
+    if (workingHours[todayName]) {
+      return `Today: ${workingHours[todayName]}`;
+    }
+    
+    // Otherwise show the first available day's hours
+    for (const day of daysOfWeek) {
+      if (workingHours[day]) {
+        return `${day.charAt(0).toUpperCase() + day.slice(1)}: ${workingHours[day]}`;
+      }
+    }
+    
+    return 'Hours not available';
+  };
+
+  // Helper function to get today's availability for selected date
+  const getTodayAvailability = (workingHours: any, selectedDate: string) => {
+    if (!workingHours || !selectedDate) return 'Hours not specified';
+    
+    const date = new Date(selectedDate);
+    const daysOfWeek = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const dayName = daysOfWeek[date.getDay()];
+    
+    return workingHours[dayName] || 'Not available on this day';
+  };
 
   // Fetch doctors from backend
   useEffect(() => {
@@ -77,20 +112,12 @@ const BookAppointment = () => {
     setFilteredDoctors(filtered);
   }, [doctors, searchTerm, selectedSpecialty]);
 
-  // Fetch available slots when doctor or date changes
-  useEffect(() => {
-    if (selectedDoctor && selectedDate) {
-      fetchAvailableSlots(selectedDoctor.id, selectedDate);
-    } else {
-      setAvailableSlots([]);
-      setSelectedTime('');
-    }
-  }, [selectedDoctor, selectedDate]);
+  // No need for slots fetching in queue system
 
   const fetchDoctors = async () => {
     try {
       setLoading(true);
-      const response = await apiService.searchDoctors({});
+      const response = await apiService.searchDoctors({ limit: 50 });
       
       if (response.success && response.data) {
         setDoctors(response.data);
@@ -110,33 +137,8 @@ const BookAppointment = () => {
     }
   };
 
-  // Fetch available time slots for selected doctor and date
-  const fetchAvailableSlots = async (doctorId: string, date: string) => {
-    if (!doctorId || !date) {
-      setAvailableSlots([]);
-      return;
-    }
-
-    try {
-      setLoadingSlots(true);
-      setSlotsError(null);
-      setSelectedTime(''); // Reset selected time when fetching new slots
-      
-      const response = await apiService.getAvailableSlots(doctorId, date);      if (response.success && response.data) {
-        setAvailableSlots(response.data.slots || []);
-      } else {
-        setAvailableSlots([]);
-        setSlotsError('No available slots found for this date');
-      }
-    } catch (err) {
-      console.error('Error fetching available slots:', err);
-      setAvailableSlots([]);
-      setSlotsError('Failed to load available slots');
-    } finally {
-      setLoadingSlots(false);
-    }
-  };
-
+  // No slots fetching needed for queue system
+  
   // Get tomorrow's date as minimum date
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -146,6 +148,7 @@ const BookAppointment = () => {
   const maxDate = new Date();
   maxDate.setMonth(maxDate.getMonth() + 3);
   const maxDateString = maxDate.toISOString().split('T')[0];
+  
   const handleDoctorSelect = (doctor: Doctor) => {
     setSelectedDoctor(doctor);
     setStep(2);
@@ -156,53 +159,58 @@ const BookAppointment = () => {
     }
   };
 
-  const handleDateTimeSelect = () => {
-    if (!selectedDate || !selectedTime) {
-      toast.error('Please select both date and time');
+  const handleDateSelect = () => {
+    if (!selectedDate) {
+      toast.error('Please select a date');
       return;
     }
     setStep(3);
   };
   const handleBookAppointment = async () => {
-    if (!selectedDoctor || !selectedDate || !selectedTime || !reason.trim()) {
+    if (!selectedDoctor || !selectedDate || !reason.trim()) {
       toast.error('Please fill in all required fields');
       return;
     }
 
     setIsSubmitting(true);
 
-    try {      const appointmentData = {
+    try {      
+      const appointmentData = {
         doctorId: selectedDoctor.id,
         appointmentDate: selectedDate,
-        appointmentTime: selectedTime,
         appointmentType: 'consultation',
         reasonForVisit: reason,
         symptoms: notes,
-        priority: 'medium'
-      };      const response = await apiService.bookAppointment(appointmentData);
+        priority: 'medium',
+        isEmergency: isEmergency
+      };      
+
+      const response = await apiService.bookQueueAppointment(appointmentData);
       
       if (response.success) {
         // Store appointment data with doctor info before resetting
         const appointmentWithDoctorInfo = {
           ...response.data.appointment,
           doctorName: selectedDoctor.name,
-          doctorSpecialty: selectedDoctor.specialty
+          doctorSpecialty: selectedDoctor.specialty,
+          queueNumber: response.data.queueNumber,
+          isEmergency: response.data.isEmergency
         };
         
         setBookedAppointment(appointmentWithDoctorInfo);
         setBookingSuccess(true);
         
         // Show success toast message
-        toast.success(`🎉 Booking Successful! Appointment confirmed with ${selectedDoctor.name}`, {
+        toast.success(response.data.message, {
           duration: 4000
         });
         
         // Reset form
         setSelectedDoctor(null);
         setSelectedDate('');
-        setSelectedTime('');
         setReason('');
         setNotes('');
+        setIsEmergency(false);
         setStep(1);
         
         // Reset success state after a delay
@@ -248,15 +256,27 @@ const BookAppointment = () => {
               <CheckCircleIcon className="h-8 w-8 text-green-600 mr-3" />
               <div className="flex-1">
                 <h3 className="text-lg font-semibold text-green-800 mb-2">
-                  🎉 Booking Successful!
-                </h3>                <div className="text-green-700 space-y-1">
+                  🎉 Queue Booking Successful!
+                </h3>
+                <div className="text-green-700 space-y-1">
                   <p><strong>Appointment ID:</strong> {bookedAppointment.appointment_id}</p>
                   <p><strong>Doctor:</strong> {bookedAppointment.doctorName} ({bookedAppointment.doctorSpecialty})</p>
                   <p><strong>Date:</strong> {new Date(bookedAppointment.appointment_date).toLocaleDateString()}</p>
-                  <p><strong>Time:</strong> {bookedAppointment.appointment_time}</p>
+                  <p><strong>Queue Number:</strong> 
+                    <span className={`ml-2 font-bold ${bookedAppointment.isEmergency ? 'text-red-600' : 'text-blue-600'}`}>
+                      {bookedAppointment.queueNumber}
+                    </span>
+                    {bookedAppointment.isEmergency && <span className="text-red-500 ml-1">(Emergency)</span>}
+                  </p>
                   <p><strong>Status:</strong> {bookedAppointment.status}</p>
-                </div><div className="mt-3 text-sm text-green-600">
-                  <p>You will receive a confirmation shortly. Please arrive 15 minutes before your appointment.</p>
+                </div>
+                <div className="mt-3 text-sm text-green-600">
+                  <p>
+                    {bookedAppointment.isEmergency 
+                      ? "You're in the emergency queue and will be seen with priority. Please arrive as soon as possible."
+                      : "You're in the queue. Please arrive on the scheduled date and wait for your number to be called."
+                    }
+                  </p>
                 </div>
                 <div className="mt-4">
                   <Button
@@ -424,6 +444,12 @@ const BookAppointment = () => {
                         <div className="text-sm font-medium text-green-600">
                           Rs. {doctor.consultation_fee}
                         </div>
+                        {doctor.working_hours && (
+                          <div className="text-sm text-gray-600 flex items-center">
+                            <ClockIcon className="w-4 h-4 mr-1" />
+                            {formatWorkingHours(doctor.working_hours)}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>                  <div className="mt-4 flex justify-end">
@@ -461,9 +487,21 @@ const BookAppointment = () => {
                   alt={selectedDoctor.name}
                   className="w-12 h-12 rounded-full"
                 />
-                <div>
+                <div className="flex-1">
                   <h3 className="font-medium text-gray-900">{selectedDoctor.name}</h3>
                   <p className="text-blue-600 text-sm">{selectedDoctor.specialty}</p>
+                  {selectedDoctor.working_hours && selectedDate && (
+                    <div className="text-sm text-gray-600 flex items-center mt-1">
+                      <ClockIcon className="w-4 h-4 mr-1" />
+                      Available: {getTodayAvailability(selectedDoctor.working_hours, selectedDate)}
+                    </div>
+                  )}
+                  {selectedDoctor.working_hours && !selectedDate && (
+                    <div className="text-sm text-gray-600 flex items-center mt-1">
+                      <ClockIcon className="w-4 h-4 mr-1" />
+                      {formatWorkingHours(selectedDoctor.working_hours)}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -481,45 +519,48 @@ const BookAppointment = () => {
                   value={selectedDate}
                   onChange={(e) => {
                     setSelectedDate(e.target.value);
-                    fetchAvailableSlots(selectedDoctor.id, e.target.value); // Fetch slots when date changes
                   }}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
                 />
-              </div>              {/* Time Selection */}
+              </div>              
+
+              {/* Emergency Appointment Option */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Select Time
+                  Appointment Type
                 </label>
-                <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
-                  {loadingSlots ? (
-                    <div className="flex justify-center items-center col-span-2 py-4">
-                      <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent"></div>
-                      <span className="ml-2 text-gray-600">Loading slots...</span>
-                    </div>
-                  ) : slotsError ? (
-                    <div className="text-red-600 text-center py-4 col-span-2">
-                      {slotsError}
-                    </div>
-                  ) : availableSlots.length === 0 ? (
-                    <div className="text-gray-500 text-center py-4 col-span-2">
-                      Please select a doctor and date first
-                    </div>
-                  ) : (
-                    availableSlots.map((time) => (
-                      <button
-                        key={time}
-                        onClick={() => setSelectedTime(time)}
-                        className={`p-2 text-sm border rounded-md transition-colors ${
-                          selectedTime === time
-                            ? 'bg-blue-600 text-white border-blue-600'
-                            : 'border-gray-300 hover:border-blue-300 hover:bg-blue-50'
-                        }`}
-                      >
-                        {time}
-                      </button>
-                    ))
-                  )}
+                <div className="space-y-2">
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="appointmentType"
+                      checked={!isEmergency}
+                      onChange={() => setIsEmergency(false)}
+                      className="mr-2"
+                    />
+                    <span>Regular Appointment</span>
+                    <span className="ml-2 text-sm text-gray-500">(Join regular queue)</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="appointmentType"
+                      checked={isEmergency}
+                      onChange={() => setIsEmergency(true)}
+                      className="mr-2"
+                    />
+                    <span className="text-red-600 font-medium">Emergency Appointment</span>
+                    <span className="ml-2 text-sm text-red-500">(Priority queue)</span>
+                  </label>
                 </div>
+                {isEmergency && (
+                  <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-md">
+                    <p className="text-sm text-red-600">
+                      <strong>Emergency appointments</strong> are for urgent medical conditions that require immediate attention.
+                      You will be placed in the priority queue.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>{/* Reason for Visit */}
             <div className="mt-6">
@@ -552,8 +593,8 @@ const BookAppointment = () => {
               </Button>
               <Button
                 variant="primary"
-                onClick={handleDateTimeSelect}
-                disabled={!selectedDate || !selectedTime || !reason}
+                onClick={handleDateSelect}
+                disabled={!selectedDate || !reason}
               >
                 Continue
               </Button>
@@ -602,14 +643,23 @@ const BookAppointment = () => {
                     </div>
                     <div className="flex items-center text-sm">
                       <ClockIcon className="w-5 h-5 text-gray-400 mr-3" />
-                      <span className="text-gray-600">Time:</span>
-                      <span className="ml-2 font-medium">{selectedTime}</span>
+                      <span className="text-gray-600">Type:</span>
+                      <span className={`ml-2 font-medium ${isEmergency ? 'text-red-600' : ''}`}>
+                        {isEmergency ? 'Emergency Appointment' : 'Regular Appointment'}
+                      </span>
                     </div>
                     <div className="flex items-center text-sm">
                       <UserIcon className="w-5 h-5 text-gray-400 mr-3" />
                       <span className="text-gray-600">Reason:</span>
                       <span className="ml-2 font-medium capitalize">{reason.replace('-', ' ')}</span>
                     </div>
+                    {isEmergency && (
+                      <div className="bg-red-50 border border-red-200 rounded-md p-3 mt-3">
+                        <p className="text-sm text-red-600">
+                          ⚡ You will be placed in the emergency queue and seen with priority.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

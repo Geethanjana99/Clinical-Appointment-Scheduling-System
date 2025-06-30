@@ -54,10 +54,12 @@ interface Appointment {
   appointmentTime: string;
   appointmentDate: string;
   reason: string;
-  status: 'scheduled' | 'confirmed' | 'in-progress' | 'completed' | 'cancelled' | 'no-show';
+  status: 'scheduled' | 'confirmed' | 'in-progress' | 'completed' | 'cancelled' | 'no-show' | 'pending';
   type: string;
   duration: number;
   consultationFee?: number;
+  queueNumber?: string;
+  isEmergency?: boolean;
 }
 const DoctorDashboard = () => {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
@@ -81,103 +83,127 @@ const DoctorDashboard = () => {
       console.error('Error fetching dashboard data:', err);
       setError(err instanceof Error ? err.message : 'An error occurred');
       
-      // Fallback to mock data for development
-      setDashboardData(getMockDashboardData());
+      // Fallback to mock queue data for demonstration
+      const mockQueueData = (): DashboardData => ({
+        doctor: {
+          id: '1',
+          name: 'Dr. Queue Demo',
+          specialty: 'General Medicine',
+          rating: 4.8,
+          totalReviews: 127,
+          consultationFee: 3500.00,
+          officeAddress: 'Medical Center, Queue Wing',
+          workingHours: {
+            monday: { start: '09:00', end: '17:00' },
+            tuesday: { start: '09:00', end: '17:00' },
+            wednesday: { start: '09:00', end: '17:00' },
+            thursday: { start: '09:00', end: '17:00' },
+            friday: { start: '09:00', end: '15:00' }
+          }
+        },
+        todayAppointments: {
+          total: 5,
+          completed: 1,
+          pending: 3,
+          inProgress: 1,
+          appointments: [
+            {
+              id: '1',
+              appointmentId: 'APT-Q001',
+              patientName: 'John Regular',
+              patientAge: 35,
+              patientPhone: '0723456789',
+              appointmentTime: '09:30',
+              appointmentDate: new Date().toISOString().split('T')[0],
+              reason: 'Regular health checkup',
+              status: 'completed' as const,
+              type: 'consultation',
+              duration: 30,
+              consultationFee: 3500.00,
+              queueNumber: '1',
+              isEmergency: false
+            },
+            {
+              id: '2',
+              appointmentId: 'APT-Q002',
+              patientName: 'Mary Emergency',
+              patientAge: 28,
+              patientPhone: '0723456790',
+              appointmentTime: '10:00',
+              appointmentDate: new Date().toISOString().split('T')[0],
+              reason: 'Severe chest pain',
+              status: 'in-progress' as const,
+              type: 'consultation',
+              duration: 45,
+              consultationFee: 3500.00,
+              queueNumber: 'E1',
+              isEmergency: true
+            },
+            {
+              id: '3',
+              appointmentId: 'APT-Q003',
+              patientName: 'Peter Queue',
+              patientAge: 42,
+              patientPhone: '0723456791',
+              appointmentTime: '10:30',
+              appointmentDate: new Date().toISOString().split('T')[0],
+              reason: 'Follow-up consultation',
+              status: 'pending' as const,
+              type: 'consultation',
+              duration: 30,
+              consultationFee: 3500.00,
+              queueNumber: '2',
+              isEmergency: false
+            },
+            {
+              id: '4',
+              appointmentId: 'APT-Q004',
+              patientName: 'Sarah Patient',
+              patientAge: 31,
+              patientPhone: '0723456792',
+              appointmentTime: '11:00',
+              appointmentDate: new Date().toISOString().split('T')[0],
+              reason: 'Vaccination',
+              status: 'pending' as const,
+              type: 'consultation',
+              duration: 15,
+              consultationFee: 3500.00,
+              queueNumber: '3',
+              isEmergency: false
+            },
+            {
+              id: '5',
+              appointmentId: 'APT-Q005',
+              patientName: 'Tom Emergency',
+              patientAge: 45,
+              patientPhone: '0723456793',
+              appointmentTime: '11:15',
+              appointmentDate: new Date().toISOString().split('T')[0],
+              reason: 'High fever emergency',
+              status: 'pending' as const,
+              type: 'consultation',
+              duration: 30,
+              consultationFee: 3500.00,
+              queueNumber: 'E2',
+              isEmergency: true
+            }
+          ]
+        },
+        upcomingAppointments: [],
+        stats: {
+          totalPatients: 250,
+          totalAppointments: 50,
+          monthlyEarnings: 175000.00,
+          averageRating: 4.8
+        },
+        recentActivity: []
+      });
+      
+      setDashboardData(mockQueueData());
     } finally {
       setLoading(false);
     }
   };
-
-  const getMockDashboardData = (): DashboardData => ({
-    doctor: {
-      id: '1',
-      name: 'Dr. Sarah Johnson',
-      specialty: 'Cardiology',
-      rating: 4.8,
-      totalReviews: 127,
-      consultationFee: 200.00,
-      officeAddress: '123 Medical Center, Suite 301',
-      workingHours: {
-        monday: { start: '09:00', end: '17:00' },
-        tuesday: { start: '09:00', end: '17:00' },
-        wednesday: { start: '09:00', end: '17:00' },
-        thursday: { start: '09:00', end: '17:00' },
-        friday: { start: '09:00', end: '15:00' }
-      }
-    },
-    todayAppointments: {
-      total: 8,
-      completed: 3,
-      pending: 4,
-      inProgress: 1,
-      appointments: [
-        {
-          id: '1',
-          appointmentId: 'APT-001',
-          patientName: 'John Smith',
-          patientAge: 45,
-          patientPhone: '+1-555-0123',
-          appointmentTime: '09:00',
-          appointmentDate: '2025-06-09',
-          reason: 'Annual cardiac checkup',
-          status: 'completed',
-          type: 'consultation',
-          duration: 30,
-          consultationFee: 200.00
-        },
-        {
-          id: '2',
-          appointmentId: 'APT-002',
-          patientName: 'Emily Johnson',
-          patientAge: 32,
-          patientPhone: '+1-555-0124',
-          appointmentTime: '10:30',
-          appointmentDate: '2025-06-09',
-          reason: 'Follow-up for hypertension',
-          status: 'in-progress',
-          type: 'follow-up',
-          duration: 30,
-          consultationFee: 200.00
-        },
-        {
-          id: '3',
-          appointmentId: 'APT-003',
-          patientName: 'Robert Williams',
-          patientAge: 58,
-          patientPhone: '+1-555-0125',
-          appointmentTime: '11:45',
-          appointmentDate: '2025-06-09',
-          reason: 'Chest pain evaluation',
-          status: 'confirmed',
-          type: 'consultation',
-          duration: 45,
-          consultationFee: 200.00
-        },
-        {
-          id: '4',
-          appointmentId: 'APT-004',
-          patientName: 'Sarah Davis',
-          patientAge: 29,
-          patientPhone: '+1-555-0126',
-          appointmentTime: '14:15',
-          appointmentDate: '2025-06-09',
-          reason: 'Heart palpitations',
-          status: 'confirmed',
-          type: 'consultation',
-          duration: 30,
-          consultationFee: 200.00
-        }
-      ]
-    },
-    upcomingAppointments: [],
-    stats: {
-      totalPatients: 247,
-      totalAppointments: 1205,
-      monthlyEarnings: 12500.00,
-      averageRating: 4.8
-    },
-    recentActivity: []
-  });
 
   const formatTime = (time: string) => {
     const [hours, minutes] = time.split(':');
@@ -323,10 +349,20 @@ const DoctorDashboard = () => {
           <Card>
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-semibold text-gray-900">Today's Appointments</h2>
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">Today's Queue</h2>
+                  <p className="text-sm text-gray-500">
+                    {new Date().toLocaleDateString('en-US', { 
+                      weekday: 'long', 
+                      year: 'numeric', 
+                      month: 'long', 
+                      day: 'numeric' 
+                    })} - Queue-based appointments
+                  </p>
+                </div>
                 <div className="flex items-center space-x-2">
                   <span className="text-sm text-gray-500">
-                    {dashboardData.todayAppointments.total} total
+                    {dashboardData.todayAppointments.total} patients in queue
                   </span>
                   <Link 
                     to="/doctor/appointments" 
@@ -353,6 +389,15 @@ const DoctorDashboard = () => {
                               <p className="text-sm font-medium text-gray-900 truncate">
                                 {appointment.patientName}
                               </p>
+                              {appointment.queueNumber && (
+                                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                  appointment.isEmergency 
+                                    ? 'bg-red-100 text-red-800' 
+                                    : 'bg-blue-100 text-blue-800'
+                                }`}>
+                                  {appointment.isEmergency ? '🚨' : '#'} {appointment.queueNumber}
+                                </span>
+                              )}
                               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(appointment.status)}`}>
                                 {appointment.status.replace('-', ' ')}
                               </span>
@@ -402,9 +447,22 @@ const DoctorDashboard = () => {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8">
-                  <CalendarIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-500">No appointments scheduled for today</p>
+                <div className="text-center py-12">
+                  <CalendarIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Patients in Queue</h3>
+                  <p className="text-gray-500 mb-6">
+                    No patients have joined the queue for today yet.
+                    <br />
+                    Patients can book queue-based appointments and will be assigned numbers.
+                  </p>
+                  <div className="space-x-3">
+                    <Link to="/doctor/schedule">
+                      <Button variant="outline">
+                        <CalendarIcon className="w-4 h-4 mr-2" />
+                        Manage Availability
+                      </Button>
+                    </Link>
+                  </div>
                 </div>
               )}
             </div>
