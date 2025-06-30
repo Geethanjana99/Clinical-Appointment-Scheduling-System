@@ -38,6 +38,7 @@ const ManageAppointments = () => {
   const [dataSource, setDataSource] = useState<string>('');
   const [showAppointmentForm, setShowAppointmentForm] = useState(false);
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+  const [showAddDoctorModal, setShowAddDoctorModal] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [formData, setFormData] = useState({
     patientName: '',
@@ -47,6 +48,14 @@ const ManageAppointments = () => {
     appointmentTime: '',
     reason: '',
     notes: ''
+  });
+  const [doctorFormData, setDoctorFormData] = useState({
+    name: '',
+    email: '',
+    specialty: '',
+    phone: '',
+    availability: [] as string[],
+    status: 'active' as 'active' | 'inactive'
   });
 
   // API base URL
@@ -106,6 +115,33 @@ const ManageAppointments = () => {
     
     loadData();
   }, []);
+
+  // Create new doctor via API
+  const createDoctor = async (doctorData: any) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/mock/doctors`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(doctorData),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        await fetchDoctors(); // Refresh doctors list
+        setError(null);
+        return result.data;
+      } else {
+        throw new Error(result.message || 'Failed to create doctor');
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create doctor';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    }
+  };
 
   // Create new appointment via API
   const createAppointment = async (appointmentData: any) => {
@@ -208,6 +244,23 @@ const ManageAppointments = () => {
     }));
   };
 
+  const handleDoctorInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setDoctorFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleDoctorAvailabilityChange = (day: string) => {
+    setDoctorFormData(prev => ({
+      ...prev,
+      availability: prev.availability.includes(day)
+        ? prev.availability.filter(d => d !== day)
+        : [...prev.availability, day]
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -274,6 +327,49 @@ const ManageAppointments = () => {
       notes: ''
     });
     setShowAppointmentForm(true);
+  };
+
+  const handleAddNewDoctor = () => {
+    setDoctorFormData({
+      name: '',
+      email: '',
+      specialty: '',
+      phone: '',
+      availability: [],
+      status: 'active'
+    });
+    setShowAddDoctorModal(true);
+  };
+
+  const handleDoctorSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      const newDoctor = await createDoctor(doctorFormData);
+      
+      // Close the modal
+      setShowAddDoctorModal(false);
+      
+      // Reset the form
+      setDoctorFormData({
+        name: '',
+        email: '',
+        specialty: '',
+        phone: '',
+        availability: [],
+        status: 'active'
+      });
+      
+      // Optionally auto-select the new doctor in the appointment form
+      if (newDoctor && newDoctor.id) {
+        setFormData(prev => ({
+          ...prev,
+          doctorId: newDoctor.id
+        }));
+      }
+    } catch (err) {
+      console.error('Failed to add doctor:', err);
+    }
   };
   return <div className="space-y-6">      
       <div className="flex items-center justify-between">
@@ -488,9 +584,20 @@ const ManageAppointments = () => {
           </div>
 
           <div>
-            <label htmlFor="doctorId" className="block text-sm font-medium text-gray-700">
-              Doctor *
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label htmlFor="doctorId" className="block text-sm font-medium text-gray-700">
+                Doctor *
+              </label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleAddNewDoctor}
+                className="text-blue-600 border-blue-300 hover:bg-blue-50"
+              >
+                + Add New Doctor
+              </Button>
+            </div>
             <select
               id="doctorId"
               name="doctorId"
@@ -642,9 +749,20 @@ const ManageAppointments = () => {
           </div>
 
           <div>
-            <label htmlFor="doctorId" className="block text-sm font-medium text-gray-700">
-              Doctor *
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label htmlFor="doctorId" className="block text-sm font-medium text-gray-700">
+                Doctor *
+              </label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleAddNewDoctor}
+                className="text-blue-600 border-blue-300 hover:bg-blue-50"
+              >
+                + Add New Doctor
+              </Button>
+            </div>
             <select
               id="doctorId"
               name="doctorId"
@@ -751,6 +869,129 @@ const ManageAppointments = () => {
             </Button>
             <Button type="submit" variant="primary">
               Update Appointment
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Add New Doctor Modal */}
+      <Modal 
+        isOpen={showAddDoctorModal} 
+        onClose={() => setShowAddDoctorModal(false)}
+        title="Add New Doctor"
+      >
+        <form onSubmit={handleDoctorSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="doctorName" className="block text-sm font-medium text-gray-700">
+                Doctor Name *
+              </label>
+              <input
+                type="text"
+                id="doctorName"
+                name="name"
+                value={doctorFormData.name}
+                onChange={handleDoctorInputChange}
+                required
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Dr. John Smith"
+              />
+            </div>
+            <div>
+              <label htmlFor="doctorEmail" className="block text-sm font-medium text-gray-700">
+                Email Address *
+              </label>
+              <input
+                type="email"
+                id="doctorEmail"
+                name="email"
+                value={doctorFormData.email}
+                onChange={handleDoctorInputChange}
+                required
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                placeholder="doctor@hospital.com"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="doctorSpecialty" className="block text-sm font-medium text-gray-700">
+                Specialty *
+              </label>
+              <input
+                type="text"
+                id="doctorSpecialty"
+                name="specialty"
+                value={doctorFormData.specialty}
+                onChange={handleDoctorInputChange}
+                required
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                placeholder="e.g., Cardiology, Neurology"
+              />
+            </div>
+            <div>
+              <label htmlFor="doctorPhone" className="block text-sm font-medium text-gray-700">
+                Phone Number *
+              </label>
+              <input
+                type="tel"
+                id="doctorPhone"
+                name="phone"
+                value={doctorFormData.phone}
+                onChange={handleDoctorInputChange}
+                required
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                placeholder="+1 234 567 8900"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              Availability (Days of the week)
+            </label>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
+                <label key={day} className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={doctorFormData.availability.includes(day)}
+                    onChange={() => handleDoctorAvailabilityChange(day)}
+                    className="mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-gray-700">{day}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="doctorStatus" className="block text-sm font-medium text-gray-700">
+              Status
+            </label>
+            <select
+              id="doctorStatus"
+              name="status"
+              value={doctorFormData.status}
+              onChange={handleDoctorInputChange}
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
+
+          <div className="flex justify-end space-x-3 pt-4">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => setShowAddDoctorModal(false)}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary">
+              Add Doctor
             </Button>
           </div>
         </form>

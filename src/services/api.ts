@@ -126,7 +126,7 @@ class ApiService {
 
   // Authentication methods
   async login(credentials: LoginRequest): Promise<ApiResponse<AuthResponse>> {
-    const response = await this.makeRequest<AuthResponse>('/auth/login', {
+    const response = await this.makeRequest<AuthResponse>('/mock/auth/login', {
       method: 'POST',
       body: JSON.stringify(credentials),
     });
@@ -180,7 +180,7 @@ class ApiService {
   }
 
   async getProfile(): Promise<ApiResponse<User>> {
-    return this.makeRequest<User>('/auth/profile');
+    return this.makeRequest<User>('/mock/auth/profile');
   }
 
   async updateProfile(profileData: Partial<User>): Promise<ApiResponse<User>> {

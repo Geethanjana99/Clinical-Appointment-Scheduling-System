@@ -1,15 +1,86 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
-import { UsersIcon, UserPlusIcon, CalendarIcon, FileUpIcon, SearchIcon, PlusIcon } from 'lucide-react';
+import { UsersIcon, UserPlusIcon, CalendarIcon, FileUpIcon, SearchIcon, PlusIcon, AlertCircle } from 'lucide-react';
+
+interface Patient {
+  id: string;
+  patient_id: string;
+  name: string;
+  email: string;
+  phone: string;
+  date_of_birth: string;
+  gender: string;
+  address: string;
+  emergency_contact_name: string;
+  emergency_contact_phone: string;
+  status: string;
+  created_at: string;
+}
 // Placeholder component for the Admin Dashboard
 const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const {
-    user
-  } = useAuthStore();
+  const { user } = useAuthStore();
+  
+  // State for patient data
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // API base URL
+  const API_BASE_URL = 'http://localhost:5000/api';
+
+  // Fetch patients from API
+  const fetchPatients = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      console.log('🏠 Dashboard: Fetching patients from API...');
+      const queryParams = new URLSearchParams({
+        page: '1',
+        limit: '5', // Only show first 5 patients on dashboard
+        search: searchTerm,
+        status: 'active'
+      });
+
+      const response = await fetch(`${API_BASE_URL}/mock/patients?${queryParams}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setPatients(result.data.patients || []);
+        console.log('✅ Dashboard: Patients fetched successfully:', result.data.patients.length);
+      } else {
+        throw new Error(result.message || 'Failed to fetch patients');
+      }
+    } catch (error) {
+      console.error('❌ Dashboard: Error fetching patients:', error);
+      setError(error instanceof Error ? error.message : 'Failed to fetch patients');
+      
+      // Fallback to empty array
+      setPatients([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load patients on component mount and when search term changes
+  useEffect(() => {
+    fetchPatients();
+  }, [searchTerm]);
+
+  // Handle search input
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+  };
   return <div className="container mx-auto">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">
@@ -80,10 +151,17 @@ const AdminDashboard: React.FC = () => {
           </h2>
           <div className="flex space-x-2">
             <div className="relative">
-              <input type="text" placeholder="Search patients..." className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" />
+              <input 
+                type="text" 
+                placeholder="Search patients..." 
+                value={searchTerm}
+                onChange={handleSearchChange}
+                className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" 
+              />
               <div className="absolute left-3 top-2.5 text-gray-400">
                 <SearchIcon className="h-5 w-5" />
-              </div>            </div>
+              </div>
+            </div>
             <Button variant="primary" onClick={() => navigate('/admin/patients')}>
               <PlusIcon className="h-5 w-5 mr-2" />
               Add Patient
@@ -113,81 +191,84 @@ const AdminDashboard: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {/* Sample data rows */}
-                <tr>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="font-medium text-gray-900">John Smith</div>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="text-sm text-gray-500">
-                      john.smith@example.com
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="text-sm text-gray-500">(555) 123-4567</div>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="text-sm text-gray-500">Oct 12, 2023</div>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
-                    <Button variant="outline" size="sm" className="mr-2">
-                      Edit
-                    </Button>
-                    <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
-                      Delete
-                    </Button>
-                  </td>
-                </tr>
-                <tr>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="font-medium text-gray-900">Emily Davis</div>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="text-sm text-gray-500">
-                      emily.davis@example.com
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="text-sm text-gray-500">(555) 987-6543</div>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="text-sm text-gray-500">Oct 10, 2023</div>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
-                    <Button variant="outline" size="sm" className="mr-2">
-                      Edit
-                    </Button>
-                    <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
-                      Delete
-                    </Button>
-                  </td>
-                </tr>
-                <tr>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="font-medium text-gray-900">
-                      Michael Brown
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="text-sm text-gray-500">
-                      michael.brown@example.com
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="text-sm text-gray-500">(555) 456-7890</div>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="text-sm text-gray-500">Oct 8, 2023</div>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
-                    <Button variant="outline" size="sm" className="mr-2">
-                      Edit
-                    </Button>
-                    <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
-                      Delete
-                    </Button>
-                  </td>
-                </tr>
+                {/* Error State */}
+                {error && (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-8 text-center">
+                      <div className="flex flex-col items-center">
+                        <AlertCircle className="h-8 w-8 text-red-400 mb-2" />
+                        <div className="text-red-600 font-medium">Error loading patients</div>
+                        <div className="text-sm text-red-500 mt-1">{error}</div>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="mt-3 text-red-600 border-red-300"
+                          onClick={fetchPatients}
+                        >
+                          Try Again
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+
+                {/* Loading State */}
+                {loading && !error && (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                      Loading patients...
+                    </td>
+                  </tr>
+                )}
+
+                {/* No Patients State */}
+                {!loading && !error && patients.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                      {searchTerm ? `No patients found matching "${searchTerm}"` : 'No patients found. Click "Add Patient" to register the first patient.'}
+                    </td>
+                  </tr>
+                )}
+
+                {/* Actual Patient Data */}
+                {!loading && !error && patients.length > 0 && patients.map((patient) => (
+                  <tr key={patient.id}>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="font-medium text-gray-900">{patient.name}</div>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="text-sm text-gray-500">
+                        {patient.email}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="text-sm text-gray-500">{patient.phone}</div>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="text-sm text-gray-500">
+                        {patient.created_at ? new Date(patient.created_at).toLocaleDateString() : 'N/A'}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="mr-2"
+                        onClick={() => navigate(`/admin/patients`)}
+                      >
+                        View
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="text-blue-600 hover:text-blue-700"
+                        onClick={() => navigate('/admin/appointments')}
+                      >
+                        Schedule
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

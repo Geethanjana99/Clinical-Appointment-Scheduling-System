@@ -77,124 +77,49 @@ const ManagePatients = () => {
     console.log('📝 Form Data Submitted:', formData);
     
     try {
-      const token = localStorage.getItem('token');
-      
-      // Show where data will be stored
       console.log('💾 DATA STORAGE FLOW:');
       console.log('1. Frontend: Data collected in React state (formData)');
-      console.log('2. API Call: Sending to backend endpoint /api/admin/patients');
+      console.log('2. API Call: Sending to backend endpoint /api/mock/patients');
       console.log('3. Backend: Node.js server receives data');
-      console.log('4. Database: Data stored in Aiven.io MySQL database');
-      console.log('   - Table: users (basic info)');
-      console.log('   - Table: patients (medical info)');
+      console.log('4. Storage: Data stored in mock API memory (persistent during session)');
       
-      if (!token) {
-        console.log('⚠️ No auth token - simulating data storage...');
-        alert(`🎯 PATIENT DATA STORAGE SIMULATION:
-        
-📋 Data would be stored in:
-• Frontend State: ✅ (Current)
-• Backend API: ⏳ (Would call /api/admin/patients)
-• MySQL Database: ⏳ (Aiven.io cloud database)
-  - users table: name, email, phone, role
-  - patients table: medical info, emergency contacts
-
-📦 Form Data:
-${JSON.stringify(formData, null, 2)}`);
-        
-        // Simulate successful creation
-        setShowPatientRegistration(false);
-        setFormData({
-          firstName: '',
-          lastName: '',
-          email: '',
-          phone: '',
-          dateOfBirth: '',
-          age: '',
-          gender: '',
-          address: '',
-          emergencyContact: '',
-          emergencyPhone: ''
-        });
-        return;
-      }
+      const patientData = {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        phone: formData.phone,
+        dateOfBirth: formData.dateOfBirth,
+        gender: formData.gender,
+        address: formData.address,
+        emergencyContact: formData.emergencyContact,
+        emergencyPhone: formData.emergencyPhone
+      };
 
       console.log('🌐 Making API call to save patient...');
-      let response;
-      try {
-        response = await fetch('http://localhost:5000/api/admin/patients', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            firstName: formData.firstName,
-            lastName: formData.lastName,
-            email: formData.email,
-            phone: formData.phone,
-            dateOfBirth: formData.dateOfBirth,
-            gender: formData.gender,
-            address: formData.address,
-            emergencyContact: formData.emergencyContact,
-            emergencyPhone: formData.emergencyPhone
-          })
-        });
-      } catch (authError) {
-        console.log('🔄 Auth endpoint failed, trying mock endpoint...');
-        response = await fetch('http://localhost:5000/api/mock/patients', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            firstName: formData.firstName,
-            lastName: formData.lastName,
-            email: formData.email,
-            phone: formData.phone,
-            dateOfBirth: formData.dateOfBirth,
-            gender: formData.gender,
-            address: formData.address,
-            emergencyContact: formData.emergencyContact,
-            emergencyPhone: formData.emergencyPhone
-          })
-        });
-      }
+      const response = await fetch('http://localhost:5000/api/mock/patients', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(patientData)
+      });
 
-      // If authenticated endpoint fails with token error, try mock endpoint
-      if (!response.ok && (response.status === 401 || response.status === 403)) {
-        console.log('🔄 Token validation failed, using mock endpoint...');
-        response = await fetch('http://localhost:5000/api/mock/patients', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            firstName: formData.firstName,
-            lastName: formData.lastName,
-            email: formData.email,
-            phone: formData.phone,
-            dateOfBirth: formData.dateOfBirth,
-            gender: formData.gender,
-            address: formData.address,
-            emergencyContact: formData.emergencyContact,
-            emergencyPhone: formData.emergencyPhone
-          })
-        });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const result = await response.json();
       
       if (result.success) {
-        console.log('✅ Patient saved successfully to database!');
-        console.log('💾 Database record created:', result.data);
+        console.log('✅ Patient saved successfully to mock API!');
+        console.log('💾 Mock API record created:', result.data);
         
         alert(`✅ PATIENT SUCCESSFULLY SAVED!
 
 📍 Data Storage Locations:
 • Frontend: Form cleared
 • Backend API: ✅ Processed
-• MySQL Database: ✅ Saved
+• Mock Storage: ✅ Saved
   - User ID: ${result.data.user?.id}
   - Patient ID: ${result.data.patient?.patient_id}
 
@@ -237,10 +162,36 @@ ${JSON.stringify(result.data, null, 2)}`);
       setLoading(true);
       setError(null);
       
-      const token = localStorage.getItem('token');
-      if (!token) {
-        console.log('🔍 No token found, showing mock data');
-        // Show mock data when not authenticated
+      console.log('🌐 Fetching patients from API...');
+      const queryParams = new URLSearchParams({
+        page: '1',
+        limit: '20',
+        search: searchTerm,
+        status: statusFilter
+      });
+
+      // Always try mock endpoint first for reliability
+      let response;
+      try {
+        console.log('📋 Trying mock patients endpoint...');
+        response = await fetch(`http://localhost:5000/api/mock/patients?${queryParams}`);
+        
+        if (!response.ok) {
+          throw new Error(`Mock API error! status: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          setPatients(result.data.patients || []);
+          console.log('✅ Patients fetched successfully from mock API:', result.data.patients.length);
+        } else {
+          throw new Error(result.message || 'Failed to fetch patients from mock API');
+        }
+      } catch (mockError) {
+        console.error('❌ Mock API failed, using fallback data:', mockError);
+        
+        // Fallback to hardcoded data if even mock API fails
         setPatients([
           {
             id: '1',
@@ -255,57 +206,30 @@ ${JSON.stringify(result.data, null, 2)}`);
             emergency_contact_phone: '+1 234-567-8901',
             status: 'active',
             created_at: '2023-10-15T10:00:00Z'
+          },
+          {
+            id: '2',
+            patient_id: 'P-002',
+            name: 'Sarah Johnson',
+            email: 'sarah.johnson@example.com',
+            phone: '+1 234-567-8901',
+            date_of_birth: '1985-08-22',
+            gender: 'female',
+            address: '456 Oak Ave, City, State',
+            emergency_contact_name: 'Mike Johnson',
+            emergency_contact_phone: '+1 234-567-8902',
+            status: 'active',
+            created_at: '2023-10-16T11:00:00Z'
           }
         ]);
-        setLoading(false);
-        return;
-      }
-
-      console.log('🌐 Fetching patients from API...');
-      const queryParams = new URLSearchParams({
-        page: '1',
-        limit: '20',
-        search: searchTerm,
-        status: statusFilter
-      });
-
-      // Try the authenticated endpoint first, fall back to mock if token issues
-      let response;
-      try {
-        response = await fetch(`http://localhost:5000/api/admin/patients?${queryParams}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-      } catch (authError) {
-        console.log('🔄 Auth endpoint failed, trying mock endpoint...');
-        response = await fetch(`http://localhost:5000/api/mock/patients?${queryParams}`);
-      }
-
-      if (!response.ok) {
-        // If authenticated endpoint fails with token error, try mock endpoint
-        if (response.status === 401 || response.status === 403) {
-          console.log('🔄 Token validation failed, using mock endpoint...');
-          response = await fetch(`http://localhost:5000/api/mock/patients?${queryParams}`);
-        }
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-      }
-
-      const result = await response.json();
-      
-      if (result.success) {
-        setPatients(result.data.patients || []);
-        console.log('✅ Patients fetched successfully:', result.data.patients.length);
-      } else {
-        setError(result.message || 'Failed to fetch patients');
+        console.log('✅ Using fallback patient data');
       }
     } catch (error) {
       console.error('❌ Error fetching patients:', error);
       setError(error instanceof Error ? error.message : 'Failed to fetch patients');
+      
+      // Even on error, provide some fallback data
+      setPatients([]);
     } finally {
       setLoading(false);
     }

@@ -77,29 +77,6 @@ export const useAuthStore = create<AuthState>()(
       },      login: async (email, password) => {
         set({ isLoading: true, error: null });
 
-        // TEMPORARY: Bypass authentication for testing
-        if (email === 'admin@caresync.com' && password === 'admin123') {
-          const mockUser = {
-            id: 'temp-admin-id',
-            name: 'Admin User',
-            email: 'admin@caresync.com',
-            role: 'admin' as UserRole,
-            is_active: true,
-            email_verified: true
-          };
-          
-          // Set a temporary token
-          apiService.setToken('temp-admin-token');
-          
-          set({
-            user: mockUser,
-            isAuthenticated: true,
-            isLoading: false,
-            error: null
-          });
-          return;
-        }
-
         try {
           const response = await apiService.login({ email, password });
           
