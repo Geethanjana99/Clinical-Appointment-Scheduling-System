@@ -131,14 +131,15 @@ const BillingDashboard = () => {
     };
   };
 
-  const stats = calculateStats();const handleGenerateInvoice = async (invoiceData: any) => {
+  const stats = calculateStats();  const handleGenerateInvoice = async (invoiceData: any) => {
     console.log('Generated Invoice:', invoiceData);
     
     // Show success message
     alert(`Invoice ${invoiceData.invoiceNumber} generated successfully for ${invoiceData.patientName}!`);
     
-    // Refresh recent invoices to include the new one
+    // Refresh both recent invoices and all invoices to update dashboard stats
     await fetchRecentInvoices();
+    await fetchAllInvoices();
   };
   const handleViewInvoice = (invoice: Invoice) => {
     // Convert the backend invoice to the format expected by ViewInvoiceModal
@@ -170,11 +171,11 @@ const BillingDashboard = () => {
         const response = await apiService.updateInvoiceStatus(invoice.id, 'paid');
         
         console.log('Update response:', response);
-        
-        if (response.success) {
+          if (response.success) {
           alert(`Payment recorded successfully for Invoice ${invoice.invoice_number || invoice.invoiceNumber}!`);
-          // Refresh the recent invoices to show updated status
+          // Refresh the recent invoices and all invoices to show updated status and stats
           await fetchRecentInvoices();
+          await fetchAllInvoices();
         } else {
           console.error('API returned success: false', response);
           alert(`Failed to record payment: ${response.message || 'Unknown error'}`);
@@ -192,18 +193,19 @@ const BillingDashboard = () => {
           <FileTextIcon className="w-4 h-4 mr-2" />
           Generate Invoice
         </Button>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      </div>      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="bg-blue-50 border border-blue-100">
           <div className="flex items-center justify-between p-6">
             <div>
               <p className="text-sm font-medium text-blue-600">
                 Today's Revenue
               </p>
-              <p className="text-2xl font-bold text-blue-800 mt-1">$2,854</p>
+              <p className="text-2xl font-bold text-blue-800 mt-1">
+                {formatCurrency(stats.todayRevenue)}
+              </p>
               <p className="text-sm text-blue-600 flex items-center mt-1">
                 <TrendingUpIcon className="w-4 h-4 mr-1" />
-                +12% from yesterday
+                From paid invoices today
               </p>
             </div>
             <div className="bg-blue-100 rounded-full p-3">
@@ -217,8 +219,8 @@ const BillingDashboard = () => {
               <p className="text-sm font-medium text-green-600">
                 Pending Payments
               </p>
-              <p className="text-2xl font-bold text-green-800 mt-1">23</p>
-              <p className="text-sm text-green-600 mt-1">$4,575 total</p>
+              <p className="text-2xl font-bold text-green-800 mt-1">{stats.pendingCount}</p>
+              <p className="text-sm text-green-600 mt-1">{formatCurrency(stats.pendingTotal)} total</p>
             </div>
             <div className="bg-green-100 rounded-full p-3">
               <FileTextIcon className="h-6 w-6 text-green-600" />
@@ -231,7 +233,7 @@ const BillingDashboard = () => {
               <p className="text-sm font-medium text-purple-600">
                 Completed Payments
               </p>
-              <p className="text-2xl font-bold text-purple-800 mt-1">156</p>
+              <p className="text-2xl font-bold text-purple-800 mt-1">{stats.completedThisMonth}</p>
               <p className="text-sm text-purple-600 mt-1">This month</p>
             </div>
             <div className="bg-purple-100 rounded-full p-3">
