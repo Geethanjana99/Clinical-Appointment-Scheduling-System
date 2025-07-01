@@ -48,6 +48,14 @@ const BookAppointment = () => {
   // const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   // const [loadingSlots, setLoadingSlots] = useState(false);
   // const [slotsError, setSlotsError] = useState<string | null>(null);
+  
+  // Doctor availability state for queue system
+  const [doctorAvailability, setDoctorAvailability] = useState<{
+    isAvailable: boolean;
+    timeRange: string | null;
+    message: string;
+  } | null>(null);
+  const [loadingAvailability, setLoadingAvailability] = useState(false);
   const [step, setStep] = useState(1); // 1: Select Doctor, 2: Select Date/Time, 3: Confirm
   
   // Success state
@@ -112,6 +120,15 @@ const BookAppointment = () => {
     setFilteredDoctors(filtered);
   }, [doctors, searchTerm, selectedSpecialty]);
 
+  // Fetch doctor availability when selected doctor and date change
+  useEffect(() => {
+    if (selectedDoctor && selectedDate) {
+      fetchDoctorAvailability(selectedDoctor.id, selectedDate);
+    } else {
+      setDoctorAvailability(null);
+    }
+  }, [selectedDoctor, selectedDate]);
+
   // No need for slots fetching in queue system
 
   const fetchDoctors = async () => {
@@ -134,6 +151,35 @@ const BookAppointment = () => {
       setError('Failed to load doctors');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Fetch doctor availability for selected date
+  const fetchDoctorAvailability = async (doctorId: string, date: string) => {
+    try {
+      setLoadingAvailability(true);
+      setDoctorAvailability(null);
+      
+      const response = await apiService.getDoctorAvailability(doctorId, date);
+      
+      if (response.success && response.data) {
+        setDoctorAvailability(response.data);
+      } else {
+        setDoctorAvailability({
+          isAvailable: false,
+          timeRange: null,
+          message: 'Unable to check availability'
+        });
+      }
+    } catch (err) {
+      console.error('Error fetching doctor availability:', err);
+      setDoctorAvailability({
+        isAvailable: false,
+        timeRange: null,
+        message: 'Error checking availability'
+      });
+    } finally {
+      setLoadingAvailability(false);
     }
   };
 
@@ -522,7 +568,63 @@ const BookAppointment = () => {
                   }}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
                 />
-              </div>              
+              </div>
+
+              {/* Doctor Availability Display */}
+              {selectedDate && (
+                <div className="mt-4">
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">
+                    Doctor Availability for {new Date(selectedDate).toLocaleDateString()}
+                  </h4>
+                  {loadingAvailability ? (
+                    <div className="p-3 bg-gray-50 border border-gray-200 rounded-md">
+                      <p className="text-sm text-gray-600">Checking availability...</p>
+                    </div>
+                  ) : doctorAvailability ? (
+                    <div className={`p-3 border rounded-md ${
+                      doctorAvailability.isAvailable 
+                        ? 'bg-green-50 border-green-200' 
+                        : 'bg-red-50 border-red-200'
+                    }`}>
+                      <div className="flex items-center">
+                        <div className={`w-3 h-3 rounded-full mr-2 ${
+                          doctorAvailability.isAvailable ? 'bg-green-500' : 'bg-red-500'
+                        }`}></div>
+                        <p className={`text-sm font-medium ${
+                          doctorAvailability.isAvailable ? 'text-green-700' : 'text-red-700'
+                        }`}>
+                          {doctorAvailability.isAvailable ? 'Available' : 'Not Available'}
+                        </p>
+                      </div>
+                      {doctorAvailability.timeRange && (
+                        <p className={`text-sm mt-1 ${
+                          doctorAvailability.isAvailable ? 'text-green-600' : 'text-red-600'
+                        }`}>
+                          <ClockIcon className="w-4 h-4 inline mr-1" />
+                          Working Hours: {doctorAvailability.timeRange}
+                        </p>
+                      )}
+                      <p className={`text-sm mt-1 ${
+                        doctorAvailability.isAvailable ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        {doctorAvailability.message}
+                      </p>
+                      {doctorAvailability.isAvailable && (
+                        <p className="text-sm mt-2 text-gray-600">
+                          📋 You will be added to the queue for this day. Arrive during working hours and wait for your number to be called.
+                        </p>
+                      )}
+                    </div>
+                  ) : selectedDoctor && (
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+                      <p className="text-sm text-blue-600">
+                        <ClockIcon className="w-4 h-4 inline mr-1" />
+                        General Hours: {formatWorkingHours(selectedDoctor.working_hours)}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}              
 
               {/* Emergency Appointment Option */}
               <div>
