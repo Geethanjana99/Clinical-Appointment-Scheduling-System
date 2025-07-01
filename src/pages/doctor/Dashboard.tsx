@@ -27,6 +27,7 @@ interface DashboardData {
     consultationFee: number;
     officeAddress: string;
     workingHours: any;
+    availability_status?: 'available' | 'busy' | 'offline';
   };
   todayAppointments: {
     total: number;
@@ -93,6 +94,7 @@ const DoctorDashboard = () => {
           totalReviews: 127,
           consultationFee: 3500.00,
           officeAddress: 'Medical Center, Queue Wing',
+          availability_status: 'available',
           workingHours: {
             monday: { start: '09:00', end: '17:00' },
             tuesday: { start: '09:00', end: '17:00' },
@@ -206,7 +208,15 @@ const DoctorDashboard = () => {
   };
 
   const formatTime = (time: string) => {
+    if (!time || typeof time !== 'string') {
+      return 'Invalid Time';
+    }
+    
     const [hours, minutes] = time.split(':');
+    if (!hours || !minutes) {
+      return 'Invalid Time';
+    }
+    
     const hour = parseInt(hours);
     const ampm = hour >= 12 ? 'PM' : 'AM';
     const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
@@ -272,22 +282,22 @@ const DoctorDashboard = () => {
               <UserIcon className="h-8 w-8 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold">{dashboardData.doctor.name}</h1>
-              <p className="text-blue-100">{dashboardData.doctor.specialty}</p>
+              <h1 className="text-2xl font-bold">{dashboardData.doctor?.name || 'Doctor'}</h1>
+              <p className="text-blue-100">{dashboardData.doctor?.specialty || 'General Medicine'}</p>
               <div className="flex items-center mt-1">
                 <StarIcon className="h-4 w-4 text-yellow-300 fill-current" />
-                <span className="ml-1 text-sm">{dashboardData.doctor.rating} ({dashboardData.doctor.totalReviews} reviews)</span>
+                <span className="ml-1 text-sm">{dashboardData.doctor?.rating || 0} ({dashboardData.doctor?.totalReviews || 0} reviews)</span>
               </div>
             </div>
           </div>
           <div className="text-right">
             <div className="flex items-center text-white/90 mb-1">
               <MapPinIcon className="h-4 w-4 mr-1" />
-              <span className="text-sm">{dashboardData.doctor.officeAddress}</span>
+              <span className="text-sm">{dashboardData.doctor?.officeAddress || 'Office Address'}</span>
             </div>
             <div className="flex items-center text-white/90">
               <DollarSignIcon className="h-4 w-4 mr-1" />
-              <span className="text-sm">Consultation: ${dashboardData.doctor.consultationFee}</span>
+              <span className="text-sm">Consultation: ${dashboardData.doctor?.consultationFee || 0}</span>
             </div>
           </div>
         </div>
@@ -302,7 +312,7 @@ const DoctorDashboard = () => {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Today's Appointments</p>
-              <p className="text-2xl font-bold text-gray-900">{dashboardData.todayAppointments.total}</p>
+              <p className="text-2xl font-bold text-gray-900">{dashboardData.todayAppointments?.total || 0}</p>
             </div>
           </div>
         </Card>
@@ -314,7 +324,7 @@ const DoctorDashboard = () => {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Completed</p>
-              <p className="text-2xl font-bold text-gray-900">{dashboardData.todayAppointments.completed}</p>
+              <p className="text-2xl font-bold text-gray-900">{dashboardData.todayAppointments?.completed || 0}</p>
             </div>
           </div>
         </Card>
@@ -326,7 +336,7 @@ const DoctorDashboard = () => {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Pending</p>
-              <p className="text-2xl font-bold text-gray-900">{dashboardData.todayAppointments.pending}</p>
+              <p className="text-2xl font-bold text-gray-900">{dashboardData.todayAppointments?.pending || 0}</p>
             </div>
           </div>
         </Card>
@@ -338,7 +348,7 @@ const DoctorDashboard = () => {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Monthly Revenue</p>
-              <p className="text-2xl font-bold text-gray-900">${dashboardData.stats.monthlyEarnings.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-gray-900">${dashboardData.stats?.monthlyEarnings?.toLocaleString() || '0'}</p>
             </div>
           </div>
         </Card>
@@ -362,7 +372,7 @@ const DoctorDashboard = () => {
                 </div>
                 <div className="flex items-center space-x-2">
                   <span className="text-sm text-gray-500">
-                    {dashboardData.todayAppointments.total} patients in queue
+                    {dashboardData.todayAppointments?.total || 0} patients in queue
                   </span>
                   <Link 
                     to="/doctor/appointments" 
@@ -373,9 +383,11 @@ const DoctorDashboard = () => {
                 </div>
               </div>
               
-              {dashboardData.todayAppointments.appointments.length > 0 ? (
+              {dashboardData.todayAppointments?.appointments?.length > 0 ? (
                 <div className="space-y-4">
-                  {dashboardData.todayAppointments.appointments.map((appointment) => (
+                  {dashboardData.todayAppointments.appointments
+                    .filter(appointment => appointment && appointment.id) // Filter out invalid appointments
+                    .map((appointment) => (
                     <div key={appointment.id} className="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-4">
@@ -387,7 +399,7 @@ const DoctorDashboard = () => {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center space-x-2">
                               <p className="text-sm font-medium text-gray-900 truncate">
-                                {appointment.patientName}
+                                {appointment.patientName || 'Unknown Patient'}
                               </p>
                               {appointment.queueNumber && (
                                 <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
@@ -399,21 +411,21 @@ const DoctorDashboard = () => {
                                 </span>
                               )}
                               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(appointment.status)}`}>
-                                {appointment.status.replace('-', ' ')}
+                                {appointment.status ? appointment.status.replace('-', ' ') : 'unknown'}
                               </span>
                             </div>
                             <div className="flex items-center space-x-4 mt-1">
                               <div className="flex items-center text-sm text-gray-500">
                                 <ClockIcon className="h-4 w-4 mr-1" />
-                                {formatTime(appointment.appointmentTime)}
+                                {appointment.appointmentTime ? formatTime(appointment.appointmentTime) : 'Time not set'}
                               </div>
                               <div className="flex items-center text-sm text-gray-500">
                                 <PhoneIcon className="h-4 w-4 mr-1" />
-                                {appointment.patientPhone}
+                                {appointment.patientPhone || 'Phone not available'}
                               </div>
                             </div>
                             <p className="text-sm text-gray-600 mt-1 truncate">
-                              {appointment.reason}
+                              {appointment.reason || 'No reason provided'}
                             </p>
                           </div>
                         </div>
@@ -455,14 +467,6 @@ const DoctorDashboard = () => {
                     <br />
                     Patients can book queue-based appointments and will be assigned numbers.
                   </p>
-                  <div className="space-x-3">
-                    <Link to="/doctor/schedule">
-                      <Button variant="outline">
-                        <CalendarIcon className="w-4 h-4 mr-2" />
-                        Manage Availability
-                      </Button>
-                    </Link>
-                  </div>
                 </div>
               )}
             </div>
@@ -476,12 +480,6 @@ const DoctorDashboard = () => {
             <div className="p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
               <div className="space-y-3">
-                <Link to="/doctor/schedule">
-                  <Button variant="outline" className="w-full justify-start">
-                    <CalendarIcon className="w-4 h-4 mr-2" />
-                    Manage Schedule
-                  </Button>
-                </Link>
                 <Link to="/doctor/patients">
                   <Button variant="outline" className="w-full justify-start">
                     <UserIcon className="w-4 h-4 mr-2" />
@@ -504,6 +502,8 @@ const DoctorDashboard = () => {
             </div>
           </Card>
 
+
+
           {/* Today's Overview */}
           <Card>
             <div className="p-6">
@@ -513,7 +513,7 @@ const DoctorDashboard = () => {
                   <div className="flex items-center">
                     <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
                       <span className="text-blue-600 font-semibold text-sm">
-                        {dashboardData.todayAppointments.inProgress}
+                        {dashboardData.todayAppointments?.inProgress || 0}
                       </span>
                     </div>
                     <span className="ml-3 text-sm font-medium">In Progress</span>
@@ -527,7 +527,7 @@ const DoctorDashboard = () => {
                   <div className="flex items-center">
                     <div className="h-8 w-8 bg-yellow-100 rounded-full flex items-center justify-center">
                       <span className="text-yellow-600 font-semibold text-sm">
-                        {dashboardData.todayAppointments.pending}
+                        {dashboardData.todayAppointments?.pending || 0}
                       </span>
                     </div>
                     <span className="ml-3 text-sm font-medium">Waiting</span>
@@ -541,7 +541,7 @@ const DoctorDashboard = () => {
                   <div className="flex items-center">
                     <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
                       <span className="text-green-600 font-semibold text-sm">
-                        {dashboardData.todayAppointments.completed}
+                        {dashboardData.todayAppointments?.completed || 0}
                       </span>
                     </div>
                     <span className="ml-3 text-sm font-medium">Completed</span>
@@ -555,7 +555,7 @@ const DoctorDashboard = () => {
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">Today's Revenue</span>
                     <span className="font-semibold text-gray-900">
-                      ${(dashboardData.todayAppointments.completed * dashboardData.doctor.consultationFee).toLocaleString()}
+                      ${((dashboardData.todayAppointments?.completed || 0) * (dashboardData.doctor?.consultationFee || 0)).toLocaleString()}
                     </span>
                   </div>
                 </div>
@@ -570,23 +570,23 @@ const DoctorDashboard = () => {
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">Total Patients</span>
-                  <span className="text-sm font-semibold">{dashboardData.stats.totalPatients}</span>
+                  <span className="text-sm font-semibold">{dashboardData.stats?.totalPatients || 0}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">Appointments</span>
-                  <span className="text-sm font-semibold">{dashboardData.stats.totalAppointments}</span>
+                  <span className="text-sm font-semibold">{dashboardData.stats?.totalAppointments || 0}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">Average Rating</span>
                   <div className="flex items-center">
                     <StarIcon className="h-4 w-4 text-yellow-400 fill-current" />
-                    <span className="text-sm font-semibold ml-1">{dashboardData.stats.averageRating}</span>
+                    <span className="text-sm font-semibold ml-1">{dashboardData.stats?.averageRating || 0}</span>
                   </div>
                 </div>
                 <div className="flex items-center justify-between pt-2 border-t border-gray-200">
                   <span className="text-sm text-gray-600">Total Earnings</span>
                   <span className="text-sm font-semibold text-green-600">
-                    ${dashboardData.stats.monthlyEarnings.toLocaleString()}
+                    ${dashboardData.stats?.monthlyEarnings?.toLocaleString() || '0'}
                   </span>
                 </div>
               </div>            </div>

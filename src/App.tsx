@@ -24,7 +24,7 @@ import ManageQueue from './pages/doctor/ManageQueue';
 import MyPatients from './pages/doctor/MyPatients';
 import DoctorAppointments from './pages/doctor/Appointments';
 import AIPredictions from './pages/doctor/AIPredictions';
-import DoctorAvailability from './pages/doctor/Availability';
+
 // Admin Pages
 import AdminDashboard from './pages/admin/Dashboard';
 import ManagePatients from './pages/admin/ManagePatients';
@@ -108,7 +108,7 @@ export function App() {
             <Route path="patients" element={<MyPatients />} />
             <Route path="appointments" element={<DoctorAppointments />} />
             <Route path="ai-predictions" element={<AIPredictions />} />
-            <Route path="availability" element={<DoctorAvailability />} />
+
           </Route>
           
           {/* Admin Routes */}

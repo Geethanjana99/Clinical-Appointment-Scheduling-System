@@ -359,22 +359,10 @@ class ApiService {
   async getDoctorProfile(): Promise<ApiResponse<any>> {
     return this.makeRequest<any>('/doctors/profile');
   }
+
   async getAvailableSlots(doctorId: string, date: string): Promise<ApiResponse<{date: string, slots: string[]}>> {
     const params = new URLSearchParams({ doctorId, date });
     return this.makeRequest<{date: string, slots: string[]}>(`/appointments/available-slots?${params.toString()}`);
-  }
-
-  async getDoctorAvailability(doctorId: string, date: string): Promise<ApiResponse<{
-    isAvailable: boolean;
-    timeRange: string | null;
-    message: string;
-  }>> {
-    const params = new URLSearchParams({ date });
-    return this.makeRequest<{
-      isAvailable: boolean;
-      timeRange: string | null;
-      message: string;
-    }>(`/patients/doctors/${doctorId}/availability?${params.toString()}`);
   }
 }
 

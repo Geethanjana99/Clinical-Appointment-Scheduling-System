@@ -11,7 +11,6 @@ interface Doctor {
   email: string;
   specialty: string;
   phone: string;
-  availability: string[];
   status: 'active' | 'inactive';
 }
 
@@ -23,7 +22,6 @@ const ManageDoctors = () => {
       email: 'sarah.johnson@example.com',
       specialty: 'Cardiology',
       phone: '+1 234 567 8901',
-      availability: ['Monday', 'Tuesday', 'Wednesday'],
       status: 'active'
     },
     {
@@ -32,7 +30,6 @@ const ManageDoctors = () => {
       email: 'michael.chen@example.com',
       specialty: 'Neurology',
       phone: '+1 234 567 8902',
-      availability: ['Tuesday', 'Thursday', 'Friday'],
       status: 'active'
     }
   ]);
@@ -44,33 +41,28 @@ const ManageDoctors = () => {
     email: '',
     specialty: '',
     phone: '',
-    availability: [] as string[],
     status: 'active' as 'active' | 'inactive'
   });
 
   const handleAddDoctor = () => {
-    setEditingDoctor(null);
-    setFormData({
-      name: '',
-      email: '',
-      specialty: '',
-      phone: '',
-      availability: [],
-      status: 'active'
-    });
+    setEditingDoctor(null);      setFormData({
+        name: '',
+        email: '',
+        specialty: '',
+        phone: '',
+        status: 'active'
+      });
     setIsModalOpen(true);
   };
 
   const handleEditDoctor = (doctor: Doctor) => {
-    setEditingDoctor(doctor);
-    setFormData({
-      name: doctor.name,
-      email: doctor.email,
-      specialty: doctor.specialty,
-      phone: doctor.phone,
-      availability: doctor.availability,
-      status: doctor.status
-    });
+    setEditingDoctor(doctor);      setFormData({
+        name: doctor.name,
+        email: doctor.email,
+        specialty: doctor.specialty,
+        phone: doctor.phone,
+        status: doctor.status
+      });
     setIsModalOpen(true);
   };
 
@@ -98,17 +90,6 @@ const ManageDoctors = () => {
     setIsModalOpen(false);
   };
 
-  const handleAvailabilityChange = (day: string) => {
-    setFormData(prev => ({
-      ...prev,
-      availability: prev.availability.includes(day)
-        ? prev.availability.filter(d => d !== day)
-        : [...prev.availability, day]
-    }));
-  };
-
-  const weekDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -134,9 +115,6 @@ const ManageDoctors = () => {
                   Contact
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Availability
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -158,15 +136,6 @@ const ManageDoctors = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {doctor.phone}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex flex-wrap gap-1">
-                      {doctor.availability.map((day) => (
-                        <span key={day} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          {day.slice(0, 3)}
-                        </span>
-                      ))}
-                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
@@ -255,25 +224,6 @@ const ManageDoctors = () => {
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, phone: e.target.value })}
               required
             />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Availability
-            </label>
-            <div className="grid grid-cols-2 gap-2">
-              {weekDays.map((day) => (
-                <label key={day} className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={formData.availability.includes(day)}
-                    onChange={() => handleAvailabilityChange(day)}
-                    className="mr-2"
-                  />
-                  <span className="text-sm">{day}</span>
-                </label>
-              ))}
-            </div>
           </div>
 
           <div>

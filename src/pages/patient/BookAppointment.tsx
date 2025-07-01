@@ -13,7 +13,6 @@ interface Doctor {
   rating: number;
   total_reviews: number;
   consultation_fee: number;
-  availability_status: string;
   avatar_url?: string;
   years_of_experience: number;
   bio?: string;
@@ -49,13 +48,6 @@ const BookAppointment = () => {
   // const [loadingSlots, setLoadingSlots] = useState(false);
   // const [slotsError, setSlotsError] = useState<string | null>(null);
   
-  // Doctor availability state for queue system
-  const [doctorAvailability, setDoctorAvailability] = useState<{
-    isAvailable: boolean;
-    timeRange: string | null;
-    message: string;
-  } | null>(null);
-  const [loadingAvailability, setLoadingAvailability] = useState(false);
   const [step, setStep] = useState(1); // 1: Select Doctor, 2: Select Date/Time, 3: Confirm
   
   // Success state
@@ -73,13 +65,35 @@ const BookAppointment = () => {
     
     // Show today's hours if available
     if (workingHours[todayName]) {
-      return `Today: ${workingHours[todayName]}`;
+      const todayHours = workingHours[todayName];
+      // Handle different formats of working hours
+      if (typeof todayHours === 'object' && todayHours) {
+        if (todayHours.start && todayHours.end) {
+          return `Today: ${todayHours.start} - ${todayHours.end}`;
+        } else if (todayHours.startTime && todayHours.endTime) {
+          return `Today: ${todayHours.startTime} - ${todayHours.endTime}`;
+        }
+      }
+      // Handle if working hours is already a string
+      else if (typeof todayHours === 'string') {
+        return `Today: ${todayHours}`;
+      }
     }
     
     // Otherwise show the first available day's hours
     for (const day of daysOfWeek) {
       if (workingHours[day]) {
-        return `${day.charAt(0).toUpperCase() + day.slice(1)}: ${workingHours[day]}`;
+        const dayHours = workingHours[day];
+        if (typeof dayHours === 'object' && dayHours) {
+          if (dayHours.start && dayHours.end) {
+            return `${day.charAt(0).toUpperCase() + day.slice(1)}: ${dayHours.start} - ${dayHours.end}`;
+          } else if (dayHours.startTime && dayHours.endTime) {
+            return `${day.charAt(0).toUpperCase() + day.slice(1)}: ${dayHours.startTime} - ${dayHours.endTime}`;
+          }
+        }
+        else if (typeof dayHours === 'string') {
+          return `${day.charAt(0).toUpperCase() + day.slice(1)}: ${dayHours}`;
+        }
       }
     }
     
@@ -94,7 +108,23 @@ const BookAppointment = () => {
     const daysOfWeek = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
     const dayName = daysOfWeek[date.getDay()];
     
-    return workingHours[dayName] || 'Not available on this day';
+    const dayHours = workingHours[dayName];
+    if (!dayHours) return 'Not available on this day';
+    
+    // Handle different formats of working hours
+    if (typeof dayHours === 'object' && dayHours) {
+      if (dayHours.start && dayHours.end) {
+        return `${dayHours.start} - ${dayHours.end}`;
+      } else if (dayHours.startTime && dayHours.endTime) {
+        return `${dayHours.startTime} - ${dayHours.endTime}`;
+      }
+    }
+    // Handle if working hours is already a string
+    else if (typeof dayHours === 'string') {
+      return dayHours;
+    }
+    
+    return 'Available (hours not specified)';
   };
 
   // Fetch doctors from backend
@@ -119,15 +149,6 @@ const BookAppointment = () => {
     
     setFilteredDoctors(filtered);
   }, [doctors, searchTerm, selectedSpecialty]);
-
-  // Fetch doctor availability when selected doctor and date change
-  useEffect(() => {
-    if (selectedDoctor && selectedDate) {
-      fetchDoctorAvailability(selectedDoctor.id, selectedDate);
-    } else {
-      setDoctorAvailability(null);
-    }
-  }, [selectedDoctor, selectedDate]);
 
   // No need for slots fetching in queue system
 
@@ -154,35 +175,7 @@ const BookAppointment = () => {
     }
   };
 
-  // Fetch doctor availability for selected date
-  const fetchDoctorAvailability = async (doctorId: string, date: string) => {
-    try {
-      setLoadingAvailability(true);
-      setDoctorAvailability(null);
-      
-      const response = await apiService.getDoctorAvailability(doctorId, date);
-      
-      if (response.success && response.data) {
-        setDoctorAvailability(response.data);
-      } else {
-        setDoctorAvailability({
-          isAvailable: false,
-          timeRange: null,
-          message: 'Unable to check availability'
-        });
-      }
-    } catch (err) {
-      console.error('Error fetching doctor availability:', err);
-      setDoctorAvailability({
-        isAvailable: false,
-        timeRange: null,
-        message: 'Error checking availability'
-      });
-    } finally {
-      setLoadingAvailability(false);
-    }
-  };
-
+  // Check doctor schedule availability based on working hours
   // No slots fetching needed for queue system
   
   // Get tomorrow's date as minimum date
@@ -474,16 +467,6 @@ const BookAppointment = () => {
                         <span className="ml-1 text-sm text-gray-600">({doctor.rating})</span>
                       </div>
                       <div className="mt-2 space-y-1">
-                        <div className="flex items-center text-sm text-gray-600">
-                          <ClockIcon className="w-4 h-4 mr-1" />
-                          <span className={`px-2 py-1 rounded text-xs ${
-                          doctor.availability_status === 'available' 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}>
-                          {doctor.availability_status}
-                        </span>
-                        </div>
                         <div className="text-sm text-gray-600">
                           {doctor.years_of_experience} years
                         </div>
@@ -573,56 +556,9 @@ const BookAppointment = () => {
               {/* Doctor Availability Display */}
               {selectedDate && (
                 <div className="mt-4">
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">
-                    Doctor Availability for {new Date(selectedDate).toLocaleDateString()}
-                  </h4>
-                  {loadingAvailability ? (
-                    <div className="p-3 bg-gray-50 border border-gray-200 rounded-md">
-                      <p className="text-sm text-gray-600">Checking availability...</p>
-                    </div>
-                  ) : doctorAvailability ? (
-                    <div className={`p-3 border rounded-md ${
-                      doctorAvailability.isAvailable 
-                        ? 'bg-green-50 border-green-200' 
-                        : 'bg-red-50 border-red-200'
-                    }`}>
-                      <div className="flex items-center">
-                        <div className={`w-3 h-3 rounded-full mr-2 ${
-                          doctorAvailability.isAvailable ? 'bg-green-500' : 'bg-red-500'
-                        }`}></div>
-                        <p className={`text-sm font-medium ${
-                          doctorAvailability.isAvailable ? 'text-green-700' : 'text-red-700'
-                        }`}>
-                          {doctorAvailability.isAvailable ? 'Available' : 'Not Available'}
-                        </p>
-                      </div>
-                      {doctorAvailability.timeRange && (
-                        <p className={`text-sm mt-1 ${
-                          doctorAvailability.isAvailable ? 'text-green-600' : 'text-red-600'
-                        }`}>
-                          <ClockIcon className="w-4 h-4 inline mr-1" />
-                          Working Hours: {doctorAvailability.timeRange}
-                        </p>
-                      )}
-                      <p className={`text-sm mt-1 ${
-                        doctorAvailability.isAvailable ? 'text-green-600' : 'text-red-600'
-                      }`}>
-                        {doctorAvailability.message}
-                      </p>
-                      {doctorAvailability.isAvailable && (
-                        <p className="text-sm mt-2 text-gray-600">
-                          📋 You will be added to the queue for this day. Arrive during working hours and wait for your number to be called.
-                        </p>
-                      )}
-                    </div>
-                  ) : selectedDoctor && (
-                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
-                      <p className="text-sm text-blue-600">
-                        <ClockIcon className="w-4 h-4 inline mr-1" />
-                        General Hours: {formatWorkingHours(selectedDoctor.working_hours)}
-                      </p>
-                    </div>
-                  )}
+                  <p className="text-sm text-gray-600 mb-2">
+                    Select your preferred appointment date. You will join the queue for that day.
+                  </p>
                 </div>
               )}              
 
@@ -827,3 +763,32 @@ const BookAppointment = () => {
 };
 
 export default BookAppointment;
+
+/*
+ * Working Hours Format Support:
+ * The system now supports multiple formats for doctor working hours:
+ * 
+ * Format 1 (start/end):
+ * {
+ *   monday: { start: "09:00", end: "17:00" },
+ *   tuesday: { start: "09:00", end: "17:00" }
+ * }
+ * 
+ * Format 2 (startTime/endTime):
+ * {
+ *   monday: { startTime: "09:00", endTime: "17:00" },
+ *   tuesday: { startTime: "09:00", endTime: "17:00" }
+ * }
+ * 
+ * Format 3 (string):
+ * {
+ *   monday: "09:00 - 17:00",
+ *   tuesday: "09:00 - 17:00"
+ * }
+ * 
+ * Availability Logic:
+ * - Uses doctor's working_hours from the doctor profile instead of API calls
+ * - Checks availability_status field to determine if doctor is accepting appointments
+ * - Validates against past dates
+ * - Provides queue-based appointment booking
+ */
