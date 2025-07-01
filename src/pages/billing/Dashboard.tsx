@@ -1,4 +1,4 @@
-import React from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
@@ -6,132 +6,126 @@ import StatusBadge from '../../components/ui/StatusBadge';
 import GenerateInvoiceModal from '../../components/modals/GenerateInvoiceModal';
 import ViewInvoiceModal from '../../components/modals/ViewInvoiceModal';
 import { DollarSignIcon, FileTextIcon, ChevronRightIcon, TrendingUpIcon, CalendarIcon, UserIcon } from 'lucide-react';
+import { apiService } from '../../services/api';
+
+interface Invoice {
+  id: string;
+  invoice_number: string;
+  patient_name: string;
+  appointment_date: string;
+  due_date: string;
+  total_amount: string;
+  status: 'pending' | 'paid' | 'overdue' | 'cancelled';
+  notes: string;
+  generated_date: string;
+  created_at: string;
+  updated_at: string;
+}
 const BillingDashboard = () => {
-  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = React.useState(false);
-  const [isViewModalOpen, setIsViewModalOpen] = React.useState(false);
-  const [selectedInvoice, setSelectedInvoice] = React.useState<any>(null);
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
+  const [recentInvoices, setRecentInvoices] = useState<Invoice[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mock invoice data for demonstration - using state to allow updates
-  const [invoices, setInvoices] = React.useState([
-    {
-      id: 1,
-      invoiceNumber: 'INV-20231001',
-      patientName: 'John Smith',
-      patientId: 'P-1001',
-      appointmentDate: '2023-10-10',
-      dueDate: '2023-10-25',
-      generatedDate: '2023-10-11',
-      status: 'paid' as const,
-      totalAmount: 150,
-      items: [
-        {
-          id: '1',
-          description: 'General Consultation',
-          quantity: 1,
-          rate: 150,
-          amount: 150
-        }
-      ],
-      notes: 'Regular checkup appointment'
-    },
-    {
-      id: 2,
-      invoiceNumber: 'INV-20232001',
-      patientName: 'John Smith',
-      patientId: 'P-2001',
-      appointmentDate: '2023-10-12',
-      dueDate: '2023-10-27',
-      generatedDate: '2023-10-12',
-      status: 'unpaid' as const,
-      totalAmount: 300,
-      items: [
-        {
-          id: '1',
-          description: 'Specialist Consultation',
-          quantity: 1,
-          rate: 250,
-          amount: 250
-        },
-        {
-          id: '2',
-          description: 'Blood Test',
-          quantity: 1,
-          rate: 50,
-          amount: 50
-        }
-      ],
-      notes: 'Follow-up required'
-    },    {
-      id: 3,
-      invoiceNumber: 'INV-20233001',
-      patientName: 'John Smith',
-      patientId: 'P-3001',
-      appointmentDate: '2023-10-14',
-      dueDate: '2023-10-29',
-      generatedDate: '2023-10-14',
-      status: 'unpaid' as const,
-      totalAmount: 450,
-      items: [
-        {
-          id: '1',
-          description: 'X-Ray',
-          quantity: 2,
-          rate: 80,
-          amount: 160
-        },
-        {
-          id: '2',
-          description: 'Emergency Visit',
-          quantity: 1,
-          rate: 290,
-          amount: 290
-        }
-      ],
-      notes: 'Emergency treatment completed'
-    }
-  ]);
-  const handleGenerateInvoice = (invoiceData: any) => {
-    console.log('Generated Invoice:', invoiceData);
-    // Here you would typically send the data to your backend API
-    // For now, we'll just log it and show a success message
-    alert(`Invoice ${invoiceData.invoiceNumber} generated successfully for ${invoiceData.patientName}!`);
-  };
+  // Fetch recent invoices from backend
+  useEffect(() => {
+    fetchRecentInvoices();
+  }, []);
 
-  const handleViewInvoice = (index: number) => {
-    setSelectedInvoice(invoices[index]);
-    setIsViewModalOpen(true);
-  };
-  const handleRecordPaymentFromModal = (invoice: any) => {
-    // Find the invoice index
-    const index = invoices.findIndex(inv => inv.id === invoice.id);
-    if (index !== -1) {
-      handleRecordPayment(index);
-    }
-  };
-
-  const handleRecordPayment = (index: number) => {
-    const invoice = invoices[index];
-    if (invoice.status === 'unpaid') {
-      // Show confirmation dialog
-      const confirmPayment = window.confirm(
-        `Are you sure you want to record payment for Invoice ${invoice.invoiceNumber}?\nAmount: $${invoice.totalAmount.toFixed(2)}`
-      );
+  const fetchRecentInvoices = async () => {
+    try {
+      setLoading(true);
+      setError(null);
       
-      if (confirmPayment) {
-        // Update the invoice status to paid
-        setInvoices(prevInvoices => 
-          prevInvoices.map((inv, i) => 
-            i === index ? { ...inv, status: 'paid' as const } : inv
-          )
-        );
+      // Fetch only the 3 most recent invoices
+      const response = await apiService.getInvoices({ limit: 3 });
+      
+      if (response.success && response.data) {
+        setRecentInvoices(response.data);
+      } else {
+        setError('Failed to fetch recent invoices');
+      }
+    } catch (err) {
+      console.error('Error fetching recent invoices:', err);
+      setError('Error loading recent invoices');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatCurrency = (amount: string | number) => {
+    const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(numAmount);
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  const getStatusForBadge = (status: string): 'paid' | 'unpaid' | 'pending' | 'cancelled' => {
+    switch (status) {
+      case 'paid': return 'paid';
+      case 'pending': return 'pending';
+      case 'overdue': return 'unpaid';
+      case 'cancelled': return 'cancelled';
+      default: return 'pending';
+    }
+  };  const handleGenerateInvoice = async (invoiceData: any) => {
+    console.log('Generated Invoice:', invoiceData);
+    
+    // Show success message
+    alert(`Invoice ${invoiceData.invoiceNumber} generated successfully for ${invoiceData.patientName}!`);
+    
+    // Refresh recent invoices to include the new one
+    await fetchRecentInvoices();
+  };
+  const handleViewInvoice = (invoice: Invoice) => {
+    // Convert the backend invoice to the format expected by ViewInvoiceModal
+    const formattedInvoice = {
+      id: invoice.id,
+      invoiceNumber: invoice.invoice_number,
+      patientName: invoice.patient_name,
+      appointmentDate: invoice.appointment_date,
+      dueDate: invoice.due_date,
+      generatedDate: invoice.generated_date,
+      status: invoice.status,
+      totalAmount: parseFloat(invoice.total_amount),
+      notes: invoice.notes,
+      items: [] // We would need to fetch invoice items separately
+    };
+    
+    setSelectedInvoice(formattedInvoice);
+    setIsViewModalOpen(true);
+  };const handleRecordPaymentFromModal = async (invoice: any) => {
+    // Show confirmation dialog
+    const confirmPayment = window.confirm(
+      `Are you sure you want to record payment for Invoice ${invoice.invoice_number || invoice.invoiceNumber}?\nAmount: ${formatCurrency(invoice.total_amount || invoice.totalAmount)}`
+    );
+    
+    if (confirmPayment) {
+      try {
+        // Call the backend API to update the payment status
+        const response = await apiService.updateInvoiceStatus(invoice.id, 'paid');
         
-        // Show success message
-        alert(`Payment recorded successfully for Invoice ${invoice.invoiceNumber}!`);
-        
-        // Update selected invoice if it's currently being viewed
-        if (selectedInvoice && selectedInvoice.id === invoice.id) {
-          setSelectedInvoice({ ...invoice, status: 'paid' });
+        if (response.success) {
+          alert(`Payment recorded successfully for Invoice ${invoice.invoice_number || invoice.invoiceNumber}!`);
+          // Refresh the recent invoices to show updated status
+          await fetchRecentInvoices();
+        } else {
+          alert('Failed to record payment. Please try again.');
         }
+      } catch (error) {
+        console.error('Error recording payment:', error);
+        alert('Error recording payment. Please try again.');
       }
     }
   };
@@ -218,46 +212,109 @@ const BillingDashboard = () => {
                 </th>
               </tr>
             </thead>            <tbody className="bg-white divide-y divide-gray-200">
-              {invoices.map((invoice, index) => (
-                <tr key={invoice.id}>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0 h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
-                        <UserIcon className="h-5 w-5 text-blue-600" />
-                      </div>
-                      <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900">
-                          {invoice.patientName}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          ID: {invoice.patientId}
-                        </div>
-                      </div>
+              {loading ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-8 text-center">
+                    <div className="flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                      <span className="ml-2 text-gray-500">Loading recent invoices...</span>
                     </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
-                      {invoice.invoiceNumber}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">${invoice.totalAmount}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <StatusBadge status={invoice.status} />
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <Button variant="outline" size="sm" className="mr-2" onClick={() => handleViewInvoice(index)}>
-                      View
-                    </Button>
-                    {invoice.status === 'unpaid' && (
-                      <Button variant="primary" size="sm" onClick={() => handleRecordPayment(index)}>
-                        Record Payment
-                      </Button>
-                    )}
                   </td>
                 </tr>
-              ))}
+              ) : error ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-8 text-center">
+                    <div className="text-red-600">
+                      <p className="font-medium">Error Loading Invoices</p>
+                      <p className="text-sm mt-1">{error}</p>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="mt-3"
+                        onClick={fetchRecentInvoices}
+                      >
+                        Try Again
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ) : recentInvoices.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-8 text-center">
+                    <div className="text-gray-500">
+                      <p className="font-medium">No Recent Invoices</p>
+                      <p className="text-sm mt-1">Create your first invoice to get started.</p>
+                      <Button 
+                        variant="primary" 
+                        size="sm" 
+                        className="mt-3"
+                        onClick={() => setIsInvoiceModalOpen(true)}
+                      >
+                        <FileTextIcon className="w-4 h-4 mr-2" />
+                        Generate Invoice
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                recentInvoices.map((invoice) => (
+                  <tr key={invoice.id}>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0 h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
+                          <UserIcon className="h-5 w-5 text-blue-600" />
+                        </div>
+                        <div className="ml-4">
+                          <div className="text-sm font-medium text-gray-900">
+                            {invoice.patient_name}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {invoice.appointment_date ? `Appointment: ${formatDate(invoice.appointment_date)}` : 'No appointment date'}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {invoice.invoice_number}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        Generated: {formatDate(invoice.generated_date)}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">
+                        {formatCurrency(invoice.total_amount)}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <StatusBadge status={getStatusForBadge(invoice.status)} />
+                      <div className="text-xs text-gray-500 mt-1 capitalize">
+                        {invoice.status}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="mr-2" 
+                        onClick={() => handleViewInvoice(invoice)}
+                      >
+                        View
+                      </Button>
+                      {invoice.status === 'pending' && (
+                        <Button 
+                          variant="primary" 
+                          size="sm" 
+                          onClick={() => handleRecordPaymentFromModal({ id: invoice.id, invoice_number: invoice.invoice_number, total_amount: invoice.total_amount })}
+                        >
+                          Record Payment
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody></table>
         </div>
       </Card>      {/* Generate Invoice Modal */}

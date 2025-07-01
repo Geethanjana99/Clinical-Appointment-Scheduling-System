@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import { UserIcon, DollarSignIcon, FileTextIcon, PlusIcon, TrashIcon } from 'lucide-react';
+import { apiService } from '../../services/api';
 
 interface InvoiceItem {
     id: string;
@@ -23,36 +24,76 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
     isOpen,
     onClose,
     onGenerate
-}) => {
-    const [formData, setFormData] = useState({
-        patientId: '',
+}) => {    const [formData, setFormData] = useState({
         patientName: '',
         appointmentDate: '',
         dueDate: '',
         notes: ''
     });
 
+    const [patients, setPatients] = useState<{ id: string; name: string }[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
     const [items, setItems] = useState<InvoiceItem[]>([
         {
             id: '1',
             description: 'Consultation',
-            quantity: 1,
-            rate: 150,
+            quantity: 1,            rate: 150,
             amount: 150
         }
-    ]); const patients = [
-        { id: 'P-001', name: 'John Smith' },
-        { id: 'P-002', name: 'Sarah Johnson' },
-        { id: 'P-003', name: 'Michael Brown' },
-        { id: 'P-004', name: 'Emily Davis' },
-        { id: 'P-005', name: 'David Wilson' }
-    ];
+    ]);
 
-    const patientOptions = [
-        { value: '', label: 'Select Patient' },
+    // Fetch patients from backend
+    useEffect(() => {
+        const fetchPatients = async () => {
+            if (!isOpen) return; // Only fetch when modal is open
+            
+            setLoading(true);
+            setError(null);            try {
+                const response = await apiService.getPatientNames();
+                
+                if (response.success && response.data) {
+                    const patientList = response.data.map((patient: any) => ({
+                        id: patient.id,
+                        name: patient.name || `${patient.first_name} ${patient.last_name}` || patient.email
+                    }));
+                    setPatients(patientList);
+                } else {
+                    // Fallback to sample data
+                    const fallbackPatients = [
+                        { id: 'P-001', name: 'John Smith' },
+                        { id: 'P-002', name: 'Sarah Johnson' },
+                        { id: 'P-003', name: 'Michael Brown' },
+                        { id: 'P-004', name: 'Emily Davis' },
+                        { id: 'P-005', name: 'David Wilson' }
+                    ];
+                    setPatients(fallbackPatients);
+                    setError('Using sample patients - Please login as admin to view real data');
+                }
+            } catch (err) {
+                console.error('Error fetching patients:', err);
+                // Fallback to sample data
+                const fallbackPatients = [
+                    { id: 'P-001', name: 'John Smith' },
+                    { id: 'P-002', name: 'Sarah Johnson' },
+                    { id: 'P-003', name: 'Michael Brown' },
+                    { id: 'P-004', name: 'Emily Davis' },
+                    { id: 'P-005', name: 'David Wilson' }
+                ];
+                setPatients(fallbackPatients);
+                setError('Using sample patients - Please check your connection and login');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchPatients();
+    }, [isOpen]);    const patientOptions = [
+        { value: '', label: loading ? 'Loading patients...' : 'Select Patient' },
         ...patients.map(patient => ({
-            value: patient.id,
-            label: `${patient.name} (${patient.id})`
+            value: patient.name,
+            label: patient.name
         }))
     ];
 
@@ -64,23 +105,11 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
         { description: 'MRI Scan', rate: 500 },
         { description: 'Physical Therapy Session', rate: 120 },
         { description: 'Emergency Visit', rate: 300 }
-    ];
-
-    const handleInputChange = (field: string, value: string) => {
+    ];    const handleInputChange = (field: string, value: string) => {
         setFormData(prev => ({
             ...prev,
             [field]: value
         }));
-
-        if (field === 'patientId') {
-            const selectedPatient = patients.find(p => p.id === value);
-            if (selectedPatient) {
-                setFormData(prev => ({
-                    ...prev,
-                    patientName: selectedPatient.name
-                }));
-            }
-        }
     };
 
     const handleItemChange = (id: string, field: keyof InvoiceItem, value: string | number) => {
@@ -126,38 +155,53 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
 
     const getTotalAmount = () => {
         return items.reduce((total, item) => total + item.amount, 0);
-    };
-
-    const handleSubmit = (e: React.FormEvent) => {
+    };    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
         const invoiceData = {
-            ...formData,
+            patientName: formData.patientName,
+            appointmentDate: formData.appointmentDate,
+            dueDate: formData.dueDate,
+            notes: formData.notes,
             items,
             totalAmount: getTotalAmount(),
-            generatedDate: new Date().toISOString().split('T')[0],
             invoiceNumber: `INV-${Date.now()}`
         };
 
-        onGenerate(invoiceData);
-        onClose();
-
-        // Reset form
-        setFormData({
-            patientId: '',
-            patientName: '',
-            appointmentDate: '',
-            dueDate: '',
-            notes: ''
-        });
-        setItems([{
-            id: '1',
-            description: 'Consultation',
-            quantity: 1,
-            rate: 150,
-            amount: 150
-        }]);
-    }; return (
+        try {
+            // Send invoice data to backend
+            const response = await apiService.createInvoice(invoiceData);
+            
+            if (response.success) {
+                // Call the original onGenerate callback with the full data including backend response
+                onGenerate({
+                    ...invoiceData,
+                    generatedDate: new Date().toISOString().split('T')[0],
+                    backendResponse: response.data
+                });
+                
+                onClose();                // Reset form
+                setFormData({
+                    patientName: '',
+                    appointmentDate: '',
+                    dueDate: '',
+                    notes: ''
+                });
+                setItems([{
+                    id: '1',
+                    description: 'Consultation',
+                    quantity: 1,
+                    rate: 150,
+                    amount: 150
+                }]);
+            } else {
+                setError('Failed to save invoice to database');
+            }
+        } catch (error) {
+            console.error('Error saving invoice:', error);
+            setError('Error saving invoice. Please try again.');
+        }
+    };return (
         <Modal isOpen={isOpen} onClose={onClose} maxWidth="4xl">
             <div className="bg-gradient-to-br from-blue-50 to-indigo-100 p-6 rounded-t-xl border-b">
                 <div className="flex items-center space-x-3">
@@ -185,15 +229,18 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
                          <div className="space-y-2">
                         <label className="block text-sm font-medium text-gray-700">
                             Select Patient
-                        </label>
-                        <Select
-                            value={formData.patientId}
-                            onChange={(value) => handleInputChange('patientId', value)}
+                        </label>                        <Select
+                            value={formData.patientName}
+                            onChange={(value) => handleInputChange('patientName', value)}
                             options={patientOptions}
                             required
+                            disabled={loading}
                             className="transition-all duration-200 hover:border-blue-400 focus:border-blue-500 h-12 text-base"
                         />
-                    </div>                        <div className="space-y-2">
+                        {error && (
+                            <p className="text-red-600 text-sm mt-1">{error}</p>
+                        )}
+                    </div><div className="space-y-2">
                             <label className="block text-sm font-medium text-gray-700">
                                 Appointment Date
                             </label>

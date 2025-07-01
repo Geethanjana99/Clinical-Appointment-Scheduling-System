@@ -2,6 +2,7 @@ import React from 'react';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import { FileTextIcon, DollarSignIcon, CalendarIcon, UserIcon, DownloadIcon, PrinterIcon } from 'lucide-react';
+import { apiService } from '../../services/api';
 
 interface InvoiceItem {
   id: string;
@@ -12,13 +13,14 @@ interface InvoiceItem {
 }
 
 interface InvoiceData {
+  id?: string;
   invoiceNumber: string;
   patientName: string;
-  patientId: string;
+  patientId?: string;
   appointmentDate: string;
   dueDate: string;
   generatedDate: string;
-  status: 'paid' | 'unpaid' | 'overdue';
+  status: 'paid' | 'unpaid' | 'overdue' | 'pending';
   items: InvoiceItem[];
   totalAmount: number;
   notes?: string;
@@ -38,16 +40,39 @@ const ViewInvoiceModal: React.FC<ViewInvoiceModalProps> = ({
   onRecordPayment
 }) => {
   if (!invoiceData) return null;
-
-  const handleRecordPaymentInModal = () => {
-    if (invoiceData && invoiceData.status === 'unpaid' && onRecordPayment) {
+  const handleRecordPaymentInModal = async () => {
+    if (invoiceData && (invoiceData.status === 'unpaid' || invoiceData.status === 'pending')) {
       const confirmPayment = window.confirm(
         `Are you sure you want to record payment for Invoice ${invoiceData.invoiceNumber}?\nAmount: $${invoiceData.totalAmount.toFixed(2)}`
       );
       
       if (confirmPayment) {
-        onRecordPayment(invoiceData);
-        onClose(); // Close the modal after recording payment
+        try {
+          if (invoiceData.id) {
+            // Call the backend API to update the payment status
+            const response = await apiService.updateInvoiceStatus(invoiceData.id, 'paid');
+            
+            if (response.success) {
+              alert(`Payment recorded successfully for Invoice ${invoiceData.invoiceNumber}!`);
+              // Call the parent's onRecordPayment callback if provided
+              if (onRecordPayment) {
+                onRecordPayment(invoiceData);
+              }
+              onClose(); // Close the modal after recording payment
+            } else {
+              alert('Failed to record payment. Please try again.');
+            }
+          } else {
+            // Fallback to the parent callback if no ID is available
+            if (onRecordPayment) {
+              onRecordPayment(invoiceData);
+              onClose();
+            }
+          }
+        } catch (error) {
+          console.error('Error recording payment:', error);
+          alert('Error recording payment. Please try again.');
+        }
       }
     }
   };
@@ -225,8 +250,7 @@ const ViewInvoiceModal: React.FC<ViewInvoiceModalProps> = ({
         <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
           <Button variant="outline" onClick={onClose}>
             Close
-          </Button>
-          {invoiceData.status === 'unpaid' && (
+          </Button>          {(invoiceData.status === 'unpaid' || invoiceData.status === 'pending') && (
             <Button variant="primary" className="bg-green-600 hover:bg-green-700" onClick={handleRecordPaymentInModal}>
               Record Payment
             </Button>
