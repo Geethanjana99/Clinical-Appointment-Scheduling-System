@@ -26,12 +26,14 @@ const BillingDashboard = () => {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [recentInvoices, setRecentInvoices] = useState<Invoice[]>([]);
+  const [allInvoices, setAllInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Fetch recent invoices from backend
   useEffect(() => {
     fetchRecentInvoices();
+    fetchAllInvoices();
   }, []);
 
   const fetchRecentInvoices = async () => {
@@ -55,6 +57,19 @@ const BillingDashboard = () => {
     }
   };
 
+  const fetchAllInvoices = async () => {
+    try {
+      // Fetch all invoices for dashboard statistics
+      const response = await apiService.getInvoices();
+      
+      if (response.success && response.data) {
+        setAllInvoices(response.data);
+      }
+    } catch (err) {
+      console.error('Error fetching all invoices:', err);
+    }
+  };
+
   const formatCurrency = (amount: string | number) => {
     const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
     return new Intl.NumberFormat('en-US', {
@@ -70,7 +85,6 @@ const BillingDashboard = () => {
       day: 'numeric'
     });
   };
-
   const getStatusForBadge = (status: string): 'paid' | 'unpaid' | 'pending' | 'cancelled' => {
     switch (status) {
       case 'paid': return 'paid';
@@ -79,7 +93,45 @@ const BillingDashboard = () => {
       case 'cancelled': return 'cancelled';
       default: return 'pending';
     }
-  };  const handleGenerateInvoice = async (invoiceData: any) => {
+  };
+
+  // Calculate dashboard statistics
+  const calculateStats = () => {
+    const today = new Date();
+    const todayString = today.toISOString().split('T')[0];
+    
+    // Today's revenue (paid invoices from today)
+    const todayRevenue = allInvoices
+      .filter(invoice => 
+        invoice.status === 'paid' && 
+        invoice.updated_at && 
+        invoice.updated_at.split('T')[0] === todayString
+      )
+      .reduce((total, invoice) => total + parseFloat(invoice.total_amount), 0);
+
+    // Pending payments
+    const pendingInvoices = allInvoices.filter(invoice => invoice.status === 'pending');
+    const pendingCount = pendingInvoices.length;
+    const pendingTotal = pendingInvoices.reduce((total, invoice) => total + parseFloat(invoice.total_amount), 0);
+
+    // Completed payments this month
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+    const completedThisMonth = allInvoices.filter(invoice => {
+      if (invoice.status !== 'paid' || !invoice.updated_at) return false;
+      const invoiceDate = new Date(invoice.updated_at);
+      return invoiceDate.getMonth() === currentMonth && invoiceDate.getFullYear() === currentYear;
+    }).length;
+
+    return {
+      todayRevenue,
+      pendingCount,
+      pendingTotal,
+      completedThisMonth
+    };
+  };
+
+  const stats = calculateStats();const handleGenerateInvoice = async (invoiceData: any) => {
     console.log('Generated Invoice:', invoiceData);
     
     // Show success message
@@ -105,7 +157,7 @@ const BillingDashboard = () => {
     
     setSelectedInvoice(formattedInvoice);
     setIsViewModalOpen(true);
-  };const handleRecordPaymentFromModal = async (invoice: any) => {
+  };  const handleRecordPaymentFromModal = async (invoice: any) => {
     // Show confirmation dialog
     const confirmPayment = window.confirm(
       `Are you sure you want to record payment for Invoice ${invoice.invoice_number || invoice.invoiceNumber}?\nAmount: ${formatCurrency(invoice.total_amount || invoice.totalAmount)}`
@@ -114,18 +166,22 @@ const BillingDashboard = () => {
     if (confirmPayment) {
       try {
         // Call the backend API to update the payment status
+        console.log('Updating invoice status for ID:', invoice.id);
         const response = await apiService.updateInvoiceStatus(invoice.id, 'paid');
+        
+        console.log('Update response:', response);
         
         if (response.success) {
           alert(`Payment recorded successfully for Invoice ${invoice.invoice_number || invoice.invoiceNumber}!`);
           // Refresh the recent invoices to show updated status
           await fetchRecentInvoices();
         } else {
-          alert('Failed to record payment. Please try again.');
-        }
-      } catch (error) {
+          console.error('API returned success: false', response);
+          alert(`Failed to record payment: ${response.message || 'Unknown error'}`);
+        }      } catch (error) {
         console.error('Error recording payment:', error);
-        alert('Error recording payment. Please try again.');
+        const errorMessage = error instanceof Error ? error.message : 'Please try again.';
+        alert(`Error recording payment: ${errorMessage}`);
       }
     }
   };
@@ -286,12 +342,8 @@ const BillingDashboard = () => {
                       <div className="text-sm font-medium text-gray-900">
                         {formatCurrency(invoice.total_amount)}
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    </td>                    <td className="px-6 py-4 whitespace-nowrap">
                       <StatusBadge status={getStatusForBadge(invoice.status)} />
-                      <div className="text-xs text-gray-500 mt-1 capitalize">
-                        {invoice.status}
-                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <Button 

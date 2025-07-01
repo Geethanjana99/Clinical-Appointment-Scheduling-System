@@ -60,7 +60,6 @@ const Invoices = () => {
     // Refresh the invoices list to show the new invoice
     await fetchInvoices();
   };
-
   const handleRecordPayment = async (invoice: Invoice) => {
     // Show confirmation dialog
     const confirmPayment = window.confirm(
@@ -70,18 +69,23 @@ const Invoices = () => {
     if (confirmPayment) {
       try {
         // Call the backend API to update the payment status
+        console.log('Updating invoice status for ID:', invoice.id);
         const response = await apiService.updateInvoiceStatus(invoice.id, 'paid');
+        
+        console.log('Update response:', response);
         
         if (response.success) {
           alert(`Payment recorded successfully for Invoice ${invoice.invoice_number}!`);
           // Refresh the invoices list to show updated status
           await fetchInvoices();
         } else {
-          alert('Failed to record payment. Please try again.');
+          console.error('API returned success: false', response);
+          alert(`Failed to record payment: ${response.message || 'Unknown error'}`);
         }
       } catch (error) {
         console.error('Error recording payment:', error);
-        alert('Error recording payment. Please try again.');
+        const errorMessage = error instanceof Error ? error.message : 'Please try again.';
+        alert(`Error recording payment: ${errorMessage}`);
       }
     }
   };
@@ -258,12 +262,8 @@ const Invoices = () => {
                       <div className="text-sm font-medium text-gray-900">
                         {formatCurrency(invoice.total_amount)}
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    </td>                    <td className="px-6 py-4 whitespace-nowrap">
                       <StatusBadge status={getStatusForBadge(invoice.status)} />
-                      <div className="text-xs text-gray-500 mt-1 capitalize">
-                        {invoice.status}
-                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <Button variant="outline" size="sm" className="mr-2">
