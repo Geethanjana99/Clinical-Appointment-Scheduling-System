@@ -3,6 +3,7 @@ import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import StatusBadge from '../../components/ui/StatusBadge';
 import GenerateInvoiceModal from '../../components/modals/GenerateInvoiceModal';
+import ViewInvoiceModal from '../../components/modals/ViewInvoiceModal';
 import { SearchIcon, FilterIcon, DownloadIcon, PlusIcon, UserIcon } from 'lucide-react';
 import { apiService } from '../../services/api';
 
@@ -22,6 +23,8 @@ interface Invoice {
 
 const Invoices = () => {
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -59,8 +62,7 @@ const Invoices = () => {
     
     // Refresh the invoices list to show the new invoice
     await fetchInvoices();
-  };
-  const handleRecordPayment = async (invoice: Invoice) => {
+  };  const handleRecordPayment = async (invoice: Invoice) => {
     // Show confirmation dialog
     const confirmPayment = window.confirm(
       `Are you sure you want to record payment for Invoice ${invoice.invoice_number}?\nAmount: ${formatCurrency(invoice.total_amount)}`
@@ -78,6 +80,56 @@ const Invoices = () => {
           alert(`Payment recorded successfully for Invoice ${invoice.invoice_number}!`);
           // Refresh the invoices list to show updated status
           await fetchInvoices();
+        } else {
+          console.error('API returned success: false', response);
+          alert(`Failed to record payment: ${response.message || 'Unknown error'}`);
+        }
+      } catch (error) {
+        console.error('Error recording payment:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Please try again.';
+        alert(`Error recording payment: ${errorMessage}`);
+      }
+    }
+  };
+
+  const handleViewInvoice = (invoice: Invoice) => {
+    // Convert the backend invoice to the format expected by ViewInvoiceModal
+    const formattedInvoice = {
+      id: invoice.id,
+      invoiceNumber: invoice.invoice_number,
+      patientName: invoice.patient_name,
+      appointmentDate: invoice.appointment_date,
+      dueDate: invoice.due_date,
+      generatedDate: invoice.generated_date,
+      status: invoice.status,
+      totalAmount: parseFloat(invoice.total_amount),
+      notes: invoice.notes,
+      items: [] // We would need to fetch invoice items separately
+    };
+    
+    setSelectedInvoice(formattedInvoice);
+    setIsViewModalOpen(true);
+  };
+
+  const handleRecordPaymentFromModal = async (invoice: any) => {
+    // Show confirmation dialog
+    const confirmPayment = window.confirm(
+      `Are you sure you want to record payment for Invoice ${invoice.invoiceNumber}?\nAmount: ${formatCurrency(invoice.totalAmount)}`
+    );
+    
+    if (confirmPayment) {
+      try {
+        // Call the backend API to update the payment status
+        console.log('Updating invoice status for ID:', invoice.id);
+        const response = await apiService.updateInvoiceStatus(invoice.id, 'paid');
+        
+        console.log('Update response:', response);
+        
+        if (response.success) {
+          alert(`Payment recorded successfully for Invoice ${invoice.invoiceNumber}!`);
+          // Refresh the invoices list to show updated status
+          await fetchInvoices();
+          setIsViewModalOpen(false); // Close the modal
         } else {
           console.error('API returned success: false', response);
           alert(`Failed to record payment: ${response.message || 'Unknown error'}`);
@@ -268,10 +320,14 @@ const Invoices = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <Button variant="outline" size="sm" className="mr-2">
                         <DownloadIcon className="w-4 h-4" />
-                      </Button>
-                      <Button variant="outline" size="sm" className="mr-2">
+                      </Button>                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="mr-2"
+                        onClick={() => handleViewInvoice(invoice)}
+                      >
                         View
-                      </Button>                      {invoice.status === 'pending' && (
+                      </Button>{invoice.status === 'pending' && (
                         <Button 
                           variant="primary" 
                           size="sm"
@@ -300,13 +356,19 @@ const Invoices = () => {
               </Button>
             </div></div>
         </div>
-      </Card>
-
-      {/* Generate Invoice Modal */}
+      </Card>      {/* Generate Invoice Modal */}
       <GenerateInvoiceModal
         isOpen={isInvoiceModalOpen}
         onClose={() => setIsInvoiceModalOpen(false)}
         onGenerate={handleGenerateInvoice}
+      />
+
+      {/* View Invoice Modal */}
+      <ViewInvoiceModal
+        isOpen={isViewModalOpen}
+        onClose={() => setIsViewModalOpen(false)}
+        invoiceData={selectedInvoice}
+        onRecordPayment={handleRecordPaymentFromModal}
       />
     </div>;
 };
