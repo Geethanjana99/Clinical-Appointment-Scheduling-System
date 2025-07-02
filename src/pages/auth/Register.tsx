@@ -9,9 +9,11 @@ const Register = () => {
     register,
     isAuthenticated,
     user,
+    isLoading: authLoading,
     error: authError,
     clearError,
-    initializeAuth
+    initializeAuth,
+    logout
   } = useAuthStore();
 
   const [name, setName] = useState('');
@@ -37,14 +39,25 @@ const Register = () => {
     console.log('Register useEffect triggered:', {
       isAuthenticated,
       userExists: !!user,
-      userRole: user?.role
+      userRole: user?.role,
+      isLoading: authLoading
     });
     
-    if (isAuthenticated && user) {
+    // Only redirect if user is authenticated, not loading, and has a valid role
+    if (isAuthenticated && user && user.role && !authLoading) {
       console.log('User already authenticated, redirecting to dashboard');
-      navigate(`/${user.role}`);
+      // Create proper redirect path based on user role
+      const validRoles = ['patient', 'doctor', 'admin', 'billing'];
+      if (validRoles.includes(user.role)) {
+        const redirectPath = `/${user.role}`;
+        navigate(redirectPath);
+      } else {
+        console.warn('Invalid user role detected:', user.role);
+        // Clear invalid auth state
+        logout();
+      }
     }
-  }, [isAuthenticated, user, navigate]);
+  }, [isAuthenticated, user, navigate, authLoading]);
 
   // Handle auth errors
   useEffect(() => {

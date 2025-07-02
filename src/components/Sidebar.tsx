@@ -54,10 +54,6 @@ const Sidebar = () => {
           name: 'AI Predictions',
           path: '/doctor/ai-predictions',
           icon: <ActivityIcon className="w-5 h-5" />
-        }, {
-          name: 'Availability',
-          path: '/doctor/availability',
-          icon: <CalendarIcon className="w-5 h-5" />
         }];case 'admin':
         return [{
           name: 'Dashboard',

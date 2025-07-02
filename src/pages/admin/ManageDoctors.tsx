@@ -3,7 +3,7 @@ import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Modal from '../../components/ui/Modal';
-import { UserPlus, Edit, Trash2, AlertCircle, CheckCircle } from 'lucide-react';
+import { UserPlus, Edit, Trash2, AlertCircle } from 'lucide-react';
 
 interface Doctor {
   id: string;
@@ -11,8 +11,8 @@ interface Doctor {
   email: string;
   specialty: string;
   phone: string;
-  availability: string[];
   status: 'active' | 'inactive';
+  availability?: string[]; // Optional for compatibility
 }
 
 const ManageDoctors = () => {
@@ -27,39 +27,31 @@ const ManageDoctors = () => {
     email: '',
     specialty: '',
     phone: '',
-    availability: [] as string[],
     status: 'active' as 'active' | 'inactive'
   });
 
-  // API base URL
   const API_BASE_URL = 'http://localhost:5000/api';
 
-  // Fetch doctors from API
   const fetchDoctors = async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
-      // Try mock API first (no authentication required)
       const response = await fetch(`${API_BASE_URL}/mock/doctors`);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
+
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
       const result = await response.json();
-      
+
       if (result.success) {
         setDoctors(result.data || []);
         setDataSource(result.source || 'mock_api');
-        console.log('Doctors loaded from:', result.source);
       } else {
         throw new Error(result.message || 'Failed to fetch doctors');
       }
     } catch (err) {
-      console.error('Error fetching doctors:', err);
-      setError(`Failed to load doctors: ${err instanceof Error ? err.message : 'Unknown error'}`);
-      // Set empty array as fallback
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      setError(`Failed to load doctors: ${msg}`);
       setDoctors([]);
       setDataSource('error');
     } finally {
@@ -67,101 +59,71 @@ const ManageDoctors = () => {
     }
   };
 
-  // Load doctors on component mount
   useEffect(() => {
     fetchDoctors();
   }, []);
 
-  // Add new doctor via API
   const addDoctor = async (doctorData: Omit<Doctor, 'id'>) => {
     try {
       const response = await fetch(`${API_BASE_URL}/mock/doctors`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(doctorData),
       });
-
       const result = await response.json();
-
       if (result.success) {
-        // Refresh the doctors list
         await fetchDoctors();
         setError(null);
         return result.data;
-      } else {
-        throw new Error(result.message || 'Failed to add doctor');
-      }
+      } else throw new Error(result.message);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to add doctor';
-      setError(errorMessage);
-      throw new Error(errorMessage);
+      const msg = err instanceof Error ? err.message : 'Failed to add doctor';
+      setError(msg);
+      throw new Error(msg);
     }
   };
 
-  // Update doctor via API
   const updateDoctor = async (id: string, doctorData: Omit<Doctor, 'id'>) => {
     try {
       const response = await fetch(`${API_BASE_URL}/mock/doctors/${id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(doctorData),
       });
-
       const result = await response.json();
-
       if (result.success) {
-        // Refresh the doctors list
         await fetchDoctors();
         setError(null);
         return result.data;
-      } else {
-        throw new Error(result.message || 'Failed to update doctor');
-      }
+      } else throw new Error(result.message);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to update doctor';
-      setError(errorMessage);
-      throw new Error(errorMessage);
+      const msg = err instanceof Error ? err.message : 'Failed to update doctor';
+      setError(msg);
+      throw new Error(msg);
     }
   };
 
-  // Delete doctor via API
   const deleteDoctor = async (id: string) => {
     try {
       const response = await fetch(`${API_BASE_URL}/mock/doctors/${id}`, {
         method: 'DELETE',
       });
-
       const result = await response.json();
-
       if (result.success) {
-        // Refresh the doctors list
         await fetchDoctors();
         setError(null);
         return result.data;
-      } else {
-        throw new Error(result.message || 'Failed to delete doctor');
-      }
+      } else throw new Error(result.message);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to delete doctor';
-      setError(errorMessage);
-      throw new Error(errorMessage);
+      const msg = err instanceof Error ? err.message : 'Failed to delete doctor';
+      setError(msg);
+      throw new Error(msg);
     }
   };
 
   const handleAddDoctor = () => {
     setEditingDoctor(null);
-    setFormData({
-      name: '',
-      email: '',
-      specialty: '',
-      phone: '',
-      availability: [],
-      status: 'active'
-    });
+    setFormData({ name: '', email: '', specialty: '', phone: '', status: 'active' });
     setIsModalOpen(true);
   };
 
@@ -172,27 +134,19 @@ const ManageDoctors = () => {
       email: doctor.email,
       specialty: doctor.specialty,
       phone: doctor.phone,
-      availability: doctor.availability,
-      status: doctor.status
+      status: doctor.status,
     });
     setIsModalOpen(true);
   };
 
   const handleDeleteDoctor = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this doctor?')) {
-      try {
-        await deleteDoctor(id);
-        // Success message could be added here
-      } catch (err) {
-        // Error is already handled in deleteDoctor function
-        console.error('Failed to delete doctor:', err);
-      }
+      await deleteDoctor(id);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     try {
       if (editingDoctor) {
         await updateDoctor(editingDoctor.id, formData);
@@ -201,21 +155,9 @@ const ManageDoctors = () => {
       }
       setIsModalOpen(false);
     } catch (err) {
-      // Error is already handled in addDoctor/updateDoctor functions
-      console.error('Failed to save doctor:', err);
+      console.error(err);
     }
   };
-
-  const handleAvailabilityChange = (day: string) => {
-    setFormData(prev => ({
-      ...prev,
-      availability: prev.availability.includes(day)
-        ? prev.availability.filter(d => d !== day)
-        : [...prev.availability, day]
-    }));
-  };
-
-  const weekDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
   return (
     <div className="space-y-6">
@@ -244,7 +186,7 @@ const ManageDoctors = () => {
                 <p>{error}</p>
               </div>
               <div className="mt-4">
-                <Button 
+                <Button
                   onClick={fetchDoctors}
                   size="sm"
                   variant="outline"
@@ -270,74 +212,45 @@ const ManageDoctors = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Doctor
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Specialty
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Contact
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Availability
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Doctor</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Specialty</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contact</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Availability</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {doctors.map((doctor) => (
                   <tr key={doctor.id}>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">{doctor.name}</div>
-                        <div className="text-sm text-gray-500">{doctor.email}</div>
-                      </div>
+                      <div className="text-sm font-medium text-gray-900">{doctor.name}</div>
+                      <div className="text-sm text-gray-500">{doctor.email}</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {doctor.specialty}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {doctor.phone}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4 text-sm text-gray-900">{doctor.specialty}</td>
+                    <td className="px-6 py-4 text-sm text-gray-900">{doctor.phone}</td>
+                    <td className="px-6 py-4">
                       <div className="flex flex-wrap gap-1">
-                        {doctor.availability.map((day) => (
-                          <span key={day} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        {(doctor.availability || []).map((day) => (
+                          <span key={day} className="px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
                             {day.slice(0, 3)}
                           </span>
                         ))}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                        doctor.status === 'active' 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
+                    <td className="px-6 py-4">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        doctor.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                       }`}>
                         {doctor.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <td className="px-6 py-4">
                       <div className="flex space-x-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEditDoctor(doctor)}
-                        >
+                        <Button variant="outline" size="sm" onClick={() => handleEditDoctor(doctor)}>
                           <Edit className="w-4 h-4" />
                         </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDeleteDoctor(doctor.id)}
-                          className="text-red-600 hover:text-red-900"
-                        >
+                        <Button variant="outline" size="sm" onClick={() => handleDeleteDoctor(doctor.id)} className="text-red-600 hover:text-red-900">
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
@@ -357,97 +270,35 @@ const ManageDoctors = () => {
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Name
-            </label>
-            <Input
-              type="text"
-              value={formData.name}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, name: e.target.value })}
-              required
-            />
+            <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+            <Input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required />
           </div>
-
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email
-            </label>
-            <Input
-              type="email"
-              value={formData.email}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, email: e.target.value })}
-              required
-            />
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <Input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} required />
           </div>
-
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Specialty
-            </label>
-            <Input
-              type="text"
-              value={formData.specialty}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, specialty: e.target.value })}
-              required
-            />
+            <label className="block text-sm font-medium text-gray-700 mb-1">Specialty</label>
+            <Input type="text" value={formData.specialty} onChange={(e) => setFormData({ ...formData, specialty: e.target.value })} required />
           </div>
-
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Phone
-            </label>
-            <Input
-              type="tel"
-              value={formData.phone}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, phone: e.target.value })}
-              required
-            />
+            <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+            <Input type="tel" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} required />
           </div>
-
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Availability
-            </label>
-            <div className="grid grid-cols-2 gap-2">
-              {weekDays.map((day) => (
-                <label key={day} className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={formData.availability.includes(day)}
-                    onChange={() => handleAvailabilityChange(day)}
-                    className="mr-2"
-                  />
-                  <span className="text-sm">{day}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Status
-            </label>            <select
-              title="Doctor Status"
+            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+            <select
               value={formData.status}
-              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setFormData({ ...formData, status: e.target.value as 'active' | 'inactive' })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              onChange={(e) => setFormData({ ...formData, status: e.target.value as 'active' | 'inactive' })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
             >
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
             </select>
           </div>
-
           <div className="flex justify-end space-x-3 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setIsModalOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button type="submit">
-              {editingDoctor ? 'Update' : 'Add'} Doctor
-            </Button>
+            <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>Cancel</Button>
+            <Button type="submit">{editingDoctor ? 'Update' : 'Add'} Doctor</Button>
           </div>
         </form>
       </Modal>
