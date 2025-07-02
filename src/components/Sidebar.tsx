@@ -1,11 +1,13 @@
+import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { HomeIcon, CalendarIcon, UserIcon, UsersIcon, FileTextIcon, UploadIcon, ClockIcon, ActivityIcon, Settings2Icon } from 'lucide-react';
+import { HomeIcon, CalendarIcon, UserIcon, UsersIcon, FileTextIcon, UploadIcon, ClockIcon, ActivityIcon, CreditCardIcon, BarChartIcon, FileIcon, Settings2Icon, ShieldIcon } from 'lucide-react';
 const Sidebar = () => {
   const location = useLocation();
   const {
     user
-  } = useAuthStore();  const isActive = (path: string) => {
+  } = useAuthStore();
+  const isActive = path => {
     return location.pathname === path;
   };
   // Navigation items based on user role
@@ -74,31 +76,25 @@ const Sidebar = () => {
         }, {
           name: 'Upload Reports',
           path: '/admin/reports',
-          icon: <UploadIcon className="w-5 h-5" />        }];
-
-      case 'nurse':
+          icon: <UploadIcon className="w-5 h-5" />
+        }];
+      case 'billing':
         return [{
           name: 'Dashboard',
-          path: '/nurse',
+          path: '/billing',
           icon: <HomeIcon className="w-5 h-5" />
         }, {
-          name: 'Patient Care',
-          path: '/nurse/patients',
-          icon: <UsersIcon className="w-5 h-5" />
+          name: 'Invoices',
+          path: '/billing/invoices',
+          icon: <FileTextIcon className="w-5 h-5" />        }, {
+          name: 'Insurance Claims',
+          path: '/billing/insurance-claims',
+          icon: <ShieldIcon className="w-5 h-5" />
         }, {
-          name: 'Vitals & Records',
-          path: '/nurse/vitals',
-          icon: <ActivityIcon className="w-5 h-5" />
-        }, {
-          name: 'Medications',
-          path: '/nurse/medications',
-          icon: <FileTextIcon className="w-5 h-5" />
-        }, {
-          name: 'Schedule',
-          path: '/nurse/schedule',
-          icon: <CalendarIcon className="w-5 h-5" />
+          name: 'Analytics',
+          path: '/billing/analytics',
+          icon: <BarChartIcon className="w-5 h-5" />
         }];
-
       default:
         return [];
     }

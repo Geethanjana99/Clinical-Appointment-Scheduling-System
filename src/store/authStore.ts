@@ -86,13 +86,14 @@ export const useAuthStore = create<AuthState>()(
           });
         }
       },      login: async (email, password) => {
-        set({ isLoading: true, error: null });
-
-        try {
+        set({ isLoading: true, error: null });        try {
           const response = await apiService.login({ email, password });
           
           if (response.success && response.data) {
-            // The backend returns: { data: { user: {...}, token } }
+            // Store refresh token
+            localStorage.setItem('refreshToken', response.data.refreshToken);
+            
+            // The backend returns: { data: { user: {...}, token, refreshToken } }
             const userData = response.data.user;
             
             set({
@@ -114,7 +115,10 @@ export const useAuthStore = create<AuthState>()(
           });
           throw error;
         }
-      },      register: async (name, email, password, role, additionalData = {}) => {        set({ isLoading: true, error: null });
+      },
+
+      register: async (name, email, password, role, additionalData = {}) => {
+        set({ isLoading: true, error: null });
         
         try {
           const registerData: RegisterRequest = {
@@ -124,7 +128,7 @@ export const useAuthStore = create<AuthState>()(
             role,
             phone: additionalData.phone,
             profileData: additionalData.profileData
-          };const response = await apiService.register(registerData);
+          };          const response = await apiService.register(registerData);
           
           if (response.success) {
             // Don't auto-login after registration - user must login explicitly
@@ -149,8 +153,11 @@ export const useAuthStore = create<AuthState>()(
           });
           throw error;
         }
-      },      logout: () => {
+      },
+
+      logout: () => {
         apiService.logout();
+        localStorage.removeItem('refreshToken');
         set({
           user: null,
           isAuthenticated: false,

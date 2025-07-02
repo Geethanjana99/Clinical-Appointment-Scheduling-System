@@ -26,7 +26,7 @@ export interface RegisterRequest {
     emergency_contact_name?: string;
     emergency_contact_phone?: string;
     preferred_language?: string;
-    specialty?: string;
+    specialization?: string;
     license_number?: string;
     experience_years?: number;
     department?: string;
@@ -51,6 +51,7 @@ export interface User {
 export interface AuthResponse {
   user: User;
   token: string;
+  refreshToken: string;
 }
 
 export interface RegisterResponse {
@@ -126,7 +127,7 @@ class ApiService {
 
   // Authentication methods
   async login(credentials: LoginRequest): Promise<ApiResponse<AuthResponse>> {
-    const response = await this.makeRequest<AuthResponse>('/mock/auth/login', {
+    const response = await this.makeRequest<AuthResponse>('/auth/login', {
       method: 'POST',
       body: JSON.stringify(credentials),
     });
@@ -180,7 +181,7 @@ class ApiService {
   }
 
   async getProfile(): Promise<ApiResponse<User>> {
-    return this.makeRequest<User>('/mock/auth/profile');
+    return this.makeRequest<User>('/auth/profile');
   }
 
   async updateProfile(profileData: Partial<User>): Promise<ApiResponse<User>> {
@@ -193,51 +194,6 @@ class ApiService {
   // Patient methods
   async getPatients(): Promise<ApiResponse<any[]>> {
     return this.makeRequest<any[]>('/patients');
-  }
-  // Admin methods - fetch users by role
-  async getUsersByRole(role: string): Promise<ApiResponse<any[]>> {
-    return this.makeRequest<any[]>(`/admin/users?role=${role}`);
-  }
-  // Get patient names for billing/invoice purposes
-  async getPatientNames(): Promise<ApiResponse<any[]>> {
-    return this.makeRequest<any[]>('/billing/patient-names');
-  }
-
-  // Create a new invoice
-  async createInvoice(invoiceData: any): Promise<ApiResponse<any>> {
-    return this.makeRequest<any>('/billing/invoices', {
-      method: 'POST',
-      body: JSON.stringify(invoiceData),
-    });
-  }
-
-  // Get all invoices with optional filters
-  async getInvoices(filters?: {
-    status?: string;
-    patient_name?: string;
-    start_date?: string;
-    end_date?: string;
-    limit?: number;
-  }): Promise<ApiResponse<any[]>> {
-    const params = new URLSearchParams();
-    if (filters) {
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && value !== '') {
-          params.append(key, value.toString());
-        }
-      });
-    }
-    const queryString = params.toString();
-    const endpoint = queryString ? `/billing/invoices?${queryString}` : '/billing/invoices';
-    return this.makeRequest<any[]>(endpoint);
-  }
-
-  // Update invoice status
-  async updateInvoiceStatus(invoiceId: string, status: 'pending' | 'paid' | 'overdue' | 'cancelled'): Promise<ApiResponse<any>> {
-    return this.makeRequest<any>(`/billing/invoices/${invoiceId}/status`, {
-      method: 'PATCH',
-      body: JSON.stringify({ status }),
-    });
   }
 
   async getPatient(id: string): Promise<ApiResponse<any>> {
@@ -382,10 +338,11 @@ class ApiService {
   async getMyUpcomingAppointments(): Promise<ApiResponse<any[]>> {
     return this.makeRequest<any[]>('/patients/appointments/upcoming');
   }
+
   async cancelAppointment(appointmentId: string, reason?: string): Promise<ApiResponse<any>> {
-    return this.makeRequest<any>(`/appointments/${appointmentId}`, {
-      method: 'DELETE',
-      body: JSON.stringify({ reason }),
+    return this.makeRequest<any>(`/appointments/${appointmentId}/cancel`, {
+      method: 'PUT',
+      body: JSON.stringify({ cancellation_reason: reason }),
     });
   }
 
