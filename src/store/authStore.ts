@@ -42,7 +42,16 @@ export const useAuthStore = create<AuthState>()(
 
       initializeAuth: async () => {
         const token = apiService.getToken();
-        if (!token) return;
+        if (!token) {
+          // No token found, user is not authenticated
+          set({
+            user: null,
+            isAuthenticated: false,
+            isLoading: false,
+            error: null
+          });
+          return;
+        }
 
         set({ isLoading: true });
         try {
@@ -56,6 +65,7 @@ export const useAuthStore = create<AuthState>()(
             });
           } else {
             // Invalid token, clear it
+            console.log('Profile fetch failed, clearing token');
             apiService.setToken(null);
             set({
               user: null,
@@ -65,7 +75,8 @@ export const useAuthStore = create<AuthState>()(
             });
           }
         } catch (error) {
-          console.error('Auth initialization failed:', error);
+          console.log('Auth initialization failed (token likely expired), clearing auth:', error instanceof Error ? error.message : error);
+          // Clear invalid token silently
           apiService.setToken(null);
           set({
             user: null,

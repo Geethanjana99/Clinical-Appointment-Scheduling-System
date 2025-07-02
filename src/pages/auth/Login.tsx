@@ -40,7 +40,7 @@ const Login = () => {
     initializeAuth();
   }, [initializeAuth]);  // Redirect if already authenticated
   useEffect(() => {
-    if (isAuthenticated && user && user.role) {
+    if (isAuthenticated && user && user.role && !authLoading) {
       const validRoles = ['patient', 'doctor', 'admin', 'billing'];
       
       if (validRoles.includes(user.role)) {
@@ -50,7 +50,7 @@ const Login = () => {
         setError('Invalid user role. Please contact support.');
       }
     }
-  }, [isAuthenticated, user, navigate]);
+  }, [isAuthenticated, user, navigate, authLoading]);
 
   // Handle auth errors
   useEffect(() => {
