@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import Card from '../../components/ui/Card';
 import StatusBadge from '../../components/ui/StatusBadge';
 import Button from '../../components/ui/Button';
-import { CalendarIcon, UploadIcon, ClockIcon, ActivityIcon, ChevronRightIcon } from 'lucide-react';
+import { CalendarIcon, ClockIcon, ActivityIcon, ChevronRightIcon } from 'lucide-react';
 import { apiService } from '../../services/api';
 import { toast } from 'sonner';
 
@@ -169,17 +169,10 @@ const PatientDashboard = () => {
                 <CalendarIcon className="w-4 h-4 mr-2" />
                 Book New Appointment
               </Button>
-            </Link>
-            <Link to="/patient/my-appointments">
+            </Link>            <Link to="/patient/my-appointments">
               <Button variant="outline" className="w-full justify-start">
                 <CalendarIcon className="w-4 h-4 mr-2" />
                 View My Appointments
-              </Button>
-            </Link>
-            <Link to="/patient/upload-reports">
-              <Button variant="outline" className="w-full justify-start">
-                <UploadIcon className="w-4 h-4 mr-2" />
-                Upload Medical Reports
               </Button>
             </Link>
             <Link to="/patient/queue">
@@ -192,14 +185,10 @@ const PatientDashboard = () => {
         </Card>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <div className="flex items-center justify-between mb-4">
+        <Card>          <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-medium text-gray-900">
               Recent Medical Reports
             </h2>
-            <Link to="/patient/upload-reports" className="text-sm text-blue-600 hover:text-blue-800 flex items-center">
-              Upload new <ChevronRightIcon className="w-4 h-4 ml-1" />
-            </Link>
           </div>
           {recentReports.length > 0 ? <div className="space-y-3">
               {recentReports.map(report => <div key={report.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
@@ -210,15 +199,8 @@ const PatientDashboard = () => {
                   <Button variant="secondary" size="sm">
                     View
                   </Button>
-                </div>)}
-            </div> : <div className="text-center py-6">
+                </div>)}            </div> : <div className="text-center py-6">
               <p className="text-gray-500">No reports uploaded yet</p>
-              <Link to="/patient/upload-reports">
-                <Button variant="outline" className="mt-4">
-                  <UploadIcon className="w-4 h-4 mr-2" />
-                  Upload Reports
-                </Button>
-              </Link>
             </div>}
         </Card>
         <Card>
