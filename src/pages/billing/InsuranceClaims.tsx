@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
-import { FileText, Clock, CheckCircle, XCircle, AlertTriangle, Search, Filter } from 'lucide-react';
+import CreateClaimModal from '../../components/modals/CreateClaimModal';
+import ViewClaimModal from '../../components/modals/ViewClaimModal';
+import { FileText, Clock, CheckCircle, XCircle, AlertTriangle, Search, Filter, Plus } from 'lucide-react';
 
 interface InsuranceClaim {
   id: string;
@@ -22,7 +24,7 @@ interface InsuranceClaim {
 }
 
 const InsuranceClaims = () => {
-  const [claims] = useState<InsuranceClaim[]>([
+  const [claims, setClaims] = useState<InsuranceClaim[]>([
     {
       id: 'CLM-001',
       patientName: 'John Smith',
@@ -92,10 +94,16 @@ const InsuranceClaims = () => {
       status: 'pending',
       serviceType: 'Routine Checkup'
     }
-  ]);
-
-  const [searchTerm, setSearchTerm] = useState('');
+  ]);  const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [selectedClaim, setSelectedClaim] = useState<InsuranceClaim | null>(null);
+
+  const handleCreateClaim = (claimData: InsuranceClaim) => {
+    setClaims(prevClaims => [claimData, ...prevClaims]);
+    setIsCreateModalOpen(false);
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -148,20 +156,35 @@ const InsuranceClaims = () => {
   };
 
   const summary = getClaimSummary();
-
   const resubmitClaim = (claimId: string) => {
-    alert(`Resubmitting claim ${claimId}...`);
+    setClaims(prevClaims => 
+      prevClaims.map(claim => 
+        claim.id === claimId 
+          ? { 
+              ...claim, 
+              status: 'pending' as const, 
+              claimDate: new Date().toISOString().split('T')[0],
+              denialReason: undefined // Clear the denial reason
+            }
+          : claim
+      )
+    );
+    // Show success message
+    alert(`Claim ${claimId} has been resubmitted successfully. Status changed to Pending.`);
   };
-
   const viewClaimDetails = (claimId: string) => {
-    alert(`Opening detailed view for claim ${claimId}...`);
+    const claim = claims.find(c => c.id === claimId);
+    if (claim) {
+      setSelectedClaim(claim);
+      setIsViewModalOpen(true);
+    }
   };
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-900">Insurance Claims</h1>
-        <Button>
+        <h1 className="text-2xl font-bold text-gray-900">Insurance Claims</h1>        <Button onClick={() => setIsCreateModalOpen(true)}>
+          <Plus className="w-4 h-4 mr-2" />
           Create New Claim
         </Button>
       </div>
@@ -353,9 +376,7 @@ const InsuranceClaims = () => {
             </tbody>
           </table>
         </div>
-      </Card>
-
-      {filteredClaims.length === 0 && (
+      </Card>      {filteredClaims.length === 0 && (
         <Card>
           <div className="text-center py-12">
             <FileText className="mx-auto h-12 w-12 text-gray-400" />
@@ -367,7 +388,23 @@ const InsuranceClaims = () => {
             </p>
           </div>
         </Card>
-      )}
+      )}      {/* Create Claim Modal */}
+      <CreateClaimModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onCreateClaim={handleCreateClaim}
+      />
+
+      {/* View Claim Modal */}
+      <ViewClaimModal
+        isOpen={isViewModalOpen}
+        onClose={() => {
+          setIsViewModalOpen(false);
+          setSelectedClaim(null);
+        }}
+        claim={selectedClaim}
+        onResubmit={resubmitClaim}
+      />
     </div>
   );
 };
