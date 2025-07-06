@@ -25,7 +25,7 @@ interface AuthState {
   isLoading: boolean;
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string, role: UserRole, additionalData?: any) => Promise<void>;
+  register: (name: string, email: string, password: string, role: UserRole, additionalData?: { phone?: string; patientData?: any; doctorData?: any }) => Promise<void>;
   logout: () => void;
   clearError: () => void;
   initializeAuth: () => Promise<void>;
@@ -127,7 +127,8 @@ export const useAuthStore = create<AuthState>()(
             password,
             role,
             phone: additionalData.phone,
-            profileData: additionalData.profileData
+            patientData: additionalData.patientData,
+            doctorData: additionalData.doctorData
           };          const response = await apiService.register(registerData);
           
           if (response.success) {

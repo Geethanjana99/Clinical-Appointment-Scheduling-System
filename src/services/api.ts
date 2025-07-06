@@ -14,22 +14,47 @@ export interface LoginRequest {
 }
 
 export interface RegisterRequest {
+  // Common user fields (goes to users table)
   name: string;
   email: string;
   password: string;
   role: 'patient' | 'doctor' | 'admin' | 'billing';
   phone?: string;
-  profileData?: {
-    gender?: string;
+  avatar_url?: string;
+  
+  // Patient-specific fields (goes to patients table if role is 'patient')
+  patientData?: {
     date_of_birth?: string;
+    gender?: 'male' | 'female' | 'other';
     address?: string;
     emergency_contact_name?: string;
     emergency_contact_phone?: string;
+    medical_history?: string;
+    allergies?: string;
+    current_medications?: string;
+    insurance_provider?: string;
+    insurance_policy_number?: string;
+    blood_type?: string;
+    height?: number;
+    weight?: number;
+    occupation?: string;
+    marital_status?: 'single' | 'married' | 'divorced' | 'widowed';
     preferred_language?: string;
-    specialization?: string;
-    license_number?: string;
-    experience_years?: number;
-    department?: string;
+  };
+  
+  // Doctor-specific fields (goes to doctors table if role is 'doctor')
+  doctorData?: {
+    specialty: string;
+    license_number: string;
+    years_of_experience?: number;
+    education?: string;
+    certifications?: string;
+    consultation_fee?: number;
+    languages_spoken?: string[];
+    office_address?: string;
+    bio?: string;
+    working_hours?: any;
+    commission_rate?: number;
   };
 }
 
@@ -45,7 +70,50 @@ export interface User {
   last_login?: string;
   created_at?: string;
   updated_at?: string;
-  profile?: any;
+  
+  // Patient profile data (if role is 'patient')
+  patientProfile?: {
+    patient_id?: string;
+    date_of_birth?: string;
+    gender?: 'male' | 'female' | 'other';
+    address?: string;
+    emergency_contact_name?: string;
+    emergency_contact_phone?: string;
+    medical_history?: string;
+    allergies?: string;
+    current_medications?: string;
+    insurance_provider?: string;
+    insurance_policy_number?: string;
+    blood_type?: string;
+    height?: number;
+    weight?: number;
+    occupation?: string;
+    marital_status?: 'single' | 'married' | 'divorced' | 'widowed';
+    preferred_language?: string;
+    status?: 'active' | 'inactive' | 'suspended';
+  };
+  
+  // Doctor profile data (if role is 'doctor')
+  doctorProfile?: {
+    doctor_id?: string;
+    specialty?: string;
+    license_number?: string;
+    years_of_experience?: number;
+    education?: string;
+    certifications?: string;
+    consultation_fee?: number;
+    languages_spoken?: string[];
+    office_address?: string;
+    bio?: string;
+    rating?: number;
+    total_reviews?: number;
+    working_hours?: any;
+    availability_status?: 'available' | 'busy' | 'offline';
+    commission_rate?: number;
+    status?: 'active' | 'inactive' | 'suspended' | 'pending_approval';
+    total_appointments?: number;
+    total_earnings?: number;
+  };
 }
 
 export interface AuthResponse {
