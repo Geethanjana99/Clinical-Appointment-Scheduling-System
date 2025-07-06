@@ -133,7 +133,26 @@ class ApiService {
 
   private constructor() {
     // Load token from localStorage on initialization
-    this.token = localStorage.getItem('token');
+    try {
+      const storedToken = localStorage.getItem('token');
+      if (storedToken) {
+        // Basic validation - JWT tokens should have 3 parts separated by dots
+        const tokenParts = storedToken.split('.');
+        if (tokenParts.length === 3) {
+          this.token = storedToken;
+        } else {
+          console.warn('Invalid token format found in localStorage, clearing it');
+          localStorage.removeItem('token');
+          this.token = null;
+        }
+      } else {
+        this.token = null;
+      }
+    } catch (error) {
+      console.error('Error loading token from localStorage:', error);
+      localStorage.removeItem('token');
+      this.token = null;
+    }
   }
 
   static getInstance(): ApiService {
@@ -183,6 +202,13 @@ class ApiService {
       const data = await response.json();
 
       if (!response.ok) {
+        // If it's an authentication error and we have a token, it might be corrupted
+        if (response.status === 401 || response.status === 500) {
+          if (this.token && (data.message === 'Token is not valid' || data.message === 'Server error during authentication')) {
+            console.warn('Authentication failed, clearing potentially corrupted token');
+            this.setToken(null);
+          }
+        }
         throw new Error(data.message || `HTTP error! status: ${response.status}`);
       }
 
@@ -431,6 +457,61 @@ class ApiService {
   async getAvailableSlots(doctorId: string, date: string): Promise<ApiResponse<{date: string, slots: string[]}>> {
     const params = new URLSearchParams({ doctorId, date });
     return this.makeRequest<{date: string, slots: string[]}>(`/appointments/available-slots?${params.toString()}`);
+  }
+
+  // Doctor Queue Management
+  async getDoctorAvailability(): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>('/doctor/availability');
+  }
+
+  async updateWorkingHours(workingHours: any): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>('/doctor/availability/working-hours', {
+      method: 'PUT',
+      body: JSON.stringify({ working_hours: workingHours }),
+    });
+  }
+
+  async updateAvailabilityStatus(status: 'available' | 'busy' | 'offline'): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>('/doctor/availability/status', {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  async getQueueStatus(): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>('/doctor/queue/status');
+  }
+
+  async toggleQueue(isActive: boolean): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>('/doctor/queue/toggle', {
+      method: 'PUT',
+      body: JSON.stringify({ is_active: isActive }),
+    });
+  }
+
+  async getTodayAppointments(): Promise<ApiResponse<any[]>> {
+    return this.makeRequest<any[]>('/doctor/appointments/today');
+  }
+
+  async callNextPatient(appointmentId: string): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>(`/doctor/appointments/${appointmentId}/call-next`, {
+      method: 'PUT',
+    });
+  }
+
+  async completeConsultation(appointmentId: string): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>(`/doctor/appointments/${appointmentId}/complete`, {
+      method: 'PUT',
+    });
+  }
+
+  // Patient Queue Management
+  async getPatientQueuePosition(): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>('/patient/queue/position');
+  }
+
+  async getDoctorQueueInfo(doctorId: string): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>(`/patient/queue/doctor/${doctorId}`);
   }
 }
 
