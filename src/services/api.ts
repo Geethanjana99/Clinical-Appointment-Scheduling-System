@@ -277,7 +277,7 @@ class ApiService {
       }
     });
     
-    const url = `/patients/doctors/search${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    const url = `/doctors/search${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
     return this.makeRequest<any[]>(url);
   }
 
@@ -291,6 +291,21 @@ class ApiService {
     priority?: string;
   }): Promise<ApiResponse<any>> {
     return this.makeRequest<any>('/appointments', {
+      method: 'POST',
+      body: JSON.stringify(appointmentData),
+    });
+  }
+
+  async bookQueueAppointment(appointmentData: {
+    doctorId: string;
+    appointmentDate: string;
+    appointmentType?: string;
+    reasonForVisit: string;
+    symptoms?: string;
+    priority?: string;
+    isEmergency?: boolean;
+  }): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>('/patients/appointments/queue', {
       method: 'POST',
       body: JSON.stringify(appointmentData),
     });
@@ -344,6 +359,7 @@ class ApiService {
   async getDoctorProfile(): Promise<ApiResponse<any>> {
     return this.makeRequest<any>('/doctors/profile');
   }
+
   async getAvailableSlots(doctorId: string, date: string): Promise<ApiResponse<{date: string, slots: string[]}>> {
     const params = new URLSearchParams({ doctorId, date });
     return this.makeRequest<{date: string, slots: string[]}>(`/appointments/available-slots?${params.toString()}`);

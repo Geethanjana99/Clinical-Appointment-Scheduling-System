@@ -27,6 +27,7 @@ interface DashboardData {
     consultationFee: number;
     officeAddress: string;
     workingHours: any;
+    availability_status?: 'available' | 'busy' | 'offline';
   };
   todayAppointments: {
     total: number;
@@ -54,10 +55,12 @@ interface Appointment {
   appointmentTime: string;
   appointmentDate: string;
   reason: string;
-  status: 'scheduled' | 'confirmed' | 'in-progress' | 'completed' | 'cancelled' | 'no-show';
+  status: 'scheduled' | 'confirmed' | 'in-progress' | 'completed' | 'cancelled' | 'no-show' | 'pending';
   type: string;
   duration: number;
   consultationFee?: number;
+  queueNumber?: string;
+  isEmergency?: boolean;
 }
 const DoctorDashboard = () => {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
@@ -81,106 +84,139 @@ const DoctorDashboard = () => {
       console.error('Error fetching dashboard data:', err);
       setError(err instanceof Error ? err.message : 'An error occurred');
       
-      // Fallback to mock data for development
-      setDashboardData(getMockDashboardData());
+      // Fallback to mock queue data for demonstration
+      const mockQueueData = (): DashboardData => ({
+        doctor: {
+          id: '1',
+          name: 'Dr. Queue Demo',
+          specialty: 'General Medicine',
+          rating: 4.8,
+          totalReviews: 127,
+          consultationFee: 3500.00,
+          officeAddress: 'Medical Center, Queue Wing',
+          availability_status: 'available',
+          workingHours: {
+            monday: { start: '09:00', end: '17:00' },
+            tuesday: { start: '09:00', end: '17:00' },
+            wednesday: { start: '09:00', end: '17:00' },
+            thursday: { start: '09:00', end: '17:00' },
+            friday: { start: '09:00', end: '15:00' }
+          }
+        },
+        todayAppointments: {
+          total: 5,
+          completed: 1,
+          pending: 3,
+          inProgress: 1,
+          appointments: [
+            {
+              id: '1',
+              appointmentId: 'APT-Q001',
+              patientName: 'John Regular',
+              patientAge: 35,
+              patientPhone: '0723456789',
+              appointmentTime: '09:30',
+              appointmentDate: new Date().toISOString().split('T')[0],
+              reason: 'Regular health checkup',
+              status: 'completed' as const,
+              type: 'consultation',
+              duration: 30,
+              consultationFee: 3500.00,
+              queueNumber: '1',
+              isEmergency: false
+            },
+            {
+              id: '2',
+              appointmentId: 'APT-Q002',
+              patientName: 'Mary Emergency',
+              patientAge: 28,
+              patientPhone: '0723456790',
+              appointmentTime: '10:00',
+              appointmentDate: new Date().toISOString().split('T')[0],
+              reason: 'Severe chest pain',
+              status: 'in-progress' as const,
+              type: 'consultation',
+              duration: 45,
+              consultationFee: 3500.00,
+              queueNumber: 'E1',
+              isEmergency: true
+            },
+            {
+              id: '3',
+              appointmentId: 'APT-Q003',
+              patientName: 'Peter Queue',
+              patientAge: 42,
+              patientPhone: '0723456791',
+              appointmentTime: '10:30',
+              appointmentDate: new Date().toISOString().split('T')[0],
+              reason: 'Follow-up consultation',
+              status: 'pending' as const,
+              type: 'consultation',
+              duration: 30,
+              consultationFee: 3500.00,
+              queueNumber: '2',
+              isEmergency: false
+            },
+            {
+              id: '4',
+              appointmentId: 'APT-Q004',
+              patientName: 'Sarah Patient',
+              patientAge: 31,
+              patientPhone: '0723456792',
+              appointmentTime: '11:00',
+              appointmentDate: new Date().toISOString().split('T')[0],
+              reason: 'Vaccination',
+              status: 'pending' as const,
+              type: 'consultation',
+              duration: 15,
+              consultationFee: 3500.00,
+              queueNumber: '3',
+              isEmergency: false
+            },
+            {
+              id: '5',
+              appointmentId: 'APT-Q005',
+              patientName: 'Tom Emergency',
+              patientAge: 45,
+              patientPhone: '0723456793',
+              appointmentTime: '11:15',
+              appointmentDate: new Date().toISOString().split('T')[0],
+              reason: 'High fever emergency',
+              status: 'pending' as const,
+              type: 'consultation',
+              duration: 30,
+              consultationFee: 3500.00,
+              queueNumber: 'E2',
+              isEmergency: true
+            }
+          ]
+        },
+        upcomingAppointments: [],
+        stats: {
+          totalPatients: 250,
+          totalAppointments: 50,
+          monthlyEarnings: 175000.00,
+          averageRating: 4.8
+        },
+        recentActivity: []
+      });
+      
+      setDashboardData(mockQueueData());
     } finally {
       setLoading(false);
     }
   };
 
-  const getMockDashboardData = (): DashboardData => ({
-    doctor: {
-      id: '1',
-      name: 'Dr. Sarah Johnson',
-      specialty: 'Cardiology',
-      rating: 4.8,
-      totalReviews: 127,
-      consultationFee: 200.00,
-      officeAddress: '123 Medical Center, Suite 301',
-      workingHours: {
-        monday: { start: '09:00', end: '17:00' },
-        tuesday: { start: '09:00', end: '17:00' },
-        wednesday: { start: '09:00', end: '17:00' },
-        thursday: { start: '09:00', end: '17:00' },
-        friday: { start: '09:00', end: '15:00' }
-      }
-    },
-    todayAppointments: {
-      total: 8,
-      completed: 3,
-      pending: 4,
-      inProgress: 1,
-      appointments: [
-        {
-          id: '1',
-          appointmentId: 'APT-001',
-          patientName: 'John Smith',
-          patientAge: 45,
-          patientPhone: '+1-555-0123',
-          appointmentTime: '09:00',
-          appointmentDate: '2025-06-09',
-          reason: 'Annual cardiac checkup',
-          status: 'completed',
-          type: 'consultation',
-          duration: 30,
-          consultationFee: 200.00
-        },
-        {
-          id: '2',
-          appointmentId: 'APT-002',
-          patientName: 'Emily Johnson',
-          patientAge: 32,
-          patientPhone: '+1-555-0124',
-          appointmentTime: '10:30',
-          appointmentDate: '2025-06-09',
-          reason: 'Follow-up for hypertension',
-          status: 'in-progress',
-          type: 'follow-up',
-          duration: 30,
-          consultationFee: 200.00
-        },
-        {
-          id: '3',
-          appointmentId: 'APT-003',
-          patientName: 'Robert Williams',
-          patientAge: 58,
-          patientPhone: '+1-555-0125',
-          appointmentTime: '11:45',
-          appointmentDate: '2025-06-09',
-          reason: 'Chest pain evaluation',
-          status: 'confirmed',
-          type: 'consultation',
-          duration: 45,
-          consultationFee: 200.00
-        },
-        {
-          id: '4',
-          appointmentId: 'APT-004',
-          patientName: 'Sarah Davis',
-          patientAge: 29,
-          patientPhone: '+1-555-0126',
-          appointmentTime: '14:15',
-          appointmentDate: '2025-06-09',
-          reason: 'Heart palpitations',
-          status: 'confirmed',
-          type: 'consultation',
-          duration: 30,
-          consultationFee: 200.00
-        }
-      ]
-    },
-    upcomingAppointments: [],
-    stats: {
-      totalPatients: 247,
-      totalAppointments: 1205,
-      monthlyEarnings: 12500.00,
-      averageRating: 4.8
-    },
-    recentActivity: []
-  });
-
   const formatTime = (time: string) => {
+    if (!time || typeof time !== 'string') {
+      return 'Invalid Time';
+    }
+    
     const [hours, minutes] = time.split(':');
+    if (!hours || !minutes) {
+      return 'Invalid Time';
+    }
+    
     const hour = parseInt(hours);
     const ampm = hour >= 12 ? 'PM' : 'AM';
     const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
@@ -246,22 +282,22 @@ const DoctorDashboard = () => {
               <UserIcon className="h-8 w-8 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold">{dashboardData.doctor.name}</h1>
-              <p className="text-blue-100">{dashboardData.doctor.specialty}</p>
+              <h1 className="text-2xl font-bold">{dashboardData.doctor?.name || 'Doctor'}</h1>
+              <p className="text-blue-100">{dashboardData.doctor?.specialty || 'General Medicine'}</p>
               <div className="flex items-center mt-1">
                 <StarIcon className="h-4 w-4 text-yellow-300 fill-current" />
-                <span className="ml-1 text-sm">{dashboardData.doctor.rating} ({dashboardData.doctor.totalReviews} reviews)</span>
+                <span className="ml-1 text-sm">{dashboardData.doctor?.rating || 0} ({dashboardData.doctor?.totalReviews || 0} reviews)</span>
               </div>
             </div>
           </div>
           <div className="text-right">
             <div className="flex items-center text-white/90 mb-1">
               <MapPinIcon className="h-4 w-4 mr-1" />
-              <span className="text-sm">{dashboardData.doctor.officeAddress}</span>
+              <span className="text-sm">{dashboardData.doctor?.officeAddress || 'Office Address'}</span>
             </div>
             <div className="flex items-center text-white/90">
               <DollarSignIcon className="h-4 w-4 mr-1" />
-              <span className="text-sm">Consultation: ${dashboardData.doctor.consultationFee}</span>
+              <span className="text-sm">Consultation: ${dashboardData.doctor?.consultationFee || 0}</span>
             </div>
           </div>
         </div>
@@ -276,7 +312,7 @@ const DoctorDashboard = () => {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Today's Appointments</p>
-              <p className="text-2xl font-bold text-gray-900">{dashboardData.todayAppointments.total}</p>
+              <p className="text-2xl font-bold text-gray-900">{dashboardData.todayAppointments?.total || 0}</p>
             </div>
           </div>
         </Card>
@@ -288,7 +324,7 @@ const DoctorDashboard = () => {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Completed</p>
-              <p className="text-2xl font-bold text-gray-900">{dashboardData.todayAppointments.completed}</p>
+              <p className="text-2xl font-bold text-gray-900">{dashboardData.todayAppointments?.completed || 0}</p>
             </div>
           </div>
         </Card>
@@ -300,7 +336,7 @@ const DoctorDashboard = () => {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Pending</p>
-              <p className="text-2xl font-bold text-gray-900">{dashboardData.todayAppointments.pending}</p>
+              <p className="text-2xl font-bold text-gray-900">{dashboardData.todayAppointments?.pending || 0}</p>
             </div>
           </div>
         </Card>
@@ -312,7 +348,7 @@ const DoctorDashboard = () => {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Monthly Revenue</p>
-              <p className="text-2xl font-bold text-gray-900">${dashboardData.stats.monthlyEarnings.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-gray-900">${dashboardData.stats?.monthlyEarnings?.toLocaleString() || '0'}</p>
             </div>
           </div>
         </Card>
@@ -323,10 +359,20 @@ const DoctorDashboard = () => {
           <Card>
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-semibold text-gray-900">Today's Appointments</h2>
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">Today's Queue</h2>
+                  <p className="text-sm text-gray-500">
+                    {new Date().toLocaleDateString('en-US', { 
+                      weekday: 'long', 
+                      year: 'numeric', 
+                      month: 'long', 
+                      day: 'numeric' 
+                    })} - Queue-based appointments
+                  </p>
+                </div>
                 <div className="flex items-center space-x-2">
                   <span className="text-sm text-gray-500">
-                    {dashboardData.todayAppointments.total} total
+                    {dashboardData.todayAppointments?.total || 0} patients in queue
                   </span>
                   <Link 
                     to="/doctor/appointments" 
@@ -337,9 +383,11 @@ const DoctorDashboard = () => {
                 </div>
               </div>
               
-              {dashboardData.todayAppointments.appointments.length > 0 ? (
+              {dashboardData.todayAppointments?.appointments?.length > 0 ? (
                 <div className="space-y-4">
-                  {dashboardData.todayAppointments.appointments.map((appointment) => (
+                  {dashboardData.todayAppointments.appointments
+                    .filter(appointment => appointment && appointment.id) // Filter out invalid appointments
+                    .map((appointment) => (
                     <div key={appointment.id} className="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-4">
@@ -351,24 +399,33 @@ const DoctorDashboard = () => {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center space-x-2">
                               <p className="text-sm font-medium text-gray-900 truncate">
-                                {appointment.patientName}
+                                {appointment.patientName || 'Unknown Patient'}
                               </p>
+                              {appointment.queueNumber && (
+                                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                  appointment.isEmergency 
+                                    ? 'bg-red-100 text-red-800' 
+                                    : 'bg-blue-100 text-blue-800'
+                                }`}>
+                                  {appointment.isEmergency ? '🚨' : '#'} {appointment.queueNumber}
+                                </span>
+                              )}
                               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(appointment.status)}`}>
-                                {appointment.status.replace('-', ' ')}
+                                {appointment.status ? appointment.status.replace('-', ' ') : 'unknown'}
                               </span>
                             </div>
                             <div className="flex items-center space-x-4 mt-1">
                               <div className="flex items-center text-sm text-gray-500">
                                 <ClockIcon className="h-4 w-4 mr-1" />
-                                {formatTime(appointment.appointmentTime)}
+                                {appointment.appointmentTime ? formatTime(appointment.appointmentTime) : 'Time not set'}
                               </div>
                               <div className="flex items-center text-sm text-gray-500">
                                 <PhoneIcon className="h-4 w-4 mr-1" />
-                                {appointment.patientPhone}
+                                {appointment.patientPhone || 'Phone not available'}
                               </div>
                             </div>
                             <p className="text-sm text-gray-600 mt-1 truncate">
-                              {appointment.reason}
+                              {appointment.reason || 'No reason provided'}
                             </p>
                           </div>
                         </div>
@@ -402,9 +459,14 @@ const DoctorDashboard = () => {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8">
-                  <CalendarIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-500">No appointments scheduled for today</p>
+                <div className="text-center py-12">
+                  <CalendarIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Patients in Queue</h3>
+                  <p className="text-gray-500 mb-6">
+                    No patients have joined the queue for today yet.
+                    <br />
+                    Patients can book queue-based appointments and will be assigned numbers.
+                  </p>
                 </div>
               )}
             </div>
@@ -418,12 +480,6 @@ const DoctorDashboard = () => {
             <div className="p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
               <div className="space-y-3">
-                <Link to="/doctor/schedule">
-                  <Button variant="outline" className="w-full justify-start">
-                    <CalendarIcon className="w-4 h-4 mr-2" />
-                    Manage Schedule
-                  </Button>
-                </Link>
                 <Link to="/doctor/patients">
                   <Button variant="outline" className="w-full justify-start">
                     <UserIcon className="w-4 h-4 mr-2" />
@@ -446,6 +502,8 @@ const DoctorDashboard = () => {
             </div>
           </Card>
 
+
+
           {/* Today's Overview */}
           <Card>
             <div className="p-6">
@@ -455,7 +513,7 @@ const DoctorDashboard = () => {
                   <div className="flex items-center">
                     <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
                       <span className="text-blue-600 font-semibold text-sm">
-                        {dashboardData.todayAppointments.inProgress}
+                        {dashboardData.todayAppointments?.inProgress || 0}
                       </span>
                     </div>
                     <span className="ml-3 text-sm font-medium">In Progress</span>
@@ -469,7 +527,7 @@ const DoctorDashboard = () => {
                   <div className="flex items-center">
                     <div className="h-8 w-8 bg-yellow-100 rounded-full flex items-center justify-center">
                       <span className="text-yellow-600 font-semibold text-sm">
-                        {dashboardData.todayAppointments.pending}
+                        {dashboardData.todayAppointments?.pending || 0}
                       </span>
                     </div>
                     <span className="ml-3 text-sm font-medium">Waiting</span>
@@ -483,7 +541,7 @@ const DoctorDashboard = () => {
                   <div className="flex items-center">
                     <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
                       <span className="text-green-600 font-semibold text-sm">
-                        {dashboardData.todayAppointments.completed}
+                        {dashboardData.todayAppointments?.completed || 0}
                       </span>
                     </div>
                     <span className="ml-3 text-sm font-medium">Completed</span>
@@ -497,7 +555,7 @@ const DoctorDashboard = () => {
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">Today's Revenue</span>
                     <span className="font-semibold text-gray-900">
-                      ${(dashboardData.todayAppointments.completed * dashboardData.doctor.consultationFee).toLocaleString()}
+                      ${((dashboardData.todayAppointments?.completed || 0) * (dashboardData.doctor?.consultationFee || 0)).toLocaleString()}
                     </span>
                   </div>
                 </div>
@@ -512,23 +570,23 @@ const DoctorDashboard = () => {
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">Total Patients</span>
-                  <span className="text-sm font-semibold">{dashboardData.stats.totalPatients}</span>
+                  <span className="text-sm font-semibold">{dashboardData.stats?.totalPatients || 0}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">Appointments</span>
-                  <span className="text-sm font-semibold">{dashboardData.stats.totalAppointments}</span>
+                  <span className="text-sm font-semibold">{dashboardData.stats?.totalAppointments || 0}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">Average Rating</span>
                   <div className="flex items-center">
                     <StarIcon className="h-4 w-4 text-yellow-400 fill-current" />
-                    <span className="text-sm font-semibold ml-1">{dashboardData.stats.averageRating}</span>
+                    <span className="text-sm font-semibold ml-1">{dashboardData.stats?.averageRating || 0}</span>
                   </div>
                 </div>
                 <div className="flex items-center justify-between pt-2 border-t border-gray-200">
                   <span className="text-sm text-gray-600">Total Earnings</span>
                   <span className="text-sm font-semibold text-green-600">
-                    ${dashboardData.stats.monthlyEarnings.toLocaleString()}
+                    ${dashboardData.stats?.monthlyEarnings?.toLocaleString() || '0'}
                   </span>
                 </div>
               </div>            </div>

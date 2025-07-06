@@ -1,29 +1,211 @@
-import React from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import StatusBadge from '../../components/ui/StatusBadge';
+import GenerateInvoiceModal from '../../components/modals/GenerateInvoiceModal';
+import ViewInvoiceModal from '../../components/modals/ViewInvoiceModal';
 import { DollarSignIcon, FileTextIcon, ChevronRightIcon, TrendingUpIcon, CalendarIcon, UserIcon } from 'lucide-react';
+import { apiService } from '../../services/api';
+
+interface Invoice {
+  id: string;
+  invoice_number: string;
+  patient_name: string;
+  appointment_date: string;
+  due_date: string;
+  total_amount: string;
+  status: 'pending' | 'paid' | 'overdue' | 'cancelled';
+  notes: string;
+  generated_date: string;
+  created_at: string;
+  updated_at: string;
+}
 const BillingDashboard = () => {
-  return <div className="space-y-6">
-      <div className="flex items-center justify-between">
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
+  const [recentInvoices, setRecentInvoices] = useState<Invoice[]>([]);
+  const [allInvoices, setAllInvoices] = useState<Invoice[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch recent invoices from backend
+  useEffect(() => {
+    fetchRecentInvoices();
+    fetchAllInvoices();
+  }, []);
+
+  const fetchRecentInvoices = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Fetch only the 3 most recent invoices
+      const response = await apiService.getInvoices({ limit: 3 });
+      
+      if (response.success && response.data) {
+        setRecentInvoices(response.data);
+      } else {
+        setError('Failed to fetch recent invoices');
+      }
+    } catch (err) {
+      console.error('Error fetching recent invoices:', err);
+      setError('Error loading recent invoices');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchAllInvoices = async () => {
+    try {
+      // Fetch all invoices for dashboard statistics
+      const response = await apiService.getInvoices();
+      
+      if (response.success && response.data) {
+        setAllInvoices(response.data);
+      }
+    } catch (err) {
+      console.error('Error fetching all invoices:', err);
+    }
+  };
+
+  const formatCurrency = (amount: string | number) => {
+    const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(numAmount);
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+  const getStatusForBadge = (status: string): 'paid' | 'unpaid' | 'pending' | 'cancelled' => {
+    switch (status) {
+      case 'paid': return 'paid';
+      case 'pending': return 'pending';
+      case 'overdue': return 'unpaid';
+      case 'cancelled': return 'cancelled';
+      default: return 'pending';
+    }
+  };
+
+  // Calculate dashboard statistics
+  const calculateStats = () => {
+    const today = new Date();
+    const todayString = today.toISOString().split('T')[0];
+    
+    // Today's revenue (paid invoices from today)
+    const todayRevenue = allInvoices
+      .filter(invoice => 
+        invoice.status === 'paid' && 
+        invoice.updated_at && 
+        invoice.updated_at.split('T')[0] === todayString
+      )
+      .reduce((total, invoice) => total + parseFloat(invoice.total_amount), 0);
+
+    // Pending payments
+    const pendingInvoices = allInvoices.filter(invoice => invoice.status === 'pending');
+    const pendingCount = pendingInvoices.length;
+    const pendingTotal = pendingInvoices.reduce((total, invoice) => total + parseFloat(invoice.total_amount), 0);
+
+    // Completed payments this month
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
+    const completedThisMonth = allInvoices.filter(invoice => {
+      if (invoice.status !== 'paid' || !invoice.updated_at) return false;
+      const invoiceDate = new Date(invoice.updated_at);
+      return invoiceDate.getMonth() === currentMonth && invoiceDate.getFullYear() === currentYear;
+    }).length;
+
+    return {
+      todayRevenue,
+      pendingCount,
+      pendingTotal,
+      completedThisMonth
+    };
+  };
+
+  const stats = calculateStats();  const handleGenerateInvoice = async (invoiceData: any) => {
+    console.log('Generated Invoice:', invoiceData);
+    
+    // Show success message
+    alert(`Invoice ${invoiceData.invoiceNumber} generated successfully for ${invoiceData.patientName}!`);
+    
+    // Refresh both recent invoices and all invoices to update dashboard stats
+    await fetchRecentInvoices();
+    await fetchAllInvoices();
+  };
+  const handleViewInvoice = (invoice: Invoice) => {
+    // Convert the backend invoice to the format expected by ViewInvoiceModal
+    const formattedInvoice = {
+      id: invoice.id,
+      invoiceNumber: invoice.invoice_number,
+      patientName: invoice.patient_name,
+      appointmentDate: invoice.appointment_date,
+      dueDate: invoice.due_date,
+      generatedDate: invoice.generated_date,
+      status: invoice.status,
+      totalAmount: parseFloat(invoice.total_amount),
+      notes: invoice.notes,
+      items: [] // We would need to fetch invoice items separately
+    };
+    
+    setSelectedInvoice(formattedInvoice);
+    setIsViewModalOpen(true);
+  };  const handleRecordPaymentFromModal = async (invoice: any) => {
+    // Show confirmation dialog
+    const confirmPayment = window.confirm(
+      `Are you sure you want to record payment for Invoice ${invoice.invoice_number || invoice.invoiceNumber}?\nAmount: ${formatCurrency(invoice.total_amount || invoice.totalAmount)}`
+    );
+    
+    if (confirmPayment) {
+      try {
+        // Call the backend API to update the payment status
+        console.log('Updating invoice status for ID:', invoice.id);
+        const response = await apiService.updateInvoiceStatus(invoice.id, 'paid');
+        
+        console.log('Update response:', response);
+          if (response.success) {
+          alert(`Payment recorded successfully for Invoice ${invoice.invoice_number || invoice.invoiceNumber}!`);
+          // Refresh the recent invoices and all invoices to show updated status and stats
+          await fetchRecentInvoices();
+          await fetchAllInvoices();
+        } else {
+          console.error('API returned success: false', response);
+          alert(`Failed to record payment: ${response.message || 'Unknown error'}`);
+        }      } catch (error) {
+        console.error('Error recording payment:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Please try again.';
+        alert(`Error recording payment: ${errorMessage}`);
+      }
+    }
+  };
+
+  return <div className="space-y-6">      <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Billing Dashboard</h1>
-        <Button variant="primary">
+        <Button variant="primary" onClick={() => setIsInvoiceModalOpen(true)}>
           <FileTextIcon className="w-4 h-4 mr-2" />
           Generate Invoice
         </Button>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      </div>      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="bg-blue-50 border border-blue-100">
           <div className="flex items-center justify-between p-6">
             <div>
               <p className="text-sm font-medium text-blue-600">
                 Today's Revenue
               </p>
-              <p className="text-2xl font-bold text-blue-800 mt-1">$2,854</p>
+              <p className="text-2xl font-bold text-blue-800 mt-1">
+                {formatCurrency(stats.todayRevenue)}
+              </p>
               <p className="text-sm text-blue-600 flex items-center mt-1">
                 <TrendingUpIcon className="w-4 h-4 mr-1" />
-                +12% from yesterday
+                From paid invoices today
               </p>
             </div>
             <div className="bg-blue-100 rounded-full p-3">
@@ -37,8 +219,8 @@ const BillingDashboard = () => {
               <p className="text-sm font-medium text-green-600">
                 Pending Payments
               </p>
-              <p className="text-2xl font-bold text-green-800 mt-1">23</p>
-              <p className="text-sm text-green-600 mt-1">$4,575 total</p>
+              <p className="text-2xl font-bold text-green-800 mt-1">{stats.pendingCount}</p>
+              <p className="text-sm text-green-600 mt-1">{formatCurrency(stats.pendingTotal)} total</p>
             </div>
             <div className="bg-green-100 rounded-full p-3">
               <FileTextIcon className="h-6 w-6 text-green-600" />
@@ -51,7 +233,7 @@ const BillingDashboard = () => {
               <p className="text-sm font-medium text-purple-600">
                 Completed Payments
               </p>
-              <p className="text-2xl font-bold text-purple-800 mt-1">156</p>
+              <p className="text-2xl font-bold text-purple-800 mt-1">{stats.completedThisMonth}</p>
               <p className="text-sm text-purple-600 mt-1">This month</p>
             </div>
             <div className="bg-purple-100 rounded-full p-3">
@@ -87,48 +269,120 @@ const BillingDashboard = () => {
                   Actions
                 </th>
               </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {[1, 2, 3].map(index => <tr key={index}>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0 h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
-                        <UserIcon className="h-5 w-5 text-blue-600" />
-                      </div>
-                      <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900">
-                          John Smith
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          ID: P-{index}001
-                        </div>
-                      </div>
+            </thead>            <tbody className="bg-white divide-y divide-gray-200">
+              {loading ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-8 text-center">
+                    <div className="flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                      <span className="ml-2 text-gray-500">Loading recent invoices...</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
-                      INV-2023{index}001
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-8 text-center">
+                    <div className="text-red-600">
+                      <p className="font-medium">Error Loading Invoices</p>
+                      <p className="text-sm mt-1">{error}</p>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="mt-3"
+                        onClick={fetchRecentInvoices}
+                      >
+                        Try Again
+                      </Button>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">${150 * index}</div>
+                </tr>
+              ) : recentInvoices.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-8 text-center">
+                    <div className="text-gray-500">
+                      <p className="font-medium">No Recent Invoices</p>
+                      <p className="text-sm mt-1">Create your first invoice to get started.</p>
+                      <Button 
+                        variant="primary" 
+                        size="sm" 
+                        className="mt-3"
+                        onClick={() => setIsInvoiceModalOpen(true)}
+                      >
+                        <FileTextIcon className="w-4 h-4 mr-2" />
+                        Generate Invoice
+                      </Button>
+                    </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <StatusBadge status={index === 1 ? 'paid' : 'unpaid'} />
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <Button variant="outline" size="sm" className="mr-2">
-                      View
-                    </Button>
-                    {index !== 1 && <Button variant="primary" size="sm">
-                        Record Payment
-                      </Button>}
-                  </td>
-                </tr>)}
-            </tbody>
-          </table>
+                </tr>
+              ) : (
+                recentInvoices.map((invoice) => (
+                  <tr key={invoice.id}>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0 h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
+                          <UserIcon className="h-5 w-5 text-blue-600" />
+                        </div>
+                        <div className="ml-4">
+                          <div className="text-sm font-medium text-gray-900">
+                            {invoice.patient_name}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {invoice.appointment_date ? `Appointment: ${formatDate(invoice.appointment_date)}` : 'No appointment date'}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {invoice.invoice_number}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        Generated: {formatDate(invoice.generated_date)}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">
+                        {formatCurrency(invoice.total_amount)}
+                      </div>
+                    </td>                    <td className="px-6 py-4 whitespace-nowrap">
+                      <StatusBadge status={getStatusForBadge(invoice.status)} />
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="mr-2" 
+                        onClick={() => handleViewInvoice(invoice)}
+                      >
+                        View
+                      </Button>
+                      {invoice.status === 'pending' && (
+                        <Button 
+                          variant="primary" 
+                          size="sm" 
+                          onClick={() => handleRecordPaymentFromModal({ id: invoice.id, invoice_number: invoice.invoice_number, total_amount: invoice.total_amount })}
+                        >
+                          Record Payment
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody></table>
         </div>
-      </Card>
+      </Card>      {/* Generate Invoice Modal */}
+      <GenerateInvoiceModal
+        isOpen={isInvoiceModalOpen}
+        onClose={() => setIsInvoiceModalOpen(false)}
+        onGenerate={handleGenerateInvoice}
+      />      {/* View Invoice Modal */}
+      <ViewInvoiceModal
+        isOpen={isViewModalOpen}
+        onClose={() => setIsViewModalOpen(false)}
+        invoiceData={selectedInvoice}
+        onRecordPayment={handleRecordPaymentFromModal}
+      />
     </div>;
 };
 export default BillingDashboard;
