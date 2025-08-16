@@ -8,6 +8,14 @@ import { apiService } from '../../services/api';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
+// Helper function to format date to YYYY-MM-DD
+const formatDate = (dateString: string) => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return dateString; // Return original if invalid
+  return date.toISOString().split('T')[0]; // YYYY-MM-DD format
+};
+
 interface Patient {
   id: string;
   patientId: string;
@@ -325,7 +333,7 @@ const ManageAppointments = () => {
     
     const matchesStatus = !statusFilter || appointment.status === statusFilter;
     
-    const matchesDate = !selectedDate || appointment.appointmentDate === selectedDate;
+    const matchesDate = !selectedDate || formatDate(appointment.appointmentDate) === selectedDate;
     
     return matchesSearch && matchesStatus && matchesDate;
   });
@@ -556,7 +564,7 @@ const ManageAppointments = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{appointment.appointmentDate}</div>
+                    <div className="text-sm text-gray-900">{formatDate(appointment.appointmentDate)}</div>
                     <div className="text-sm text-gray-500">Queue #{appointment.queue_number}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
