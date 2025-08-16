@@ -35,7 +35,7 @@ interface Appointment {
   doctorName: string;
   doctorSpecialty: string;
   appointmentDate: string;
-  appointmentTime: string;
+  queue_number: number;
   appointmentType: string;
   reasonForVisit: string;
   symptoms?: string;
@@ -62,7 +62,6 @@ const ManageAppointments = () => {
     patientId: '',
     doctorId: '',
     appointmentDate: '',
-    appointmentTime: '',
     appointmentType: 'consultation',
     reasonForVisit: '',
     symptoms: '',
@@ -73,6 +72,8 @@ const ManageAppointments = () => {
   const fetchAppointments = async () => {
     try {
       const token = apiService.getToken();
+      console.log('🔍 Fetching appointments with token:', token ? 'Present' : 'Missing');
+      
       const response = await fetch(`${API_BASE_URL}/appointments?limit=100`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -80,15 +81,23 @@ const ManageAppointments = () => {
         },
       });
       
+      console.log('📡 Appointments API response status:', response.status);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const result = await response.json();
+      console.log('📋 Appointments API result:', result);
       
       if (result.success) {
+        console.log('✅ Appointments data:', result.data.appointments);
         setAppointments(result.data.appointments || []);
       } else {
         throw new Error(result.message || 'Failed to fetch appointments');
       }
     } catch (err) {
-      console.error('Error fetching appointments:', err);
+      console.error('❌ Error fetching appointments:', err);
       setError(`Failed to load appointments: ${err instanceof Error ? err.message : 'Unknown error'}`);
       setAppointments([]);
     }
@@ -123,7 +132,7 @@ const ManageAppointments = () => {
   const fetchDoctors = async () => {
     try {
       const token = apiService.getToken();
-      const response = await fetch(`${API_BASE_URL}/doctors`, {
+      const response = await fetch(`${API_BASE_URL}/admin/doctors`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -176,7 +185,6 @@ const ManageAppointments = () => {
           patientId: appointmentData.patientId,
           doctorId: appointmentData.doctorId,
           appointmentDate: appointmentData.appointmentDate,
-          appointmentTime: appointmentData.appointmentTime,
           appointmentType: appointmentData.appointmentType,
           reasonForVisit: appointmentData.reasonForVisit,
           symptoms: appointmentData.symptoms,
@@ -266,7 +274,6 @@ const ManageAppointments = () => {
         patientId: '',
         doctorId: '',
         appointmentDate: '',
-        appointmentTime: '',
         appointmentType: 'consultation',
         reasonForVisit: '',
         symptoms: '',
@@ -301,7 +308,6 @@ const ManageAppointments = () => {
       patientId: '',
       doctorId: '',
       appointmentDate: '',
-      appointmentTime: '',
       appointmentType: 'consultation',
       reasonForVisit: '',
       symptoms: '',
@@ -518,7 +524,7 @@ const ManageAppointments = () => {
                   Doctor
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Date & Time
+                  Date & Queue
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Type
@@ -551,7 +557,7 @@ const ManageAppointments = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">{appointment.appointmentDate}</div>
-                    <div className="text-sm text-gray-500">{appointment.appointmentTime}</div>
+                    <div className="text-sm text-gray-500">Queue #{appointment.queue_number}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {appointment.appointmentType}
@@ -648,30 +654,17 @@ const ManageAppointments = () => {
               </select>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                <input
-                  type="date"
-                  name="appointmentDate"
-                  value={formData.appointmentDate}
-                  onChange={handleInputChange}
-                  required
-                  min={new Date().toISOString().split('T')[0]}
-                  className="w-full border border-gray-300 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Time</label>
-                <input
-                  type="time"
-                  name="appointmentTime"
-                  value={formData.appointmentTime}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full border border-gray-300 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+              <input
+                type="date"
+                name="appointmentDate"
+                value={formData.appointmentDate}
+                onChange={handleInputChange}
+                required
+                min={new Date().toISOString().split('T')[0]}
+                className="w-full border border-gray-300 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500"
+              />
             </div>
 
             <div>
