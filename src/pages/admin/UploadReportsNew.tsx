@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
-import { Upload, Download, Eye, Activity, FileText, Plus, Save, AlertCircle, CheckCircle, Search, X } from 'lucide-react';
-import { apiService } from '../../services/api';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+import { Upload, Download, Eye, Activity, FileText, Plus, Save, AlertCircle, CheckCircle } from 'lucide-react';
+import { useAuthStore } from '../../store/authStore';
 
 interface Patient {
   id: string;
@@ -48,6 +46,7 @@ interface MedicalReport {
 }
 
 const UploadReports = () => {
+  const { user } = useAuthStore();
   const [activeTab, setActiveTab] = useState<'diabetes' | 'medical'>('diabetes');
   const [patients, setPatients] = useState<Patient[]>([]);
   const [diabetesPredictions, setDiabetesPredictions] = useState<DiabetesPrediction[]>([]);
@@ -77,59 +76,23 @@ const UploadReports = () => {
   });
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
-  // Patient search state
-  const [diabetesPatientSearch, setDiabetesPatientSearch] = useState('');
-  const [medicalPatientSearch, setMedicalPatientSearch] = useState('');
-  const [isDiabetesDropdownOpen, setIsDiabetesDropdownOpen] = useState(false);
-  const [isMedicalDropdownOpen, setIsMedicalDropdownOpen] = useState(false);
-
   useEffect(() => {
     fetchPatients();
     fetchDiabetesPredictions();
     fetchMedicalReports();
   }, []);
 
-  // Initialize search fields when patient is selected
-  useEffect(() => {
-    if (diabetesForm.patientId && !diabetesPatientSearch) {
-      setDiabetesPatientSearch(getSelectedPatientName(diabetesForm.patientId));
-    }
-  }, [diabetesForm.patientId, patients]);
-
-  useEffect(() => {
-    if (medicalForm.patientId && !medicalPatientSearch) {
-      setMedicalPatientSearch(getSelectedPatientName(medicalForm.patientId));
-    }
-  }, [medicalForm.patientId, patients]);
-
-  // Close dropdowns when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Element;
-      if (!target.closest('.patient-dropdown')) {
-        setIsDiabetesDropdownOpen(false);
-        setIsMedicalDropdownOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
   const fetchPatients = async () => {
     try {
-      const token = apiService.getToken();
-      const response = await fetch(`${API_BASE_URL}/admin/reports/patients`, {
+      const response = await fetch('/api/admin/reports/patients', {
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${user?.token}`,
           'Content-Type': 'application/json',
         },
       });
       const data = await response.json();
       if (data.success) {
         setPatients(data.data.patients);
-      } else {
-        console.error('Failed to fetch patients:', data.message);
       }
     } catch (error) {
       console.error('Error fetching patients:', error);
@@ -138,10 +101,9 @@ const UploadReports = () => {
 
   const fetchDiabetesPredictions = async () => {
     try {
-      const token = apiService.getToken();
-      const response = await fetch(`${API_BASE_URL}/admin/reports/diabetes-predictions`, {
+      const response = await fetch('/api/admin/reports/diabetes-predictions', {
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${user?.token}`,
           'Content-Type': 'application/json',
         },
       });
@@ -156,10 +118,9 @@ const UploadReports = () => {
 
   const fetchMedicalReports = async () => {
     try {
-      const token = apiService.getToken();
-      const response = await fetch(`${API_BASE_URL}/admin/reports/medical-reports`, {
+      const response = await fetch('/api/admin/reports/medical-reports', {
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${user?.token}`,
           'Content-Type': 'application/json',
         },
       });
@@ -180,11 +141,10 @@ const UploadReports = () => {
 
     setLoading(true);
     try {
-      const token = apiService.getToken();
-      const response = await fetch(`${API_BASE_URL}/admin/reports/diabetes-predictions`, {
+      const response = await fetch('/api/admin/reports/diabetes-predictions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${user?.token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(diabetesForm),
@@ -234,11 +194,10 @@ const UploadReports = () => {
         formData.append('reports', file);
       });
 
-      const token = apiService.getToken();
-      const response = await fetch(`${API_BASE_URL}/admin/reports/medical-reports`, {
+      const response = await fetch('/api/admin/reports/medical-reports', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${user?.token}`,
         },
         body: formData,
       });
@@ -272,45 +231,6 @@ const UploadReports = () => {
     if (files) {
       setSelectedFiles(Array.from(files));
     }
-  };
-
-  // Helper functions for patient search
-  const getFilteredPatients = (searchTerm: string) => {
-    if (!searchTerm) return patients;
-    return patients.filter(patient => 
-      patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      patient.patientId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      patient.email.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  };
-
-  const getSelectedPatientName = (patientId: string) => {
-    const patient = patients.find(p => p.id === patientId);
-    return patient ? `${patient.name} (${patient.patientId})` : '';
-  };
-
-  const handleDiabetesPatientSelect = (patient: Patient) => {
-    setDiabetesForm({ ...diabetesForm, patientId: patient.id });
-    setDiabetesPatientSearch(`${patient.name} (${patient.patientId})`);
-    setIsDiabetesDropdownOpen(false);
-  };
-
-  const handleMedicalPatientSelect = (patient: Patient) => {
-    setMedicalForm({ ...medicalForm, patientId: patient.id });
-    setMedicalPatientSearch(`${patient.name} (${patient.patientId})`);
-    setIsMedicalDropdownOpen(false);
-  };
-
-  const clearDiabetesPatientSelection = () => {
-    setDiabetesForm({ ...diabetesForm, patientId: '' });
-    setDiabetesPatientSearch('');
-    setIsDiabetesDropdownOpen(false);
-  };
-
-  const clearMedicalPatientSelection = () => {
-    setMedicalForm({ ...medicalForm, patientId: '' });
-    setMedicalPatientSearch('');
-    setIsMedicalDropdownOpen(false);
   };
 
   const getRiskLevelColor = (riskLevel: string) => {
@@ -383,69 +303,23 @@ const UploadReports = () => {
               
               <div className="space-y-4">
                 {/* Patient Selection */}
-                <div className="relative patient-dropdown">
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Patient *
                   </label>
-                  <div className="relative">
-                    <div className="flex">
-                      <input
-                        type="text"
-                        value={diabetesPatientSearch}
-                        onChange={(e) => {
-                          setDiabetesPatientSearch(e.target.value);
-                          setIsDiabetesDropdownOpen(true);
-                        }}
-                        onFocus={() => setIsDiabetesDropdownOpen(true)}
-                        placeholder="Search patients by name, ID, or email..."
-                        className="w-full border border-gray-300 rounded-l-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                      {diabetesForm.patientId && (
-                        <button
-                          type="button"
-                          onClick={clearDiabetesPatientSelection}
-                          className="px-3 py-2 border border-l-0 border-gray-300 rounded-r-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          title="Clear selection"
-                        >
-                          <X className="w-4 h-4 text-gray-400" />
-                        </button>
-                      )}
-                      {!diabetesForm.patientId && (
-                        <button
-                          type="button"
-                          onClick={() => setIsDiabetesDropdownOpen(!isDiabetesDropdownOpen)}
-                          className="px-3 py-2 border border-l-0 border-gray-300 rounded-r-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          title="Open patient list"
-                        >
-                          <Search className="w-4 h-4 text-gray-400" />
-                        </button>
-                      )}
-                    </div>
-                    
-                    {isDiabetesDropdownOpen && (
-                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
-                        {getFilteredPatients(diabetesPatientSearch).length === 0 ? (
-                          <div className="px-3 py-2 text-sm text-gray-500">
-                            No patients found
-                          </div>
-                        ) : (
-                          getFilteredPatients(diabetesPatientSearch).map((patient) => (
-                            <button
-                              key={patient.id}
-                              type="button"
-                              onClick={() => handleDiabetesPatientSelect(patient)}
-                              className="w-full text-left px-3 py-2 hover:bg-blue-50 focus:bg-blue-50 focus:outline-none border-b border-gray-100 last:border-b-0"
-                            >
-                              <div className="font-medium text-sm">{patient.name}</div>
-                              <div className="text-xs text-gray-500">
-                                ID: {patient.patientId} • {patient.email}
-                              </div>
-                            </button>
-                          ))
-                        )}
-                      </div>
-                    )}
-                  </div>
+                  <select
+                    value={diabetesForm.patientId}
+                    onChange={(e) => setDiabetesForm({ ...diabetesForm, patientId: e.target.value })}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    title="Select Patient"
+                  >
+                    <option value="">Select a patient</option>
+                    {patients.map((patient) => (
+                      <option key={patient.id} value={patient.id}>
+                        {patient.name} ({patient.patientId})
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 {/* Essential Inputs */}
@@ -609,69 +483,23 @@ const UploadReports = () => {
               
               <div className="space-y-4">
                 {/* Patient Selection */}
-                <div className="relative patient-dropdown">
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Patient *
                   </label>
-                  <div className="relative">
-                    <div className="flex">
-                      <input
-                        type="text"
-                        value={medicalPatientSearch}
-                        onChange={(e) => {
-                          setMedicalPatientSearch(e.target.value);
-                          setIsMedicalDropdownOpen(true);
-                        }}
-                        onFocus={() => setIsMedicalDropdownOpen(true)}
-                        placeholder="Search patients by name, ID, or email..."
-                        className="w-full border border-gray-300 rounded-l-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                      {medicalForm.patientId && (
-                        <button
-                          type="button"
-                          onClick={clearMedicalPatientSelection}
-                          className="px-3 py-2 border border-l-0 border-gray-300 rounded-r-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          title="Clear selection"
-                        >
-                          <X className="w-4 h-4 text-gray-400" />
-                        </button>
-                      )}
-                      {!medicalForm.patientId && (
-                        <button
-                          type="button"
-                          onClick={() => setIsMedicalDropdownOpen(!isMedicalDropdownOpen)}
-                          className="px-3 py-2 border border-l-0 border-gray-300 rounded-r-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          title="Open patient list"
-                        >
-                          <Search className="w-4 h-4 text-gray-400" />
-                        </button>
-                      )}
-                    </div>
-                    
-                    {isMedicalDropdownOpen && (
-                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
-                        {getFilteredPatients(medicalPatientSearch).length === 0 ? (
-                          <div className="px-3 py-2 text-sm text-gray-500">
-                            No patients found
-                          </div>
-                        ) : (
-                          getFilteredPatients(medicalPatientSearch).map((patient) => (
-                            <button
-                              key={patient.id}
-                              type="button"
-                              onClick={() => handleMedicalPatientSelect(patient)}
-                              className="w-full text-left px-3 py-2 hover:bg-blue-50 focus:bg-blue-50 focus:outline-none border-b border-gray-100 last:border-b-0"
-                            >
-                              <div className="font-medium text-sm">{patient.name}</div>
-                              <div className="text-xs text-gray-500">
-                                ID: {patient.patientId} • {patient.email}
-                              </div>
-                            </button>
-                          ))
-                        )}
-                      </div>
-                    )}
-                  </div>
+                  <select
+                    value={medicalForm.patientId}
+                    onChange={(e) => setMedicalForm({ ...medicalForm, patientId: e.target.value })}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    title="Select Patient"
+                  >
+                    <option value="">Select a patient</option>
+                    {patients.map((patient) => (
+                      <option key={patient.id} value={patient.id}>
+                        {patient.name} ({patient.patientId})
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 {/* Report Type */}
@@ -811,7 +639,7 @@ const UploadReports = () => {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => window.open(`${API_BASE_URL}/admin/reports/medical-reports/${report.id}/download`)}
+                          onClick={() => window.open(`/api/admin/reports/medical-reports/${report.id}/download`)}
                         >
                           <Download className="w-3 h-3" />
                         </Button>
