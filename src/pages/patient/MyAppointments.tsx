@@ -1,81 +1,142 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
-import { CalendarIcon, ClockIcon, UserIcon, MapPinIcon, PhoneIcon, FilterIcon, SearchIcon } from 'lucide-react';
+import RescheduleModal from '../../components/ui/RescheduleModal';
+import { CalendarIcon, ClockIcon, UserIcon, MapPinIcon, PhoneIcon, FilterIcon, SearchIcon, Loader2 } from 'lucide-react';
+import { apiService } from '../../services/api';
+import { toast } from 'sonner';
 
-// Mock data for patient appointments
-const mockAppointments = [
-  {
-    id: 1,
-    doctor: 'Dr. Sarah Johnson',
-    specialty: 'Cardiologist',
-    date: '2025-06-15',
-    time: '10:30 AM',
-    status: 'confirmed',
-    type: 'Consultation',
-    location: 'Room 203, Cardiology Wing',
-    phone: '(555) 123-4567',
-    notes: 'Follow-up for hypertension monitoring'
-  },
-  {
-    id: 2,
-    doctor: 'Dr. Michael Wong',
-    specialty: 'Neurologist',
-    date: '2025-06-22',
-    time: '2:00 PM',
-    status: 'pending',
-    type: 'Consultation',
-    location: 'Room 105, Neurology Department',
-    phone: '(555) 987-6543',
-    notes: 'Initial consultation for headaches'
-  },
-  {
-    id: 3,
-    doctor: 'Dr. Emily Chen',
-    specialty: 'General Practitioner',
-    date: '2025-05-28',
-    time: '9:00 AM',
-    status: 'completed',
-    type: 'Check-up',
-    location: 'Room 101, General Medicine',
-    phone: '(555) 456-7890',
-    notes: 'Annual health check-up'
-  },
-  {
-    id: 4,
-    doctor: 'Dr. Robert Davis',
-    specialty: 'Orthopedist',
-    date: '2025-05-20',
-    time: '11:15 AM',
-    status: 'cancelled',
-    type: 'Consultation',
-    location: 'Room 301, Orthopedics',
-    phone: '(555) 321-0987',
-    notes: 'Knee pain evaluation'
-  },
-  {
-    id: 5,
-    doctor: 'Dr. Sarah Johnson',
-    specialty: 'Cardiologist',
-    date: '2025-07-10',
-    time: '3:30 PM',
-    status: 'scheduled',
-    type: 'Follow-up',
-    location: 'Room 203, Cardiology Wing',
-    phone: '(555) 123-4567',
-    notes: 'Post-treatment follow-up'
-  }
-];
+interface Appointment {
+  id: number;
+  doctor_id: number;
+  appointment_date: string;
+  appointment_time: string;
+  status: string;
+  appointment_type: string;
+  notes?: string;
+  doctor_name: string;
+  specialty: string;
+  doctor_phone?: string;
+  location?: string;
+}
 
 const MyAppointments = () => {
-  const [searchTerm, setSearchTerm] = useState('');
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);  const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [cancellingId, setCancellingId] = useState<number | null>(null);
+  const [rescheduleModal, setRescheduleModal] = useState<{
+    isOpen: boolean;
+    appointment: Appointment | null;
+  }>({
+    isOpen: false,
+    appointment: null
+  });
   
-  // Filter appointments based on search term and status
-  const filteredAppointments = mockAppointments.filter(appointment => {
-    const matchesSearch = appointment.doctor.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         appointment.specialty.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         appointment.type.toLowerCase().includes(searchTerm.toLowerCase());
+  // Fetch appointments from API
+  useEffect(() => {
+    const fetchAppointments = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await apiService.getMyAppointments();
+        
+        if (response.success && response.data) {
+          setAppointments(response.data.appointments || response.data || []);
+        } else {
+          setError(response.message || 'Failed to fetch appointments');
+        }
+      } catch (err) {
+        setError('An error occurred while fetching appointments');
+        console.error('Error fetching appointments:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAppointments();
+  }, []);  // Handle appointment cancellation
+  const handleCancelAppointment = async (appointmentId: number) => {
+    // Show confirmation dialog
+    const confirmCancel = window.confirm(
+      'Are you sure you want to cancel this appointment? This action cannot be undone.'
+    );
+    
+    if (!confirmCancel) {
+      return;
+    }
+
+    // Get cancellation reason from user
+    const reason = window.prompt(
+      'Please provide a reason for cancellation (optional):'
+    );
+
+    setCancellingId(appointmentId);
+
+    try {
+      const response = await apiService.cancelAppointment(appointmentId.toString(), reason || undefined);
+      
+      if (response.success) {
+        // Remove appointment from local state (since it's cancelled/deleted)
+        setAppointments(prev => 
+          prev.map(apt => 
+            apt.id === appointmentId 
+              ? { ...apt, status: 'cancelled' }
+              : apt
+          )
+        );
+        
+        // Show success notification
+        toast.success('Appointment cancelled successfully', {
+          description: 'You will receive a confirmation email shortly.'
+        });
+      } else {
+        toast.error('Failed to cancel appointment', {
+          description: response.message || 'Please try again or contact support.'
+        });
+      }
+    } catch (err) {
+      console.error('Error cancelling appointment:', err);
+      toast.error('An error occurred while cancelling the appointment', {
+        description: 'Please try again or contact support.'
+      });
+    } finally {
+      setCancellingId(null);
+    }
+  };  // Handle appointment rescheduling
+  const handleRescheduleAppointment = async (appointmentId: number) => {
+    const appointment = appointments.find(apt => apt.id === appointmentId);
+    if (appointment) {
+      setRescheduleModal({
+        isOpen: true,
+        appointment: appointment
+      });
+    }
+  };
+
+  const handleRescheduleSuccess = (appointmentId: number, newDate: string, newTime: string) => {
+    // Update the appointment in local state
+    setAppointments(prev => 
+      prev.map(apt => 
+        apt.id === appointmentId 
+          ? { ...apt, appointment_date: newDate, appointment_time: newTime }
+          : apt
+      )
+    );
+  };
+
+  const handleCloseRescheduleModal = () => {
+    setRescheduleModal({
+      isOpen: false,
+      appointment: null
+    });
+  };
+    // Filter appointments based on search term and status
+  const filteredAppointments = appointments.filter(appointment => {
+    const matchesSearch = appointment.doctor_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         appointment.specialty?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         appointment.appointment_type?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || appointment.status === statusFilter;
     
     return matchesSearch && matchesStatus;
@@ -104,7 +165,55 @@ const MyAppointments = () => {
     return (status === 'confirmed' || status === 'pending' || status === 'scheduled') && isUpcoming(date);
   };
 
-  return (
+  // Loading state
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">My Appointments</h1>
+            <p className="text-gray-600">View and manage all your appointments</p>
+          </div>
+        </div>
+        <Card>
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+            <span className="ml-2 text-gray-600">Loading appointments...</span>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">My Appointments</h1>
+            <p className="text-gray-600">View and manage all your appointments</p>
+          </div>
+        </div>
+        <Card>
+          <div className="text-center py-8">
+            <div className="text-red-500 mb-4">
+              <CalendarIcon className="mx-auto h-12 w-12" />
+            </div>
+            <h3 className="text-lg font-medium text-gray-900">Error Loading Appointments</h3>
+            <p className="mt-2 text-gray-500">{error}</p>
+            <Button 
+              variant="primary" 
+              className="mt-4"
+              onClick={() => window.location.reload()}
+            >
+              Try Again
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }  return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
@@ -129,7 +238,8 @@ const MyAppointments = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
             />
-          </div>          <div className="flex items-center gap-2">
+          </div>
+          <div className="flex items-center gap-2">
             <FilterIcon className="w-4 h-4 text-gray-400" />
             <select
               value={statusFilter}
@@ -181,9 +291,9 @@ const MyAppointments = () => {
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 flex items-center">
                         <UserIcon className="w-5 h-5 mr-2 text-gray-400" />
-                        {appointment.doctor}
+                        {appointment.doctor_name || 'Doctor Name Not Available'}
                       </h3>
-                      <p className="text-sm text-gray-600">{appointment.specialty}</p>
+                      <p className="text-sm text-gray-600">{appointment.specialty || 'Specialization Not Available'}</p>
                     </div>
                     <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(appointment.status)}`}>
                       {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
@@ -193,7 +303,7 @@ const MyAppointments = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-gray-600">
                     <div className="flex items-center">
                       <CalendarIcon className="w-4 h-4 mr-2 text-gray-400" />
-                      <span>{new Date(appointment.date).toLocaleDateString('en-US', { 
+                      <span>{new Date(appointment.appointment_date).toLocaleDateString('en-US', { 
                         weekday: 'long', 
                         year: 'numeric', 
                         month: 'long', 
@@ -202,20 +312,24 @@ const MyAppointments = () => {
                     </div>
                     <div className="flex items-center">
                       <ClockIcon className="w-4 h-4 mr-2 text-gray-400" />
-                      <span>{appointment.time}</span>
+                      <span>{appointment.appointment_time}</span>
                     </div>
-                    <div className="flex items-center">
-                      <MapPinIcon className="w-4 h-4 mr-2 text-gray-400" />
-                      <span>{appointment.location}</span>
-                    </div>
-                    <div className="flex items-center">
-                      <PhoneIcon className="w-4 h-4 mr-2 text-gray-400" />
-                      <span>{appointment.phone}</span>
-                    </div>
+                    {appointment.location && (
+                      <div className="flex items-center">
+                        <MapPinIcon className="w-4 h-4 mr-2 text-gray-400" />
+                        <span>{appointment.location}</span>
+                      </div>
+                    )}
+                    {appointment.doctor_phone && (
+                      <div className="flex items-center">
+                        <PhoneIcon className="w-4 h-4 mr-2 text-gray-400" />
+                        <span>{appointment.doctor_phone}</span>
+                      </div>
+                    )}
                   </div>
                   
                   <div className="mt-3">
-                    <p className="text-sm"><strong>Type:</strong> {appointment.type}</p>
+                    <p className="text-sm"><strong>Type:</strong> {appointment.appointment_type || 'Not specified'}</p>
                     {appointment.notes && (
                       <p className="text-sm text-gray-600 mt-1"><strong>Notes:</strong> {appointment.notes}</p>
                     )}
@@ -229,14 +343,30 @@ const MyAppointments = () => {
                       Confirm
                     </Button>
                   )}
-                  {canReschedule(appointment.status, appointment.date) && (
-                    <Button variant="outline" size="sm">
+                  {canReschedule(appointment.status, appointment.appointment_date) && (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleRescheduleAppointment(appointment.id)}
+                    >
                       Reschedule
                     </Button>
-                  )}
-                  {canCancel(appointment.status, appointment.date) && (
-                    <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
-                      Cancel
+                  )}                  {canCancel(appointment.status, appointment.appointment_date) && (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="text-red-600 hover:text-red-700"
+                      onClick={() => handleCancelAppointment(appointment.id)}
+                      disabled={cancellingId === appointment.id}
+                    >
+                      {cancellingId === appointment.id ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                          Cancelling...
+                        </>
+                      ) : (
+                        'Cancel'
+                      )}
                     </Button>
                   )}
                   {appointment.status === 'completed' && (
@@ -244,7 +374,7 @@ const MyAppointments = () => {
                       View Report
                     </Button>
                   )}
-                  {isUpcoming(appointment.date) && (appointment.status === 'confirmed' || appointment.status === 'scheduled') && (
+                  {isUpcoming(appointment.appointment_date) && (appointment.status === 'confirmed' || appointment.status === 'scheduled') && (
                     <Button variant="primary" size="sm">
                       View Details
                     </Button>
@@ -292,7 +422,16 @@ const MyAppointments = () => {
               <div className="text-sm text-gray-600">Total</div>
             </div>
           </div>
-        </Card>
+        </Card>      )}
+      
+      {/* Reschedule Modal */}
+      {rescheduleModal.appointment && (
+        <RescheduleModal
+          isOpen={rescheduleModal.isOpen}
+          onClose={handleCloseRescheduleModal}
+          appointment={rescheduleModal.appointment}
+          onRescheduleSuccess={handleRescheduleSuccess}
+        />
       )}
     </div>
   );

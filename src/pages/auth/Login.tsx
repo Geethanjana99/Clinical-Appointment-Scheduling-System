@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import Button from '../../components/ui/Button';
 import { UserIcon, LockIcon, ArrowRightIcon } from 'lucide-react';
 import bg1 from '../../images/bg1.jpg';
 const Login = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const {
     login,
     isAuthenticated,
@@ -14,17 +15,32 @@ const Login = () => {
     error: authError,
     clearError,
     initializeAuth
-  } = useAuthStore();  const [email, setEmail] = useState('');
+  } = useAuthStore();
+
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+
+  // Handle registration success message
+  useEffect(() => {
+    if (location.state?.message) {
+      setSuccessMessage(location.state.message);
+      if (location.state?.email) {
+        setEmail(location.state.email);
+      }
+      // Clear the location state to prevent showing message again
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   // Initialize authentication on component mount
   useEffect(() => {
     initializeAuth();
   }, [initializeAuth]);  // Redirect if already authenticated
   useEffect(() => {
-    if (isAuthenticated && user && user.role) {
+    if (isAuthenticated && user && user.role && !authLoading) {
       const validRoles = ['patient', 'doctor', 'admin', 'billing'];
       
       if (validRoles.includes(user.role)) {
@@ -34,7 +50,7 @@ const Login = () => {
         setError('Invalid user role. Please contact support.');
       }
     }
-  }, [isAuthenticated, user, navigate]);
+  }, [isAuthenticated, user, navigate, authLoading]);
 
   // Handle auth errors
   useEffect(() => {
@@ -77,8 +93,12 @@ const Login = () => {
             Healthcare Management System
           </p>
         </div>
-        <div className="bg-white bg-opacity-95 backdrop-blur-sm py-8 px-4 shadow-xl sm:rounded-lg sm:px-10">
-          <form className="space-y-6" onSubmit={handleSubmit}>
+        <div className="bg-white bg-opacity-95 backdrop-blur-sm py-8 px-4 shadow-xl sm:rounded-lg sm:px-10">          <form className="space-y-6" onSubmit={handleSubmit}>
+            {successMessage && (
+              <div className="rounded-md bg-green-50 p-4">
+                <div className="text-sm text-green-700">{successMessage}</div>
+              </div>
+            )}
             {error && <div className="rounded-md bg-red-50 p-4">
                 <div className="text-sm text-red-700">{error}</div>
               </div>}

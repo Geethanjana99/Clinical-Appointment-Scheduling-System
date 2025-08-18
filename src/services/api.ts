@@ -54,6 +54,11 @@ export interface AuthResponse {
   refreshToken: string;
 }
 
+export interface RegisterResponse {
+  user: User;
+  requiresLogin: boolean;
+}
+
 class ApiService {
   private static instance: ApiService;
   private token: string | null = null;
@@ -132,17 +137,13 @@ class ApiService {
     }
 
     return response;
-  }
-
-  async register(userData: RegisterRequest): Promise<ApiResponse<AuthResponse>> {
-    const response = await this.makeRequest<AuthResponse>('/auth/register', {
+  }  async register(userData: RegisterRequest): Promise<ApiResponse<RegisterResponse>> {
+    const response = await this.makeRequest<RegisterResponse>('/auth/register', {
       method: 'POST',
       body: JSON.stringify(userData),
     });
 
-    if (response.success && response.data) {
-      this.setToken(response.data.token);
-    }
+    // Don't set token on registration - user must login explicitly
 
     return response;
   }
@@ -208,29 +209,160 @@ class ApiService {
     return this.makeRequest<any>(`/doctors/${id}`);
   }
 
-  // Appointment methods
-  async getAppointments(): Promise<ApiResponse<any[]>> {
-    return this.makeRequest<any[]>('/appointments');
+  // Doctor Dashboard methods
+  async getDoctorDashboard(): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>('/doctors/dashboard');
   }
 
-  async createAppointment(appointmentData: any): Promise<ApiResponse<any>> {
+  async getDoctorAppointments(params?: { 
+    page?: number; 
+    limit?: number; 
+    status?: string; 
+    startDate?: string; 
+    endDate?: string; 
+  }): Promise<ApiResponse<any>> {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined) {
+          queryParams.append(key, value.toString());
+        }
+      });
+    }
+    const queryString = queryParams.toString();
+    return this.makeRequest<any>(`/doctors/appointments${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async getDoctorStatistics(): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>('/doctors/statistics');
+  }
+
+  async getDoctorEarnings(): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>('/doctors/earnings');
+  }
+  async updateAppointmentStatus(appointmentId: string, status: string, notes?: string): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>(`/appointments/${appointmentId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status, notes }),
+    });
+  }
+
+  async handleAppointmentAction(appointmentId: string, action: 'start' | 'complete' | 'cancel'): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>(`/doctors/appointments/${appointmentId}/action`, {
+      method: 'PATCH',
+      body: JSON.stringify({ action }),
+    });
+  }
+
+  async completeAppointment(appointmentId: string, notes?: string, actualWaitTime?: number): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>(`/appointments/${appointmentId}/complete`, {
+      method: 'PATCH',
+      body: JSON.stringify({ notes, actualWaitTime }),
+    });
+  }
+
+  // Patient-specific methods
+  async searchDoctors(params: {
+    specialty?: string;
+    name?: string;
+    location?: string;
+    rating?: number;
+    page?: number;
+    limit?: number;
+  }): Promise<ApiResponse<any[]>> {
+    const queryParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== '') {
+        queryParams.append(key, value.toString());
+      }
+    });
+    
+    const url = `/doctors/search${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return this.makeRequest<any[]>(url);
+  }
+
+  async bookAppointment(appointmentData: {
+    doctorId: string;
+    appointmentDate: string;
+    appointmentTime: string;
+    appointmentType: string;
+    reasonForVisit: string;
+    symptoms?: string;
+    priority?: string;
+  }): Promise<ApiResponse<any>> {
     return this.makeRequest<any>('/appointments', {
       method: 'POST',
       body: JSON.stringify(appointmentData),
     });
   }
 
-  async updateAppointment(id: string, appointmentData: any): Promise<ApiResponse<any>> {
-    return this.makeRequest<any>(`/appointments/${id}`, {
-      method: 'PUT',
+  async bookQueueAppointment(appointmentData: {
+    doctorId: string;
+    appointmentDate: string;
+    appointmentType?: string;
+    reasonForVisit: string;
+    symptoms?: string;
+    priority?: string;
+    isEmergency?: boolean;
+  }): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>('/patients/appointments/queue', {
+      method: 'POST',
       body: JSON.stringify(appointmentData),
     });
   }
 
-  async deleteAppointment(id: string): Promise<ApiResponse<any>> {
-    return this.makeRequest<any>(`/appointments/${id}`, {
-      method: 'DELETE',
+  async getMyAppointments(params?: {
+    page?: number;
+    limit?: number;
+    status?: string | string[];
+    startDate?: string;
+    endDate?: string;
+  }): Promise<ApiResponse<any>> {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== '') {
+          if (Array.isArray(value)) {
+            value.forEach(v => queryParams.append(key, v.toString()));
+          } else {
+            queryParams.append(key, value.toString());
+          }
+        }
+      });
+    }
+    
+    const url = `/patients/appointments${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return this.makeRequest<any>(url);
+  }
+
+  async getMyUpcomingAppointments(): Promise<ApiResponse<any[]>> {
+    return this.makeRequest<any[]>('/patients/appointments/upcoming');
+  }
+
+  async cancelAppointment(appointmentId: string, reason?: string): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>(`/appointments/${appointmentId}/cancel`, {
+      method: 'PUT',
+      body: JSON.stringify({ cancellation_reason: reason }),
     });
+  }
+
+  async rescheduleAppointment(appointmentId: string, newDate: string, newTime: string): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>(`/appointments/${appointmentId}/reschedule`, {
+      method: 'PUT',
+      body: JSON.stringify({ 
+        appointment_date: newDate,
+        appointment_time: newTime
+      }),
+    });
+  }
+
+  async getDoctorProfile(): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>('/doctors/profile');
+  }
+
+  async getAvailableSlots(doctorId: string, date: string): Promise<ApiResponse<{date: string, slots: string[]}>> {
+    const params = new URLSearchParams({ doctorId, date });
+    return this.makeRequest<{date: string, slots: string[]}>(`/appointments/available-slots?${params.toString()}`);
   }
 }
 
