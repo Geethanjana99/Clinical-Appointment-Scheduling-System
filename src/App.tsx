@@ -13,7 +13,7 @@ import Layout from './components/Layout';
 // Patient Pages
 import PatientDashboard from './pages/patient/Dashboard';
 import BookAppointment from './pages/patient/BookAppointment';
-import ViewQueue from './pages/patient/ViewQueue';
+import ViewQueue from './pages/patient/Queue';
 import MedicalReports from './pages/patient/MedicalReports';
 import HealthPredictions from './pages/patient/HealthPredictions';
 import MyAppointments from './pages/patient/MyAppointments';
