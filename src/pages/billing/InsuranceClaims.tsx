@@ -24,81 +24,27 @@ interface InsuranceClaim {
 }
 
 const InsuranceClaims = () => {
-  const [claims, setClaims] = useState<InsuranceClaim[]>([
-    {
-      id: 'CLM-001',
-      patientName: 'John Smith',
-      patientId: 'P001',
-      appointmentId: 'APT-123',
-      doctorName: 'Dr. Sarah Johnson',
-      serviceDate: '2024-01-15',
-      claimDate: '2024-01-16',
-      amount: 250.00,
-      insuranceProvider: 'Blue Cross Blue Shield',
-      status: 'paid',
-      approvedAmount: 200.00,
-      paidAmount: 200.00,
-      serviceType: 'Consultation'
-    },
-    {
-      id: 'CLM-002',
-      patientName: 'Emily Davis',
-      patientId: 'P002',
-      appointmentId: 'APT-124',
-      doctorName: 'Dr. Michael Chen',
-      serviceDate: '2024-01-14',
-      claimDate: '2024-01-15',
-      amount: 180.00,
-      insuranceProvider: 'Aetna',
-      status: 'approved',
-      approvedAmount: 150.00,
-      serviceType: 'Follow-up'
-    },
-    {
-      id: 'CLM-003',
-      patientName: 'Michael Brown',
-      patientId: 'P003',
-      appointmentId: 'APT-125',
-      doctorName: 'Dr. Sarah Johnson',
-      serviceDate: '2024-01-13',
-      claimDate: '2024-01-14',
-      amount: 320.00,
-      insuranceProvider: 'Cigna',
-      status: 'denied',
-      denialReason: 'Service not covered under current plan',
-      serviceType: 'Diagnostic Testing'
-    },
-    {
-      id: 'CLM-004',
-      patientName: 'Sarah Wilson',
-      patientId: 'P004',
-      appointmentId: 'APT-126',
-      doctorName: 'Dr. Michael Chen',
-      serviceDate: '2024-01-12',
-      claimDate: '2024-01-13',
-      amount: 150.00,
-      insuranceProvider: 'UnitedHealth',
-      status: 'processing',
-      serviceType: 'Consultation'
-    },
-    {
-      id: 'CLM-005',
-      patientName: 'David Johnson',
-      patientId: 'P005',
-      appointmentId: 'APT-127',
-      doctorName: 'Dr. Sarah Johnson',
-      serviceDate: '2024-01-11',
-      claimDate: '2024-01-12',
-      amount: 275.00,
-      insuranceProvider: 'Humana',
-      status: 'pending',
-      serviceType: 'Routine Checkup'
-    }
-  ]);  const [searchTerm, setSearchTerm] = useState('');
+  const [claims, setClaims] = useState<InsuranceClaim[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedClaim, setSelectedClaim] = useState<InsuranceClaim | null>(null);
+
+  React.useEffect(() => {
+    // Fetch insurance claims from backend API
+    fetch('/api/insurance-claims')
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to fetch claims');
+        return res.json();
+      })
+      .then(data => {
+        setClaims(Array.isArray(data) ? data : []);
+      })
+      .catch(err => {
+        console.error('Error fetching insurance claims:', err);
+      });
+  }, []);
 
   const handleCreateClaim = (claimData: InsuranceClaim) => {
     setClaims(prevClaims => [claimData, ...prevClaims]);

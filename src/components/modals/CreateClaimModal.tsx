@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Modal from '../ui/Modal';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import Button from '../ui/Button';
 import { X, FileText } from 'lucide-react';
+import { apiService } from '../../services/api';
+
 
 interface CreateClaimModalProps {
   isOpen: boolean;
@@ -30,6 +32,61 @@ const CreateClaimModal: React.FC<CreateClaimModalProps> = ({
 
   const [errors, setErrors] = useState<{[key: string]: string}>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [patients, setPatients] = useState<{ id: string; name: string }[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+useEffect(() => {
+        const fetchPatients = async () => {
+            if (!isOpen) return; // Only fetch when modal is open
+            
+            setLoading(true);
+            setError(null);            try {
+                const response = await apiService.getPatientNames();
+                
+                if (response.success && response.data) {
+                    const patientList = response.data.map((patient: any) => ({
+                        id: patient.id,
+                        name: patient.name || `${patient.first_name} ${patient.last_name}` || patient.email
+                    }));
+                    setPatients(patientList);
+                } else {
+                    // Fallback to sample data
+                    const fallbackPatients = [
+                        { id: 'P-001', name: 'John Smith' },
+                        { id: 'P-002', name: 'Sarah Johnson' },
+                        { id: 'P-003', name: 'Michael Brown' },
+                        { id: 'P-004', name: 'Emily Davis' },
+                        { id: 'P-005', name: 'David Wilson' }
+                    ];
+                    setPatients(fallbackPatients);
+                    setError('Using sample patients - Please login as admin to view real data');
+                }
+            } catch (err) {
+                console.error('Error fetching patients:', err);
+                // Fallback to sample data
+                const fallbackPatients = [
+                    { id: 'P-001', name: 'John Smith' },
+                    { id: 'P-002', name: 'Sarah Johnson' },
+                    { id: 'P-003', name: 'Michael Brown' },
+                    { id: 'P-004', name: 'Emily Davis' },
+                    { id: 'P-005', name: 'David Wilson' }
+                ];
+                setPatients(fallbackPatients);
+                setError('Using sample patients - Please check your connection and login');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchPatients();
+    }, [isOpen]);    const patientOptions = [
+        { value: '', label: loading ? 'Loading patients...' : 'Select Patient' },
+        ...patients.map(patient => ({
+            value: patient.name,
+            label: patient.name
+        }))
+    ];
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
@@ -184,15 +241,22 @@ const CreateClaimModal: React.FC<CreateClaimModalProps> = ({
           </div>
 
           <div>
-            <Input
+            <Select
               label="Patient Name"
-              type="text"
               value={formData.patientName}
-              onChange={(e) => handleInputChange('patientName', e.target.value)}
-              placeholder="Enter patient's full name"
-              error={errors.patientName}
+              onChange={(value) => {
+                handleInputChange('patientName', value);
+                const selectedPatient = patients.find(p => p.name === value);
+                handleInputChange('patientId', selectedPatient ? selectedPatient.id : '');
+              }}
+              options={patientOptions}
               required
+              disabled={loading}
+              className="transition-all duration-200 hover:border-blue-400 focus:border-blue-500 h-12 text-base"
             />
+            {error && (
+              <p className="text-red-600 text-sm mt-1">{error}</p>
+            )}
           </div>
 
           <div>
