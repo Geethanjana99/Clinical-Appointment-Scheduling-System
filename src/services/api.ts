@@ -513,6 +513,23 @@ class ApiService {
   async getDoctorQueueInfo(doctorId: string): Promise<ApiResponse<any>> {
     return this.makeRequest<any>(`/patient/queue/doctor/${doctorId}`);
   }
+
+  // Admin-specific appointment booking
+  async bookQueueAppointmentForPatient(appointmentData: {
+    patientId: string;
+    doctorId: string;
+    appointmentDate: string;
+    appointmentType?: string;
+    reasonForVisit: string;
+    symptoms?: string;
+    priority?: string;
+    isEmergency?: boolean;
+  }): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>('/admin/appointments/queue', {
+      method: 'POST',
+      body: JSON.stringify(appointmentData),
+    });
+  }
 }
 
 export const apiService = ApiService.getInstance();

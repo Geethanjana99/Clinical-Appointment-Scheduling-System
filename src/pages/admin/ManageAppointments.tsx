@@ -179,35 +179,29 @@ const ManageAppointments = () => {
     loadData();
   }, []);
 
-  // Create new appointment
+  // Create new appointment using the admin queue system
   const createAppointment = async (appointmentData: typeof formData) => {
     try {
-      const token = apiService.getToken();
-      const response = await fetch(`${API_BASE_URL}/appointments`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          patientId: appointmentData.patientId,
-          doctorId: appointmentData.doctorId,
-          appointmentDate: appointmentData.appointmentDate,
-          appointmentType: appointmentData.appointmentType,
-          reasonForVisit: appointmentData.reasonForVisit,
-          symptoms: appointmentData.symptoms,
-          priority: appointmentData.priority
-        }),
-      });
+      // Use the admin-specific queue appointment method
+      const queueAppointmentData = {
+        patientId: appointmentData.patientId,
+        doctorId: appointmentData.doctorId,
+        appointmentDate: appointmentData.appointmentDate,
+        appointmentType: appointmentData.appointmentType || 'consultation',
+        reasonForVisit: appointmentData.reasonForVisit,
+        symptoms: appointmentData.symptoms,
+        priority: appointmentData.priority || 'medium',
+        isEmergency: appointmentData.priority === 'urgent'
+      };
 
-      const result = await response.json();
-
-      if (result.success) {
+      const response = await apiService.bookQueueAppointmentForPatient(queueAppointmentData);
+      
+      if (response.success) {
         await fetchAppointments(); // Refresh appointments list
         setError(null);
-        return result.data;
+        return response.data;
       } else {
-        throw new Error(result.message || 'Failed to create appointment');
+        throw new Error(response.message || 'Failed to create appointment');
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to create appointment';
