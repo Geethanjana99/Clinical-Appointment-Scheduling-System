@@ -33,6 +33,34 @@ interface DiabetesPrediction {
   };
 }
 
+interface DiabetesPredictionResponse {
+  success: boolean;
+  message: string;
+  data: {
+    prediction: DiabetesPrediction;
+    summary: {
+      prediction: string;
+      probability: string;
+      riskLevel: string;
+      recommendations: string[];
+    };
+    streamlitUrl: string;
+    actions: {
+      viewDetails: {
+        url: string;
+        label: string;
+        description: string;
+      };
+      retryPrediction?: {
+        endpoint: string;
+        method: string;
+        label: string;
+        description: string;
+      };
+    };
+  };
+}
+
 interface MedicalReport {
   id: string;
   patientId: string;
@@ -53,6 +81,18 @@ const UploadReports = () => {
   const [medicalReports, setMedicalReports] = useState<MedicalReport[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  
+  // Results modal state
+  const [showResultsModal, setShowResultsModal] = useState(false);
+  const [predictionResult, setPredictionResult] = useState<DiabetesPredictionResponse['data'] | null>(null);
+  
+  const [lastPrediction, setLastPrediction] = useState<DiabetesPrediction | null>(null);
+  const [lastSummary, setLastSummary] = useState<{
+    prediction: string;
+    probability: string;
+    riskLevel: string;
+    recommendations: string[];
+  } | null>(null);
 
   // Diabetes prediction form state
   const [diabetesForm, setDiabetesForm] = useState({
@@ -144,15 +184,26 @@ const UploadReports = () => {
       const response = await fetch('/api/admin/reports/diabetes-predictions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${user?.token}`,
+          'Authorization': `Bearer ${(user as any)?.token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(diabetesForm),
       });
 
-      const data = await response.json();
+      const data: DiabetesPredictionResponse = await response.json();
+      
       if (data.success) {
-        alert('Diabetes prediction created successfully!');
+        // Store the complete result data
+        setPredictionResult(data.data);
+        
+        // Show the results modal
+        setShowResultsModal(true);
+        
+        // Update legacy state for compatibility
+        if (data.data?.summary) setLastSummary(data.data.summary);
+        if (data.data?.prediction) setLastPrediction(data.data.prediction);
+        
+        // Reset form
         setDiabetesForm({
           patientId: '',
           pregnancies: 0,
@@ -162,6 +213,8 @@ const UploadReports = () => {
           insulin: 0,
           notes: ''
         });
+        
+        // Refresh the predictions list
         fetchDiabetesPredictions();
       } else {
         alert(`Error: ${data.message}`);
@@ -172,6 +225,41 @@ const UploadReports = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const retryPrediction = async (retryAction: DiabetesPredictionResponse['data']['actions']['retryPrediction']) => {
+    if (!retryAction) return;
+    
+    setLoading(true);
+    try {
+      const response = await fetch(retryAction.endpoint, {
+        method: retryAction.method,
+        headers: {
+          'Authorization': `Bearer ${(user as any)?.token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data: DiabetesPredictionResponse = await response.json();
+      
+      if (data.success) {
+        // Update the result with new data
+        setPredictionResult(data.data);
+        alert('Diabetes prediction retry successful!');
+        fetchDiabetesPredictions();
+      } else {
+        alert(`Retry failed: ${data.message}`);
+      }
+    } catch (error) {
+      console.error('Error retrying diabetes prediction:', error);
+      alert('Failed to retry diabetes prediction');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openStreamlitAnalysis = (streamlitUrl: string) => {
+    window.open(streamlitUrl, '_blank');
   };
 
   const submitMedicalReports = async () => {
@@ -434,6 +522,30 @@ const UploadReports = () => {
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 Recent Predictions
               </h3>
+              {lastSummary && (
+                <div className="mb-4 border border-blue-200 rounded-lg p-4 bg-blue-50">
+                  <div className="flex items-center justify-between">
+                    <div className="font-semibold text-gray-900">Latest Result</div>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRiskLevelColor(lastSummary.riskLevel)}`}>
+                      {lastSummary.riskLevel?.toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="mt-2 text-sm text-gray-700">
+                    <div>Prediction: {lastSummary.prediction}</div>
+                    <div>Probability: {lastSummary.probability}</div>
+                  </div>
+                  {lastSummary.recommendations?.length > 0 && (
+                    <div className="mt-3">
+                      <div className="text-xs font-medium text-gray-600 mb-1">Recommendations:</div>
+                      <ul className="list-disc list-inside text-sm text-gray-700 space-y-1">
+                        {lastSummary.recommendations.slice(0, 4).map((rec: string, idx: number) => (
+                          <li key={idx}>{rec}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="space-y-3 max-h-96 overflow-y-auto">
                 {diabetesPredictions.slice(0, 10).map((prediction) => (
                   <div key={prediction.id} className="border border-gray-200 rounded-lg p-3">
@@ -455,6 +567,37 @@ const UploadReports = () => {
                             {new Date(prediction.createdAt).toLocaleDateString()}
                           </div>
                         </div>
+                      </div>
+                      <div className="flex space-x-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            const streamlitUrl = `${import.meta.env.VITE_STREAMLIT_URL || 'http://localhost:8502'}/?pregnancies=${prediction.pregnancies}&glucose=${prediction.glucose}&bmi=${prediction.bmi}&age=${prediction.age}&insulin=${prediction.insulin}&auto_predict=true`;
+                            openStreamlitAnalysis(streamlitUrl);
+                          }}
+                          className="text-xs"
+                        >
+                          <Eye className="w-3 h-3 mr-1" />
+                          View Details
+                        </Button>
+                        {prediction.status === 'pending' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => retryPrediction({
+                              endpoint: `/api/admin/reports/diabetes-predictions/${prediction.id}/retry`,
+                              method: 'POST',
+                              label: 'Retry',
+                              description: 'Retry prediction processing'
+                            })}
+                            disabled={loading}
+                            className="text-xs"
+                          >
+                            <AlertCircle className="w-3 h-3 mr-1" />
+                            Retry
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -557,15 +700,17 @@ const UploadReports = () => {
 
                 {/* File Upload */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="reports-upload" className="block text-sm font-medium text-gray-700 mb-1">
                     Files *
                   </label>
                   <input
+                    id="reports-upload"
                     type="file"
                     multiple
                     accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
                     onChange={handleFileSelection}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    title="Upload medical report files"
                   />
                   <p className="text-xs text-gray-500 mt-1">
                     Supported formats: PDF, JPG, PNG, DOC, DOCX (Max 10MB each)
@@ -655,6 +800,130 @@ const UploadReports = () => {
               </div>
             </div>
           </Card>
+        </div>
+      )}
+
+      {/* Results Modal */}
+      {showResultsModal && predictionResult && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">
+                Diabetes Risk Assessment Results
+              </h2>
+              <button
+                onClick={() => setShowResultsModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <span className="sr-only">Close</span>
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Risk Level Display */}
+            <div className={`p-6 rounded-lg mb-6 ${
+              predictionResult.summary.riskLevel === 'high' 
+                ? 'bg-red-50 border border-red-200' 
+                : predictionResult.summary.riskLevel === 'medium'
+                ? 'bg-yellow-50 border border-yellow-200'
+                : 'bg-green-50 border border-green-200'
+            }`}>
+              <div className="flex items-center space-x-3 mb-3">
+                {predictionResult.summary.riskLevel === 'high' ? (
+                  <AlertCircle className="w-8 h-8 text-red-500" />
+                ) : predictionResult.summary.riskLevel === 'medium' ? (
+                  <AlertCircle className="w-8 h-8 text-yellow-500" />
+                ) : (
+                  <CheckCircle className="w-8 h-8 text-green-500" />
+                )}
+                <div>
+                  <h3 className={`text-xl font-bold ${
+                    predictionResult.summary.riskLevel === 'high' 
+                      ? 'text-red-800' 
+                      : predictionResult.summary.riskLevel === 'medium'
+                      ? 'text-yellow-800'
+                      : 'text-green-800'
+                  }`}>
+                    {predictionResult.summary.prediction}
+                  </h3>
+                  <p className={`text-sm ${
+                    predictionResult.summary.riskLevel === 'high' 
+                      ? 'text-red-600' 
+                      : predictionResult.summary.riskLevel === 'medium'
+                      ? 'text-yellow-600'
+                      : 'text-green-600'
+                  }`}>
+                    Probability: {predictionResult.summary.probability} • Risk Level: {predictionResult.summary.riskLevel.toUpperCase()}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Patient Information */}
+            <div className="bg-gray-50 p-4 rounded-lg mb-6">
+              <h4 className="font-semibold text-gray-900 mb-2">Input Parameters</h4>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div><span className="font-medium">Pregnancies:</span> {predictionResult.prediction.pregnancies}</div>
+                <div><span className="font-medium">Glucose:</span> {predictionResult.prediction.glucose} mg/dL</div>
+                <div><span className="font-medium">BMI:</span> {predictionResult.prediction.bmi}</div>
+                <div><span className="font-medium">Age:</span> {predictionResult.prediction.age} years</div>
+                <div><span className="font-medium">Insulin:</span> {predictionResult.prediction.insulin} μU/mL</div>
+              </div>
+            </div>
+
+            {/* Recommendations */}
+            {predictionResult.summary.recommendations && predictionResult.summary.recommendations.length > 0 && (
+              <div className="mb-6">
+                <h4 className="font-semibold text-gray-900 mb-3">Clinical Recommendations</h4>
+                <ul className="space-y-2">
+                  {predictionResult.summary.recommendations.map((rec, idx) => (
+                    <li key={idx} className="flex items-start space-x-2">
+                      <span className="text-blue-500 font-bold">•</span>
+                      <span className="text-gray-700">{rec}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button
+                onClick={() => openStreamlitAnalysis(predictionResult.actions.viewDetails.url)}
+                className="flex-1"
+              >
+                <Activity className="w-4 h-4 mr-2" />
+                {predictionResult.actions.viewDetails.label}
+              </Button>
+
+              {predictionResult.prediction.status === 'pending' && predictionResult.actions.retryPrediction && (
+                <Button
+                  onClick={() => retryPrediction(predictionResult.actions.retryPrediction)}
+                  variant="outline"
+                  disabled={loading}
+                  className="flex-1"
+                >
+                  <AlertCircle className="w-4 h-4 mr-2" />
+                  {loading ? 'Retrying...' : predictionResult.actions.retryPrediction.label}
+                </Button>
+              )}
+
+              <Button
+                onClick={() => setShowResultsModal(false)}
+                variant="outline"
+                className="flex-1"
+              >
+                Close
+              </Button>
+            </div>
+
+            {/* Helper Text */}
+            <div className="mt-4 text-xs text-gray-500 text-center">
+              <p>{predictionResult.actions.viewDetails.description}</p>
+            </div>
+          </div>
         </div>
       )}
     </div>
