@@ -146,8 +146,12 @@ const UploadReports = () => {
         },
       });
       const data = await response.json();
+      console.log('📊 Diabetes predictions response:', data); // Debug log
       if (data.success) {
+        console.log('📊 Predictions data:', data.data.predictions); // Debug log
         setDiabetesPredictions(data.data.predictions);
+      } else {
+        console.error('Failed to fetch diabetes predictions:', data.message);
       }
     } catch (error) {
       console.error('Error fetching diabetes predictions:', error);
@@ -562,44 +566,72 @@ const UploadReports = () => {
                 Recent Predictions
               </h3>
               <div className="space-y-3 max-h-96 overflow-y-auto">
-                {diabetesPredictions.slice(0, 10).map((prediction) => (
-                  <div key={prediction.id} className="border border-gray-200 rounded-lg p-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2">
-                          {getPredictionIcon(prediction.predictionResult)}
-                          <span className="font-medium text-sm">
-                            {prediction.patientName}
-                          </span>
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRiskLevelColor(prediction.riskLevel)}`}>
-                            {prediction.riskLevel?.toUpperCase()}
-                          </span>
-                        </div>
-                        <div className="mt-1 text-sm text-gray-600">
-                          <div>Result: {prediction.predictionResult === 1 ? 'Diabetes' : 'No Diabetes'}</div>
-                          <div>Probability: {(prediction.predictionProbability * 100).toFixed(1)}%</div>
-                          <div className="text-xs text-gray-500 mt-1">
-                            {new Date(prediction.createdAt).toLocaleDateString()}
+                {diabetesPredictions.slice(0, 10).map((prediction) => {
+                  // Enhanced patient name resolution with fallback
+                  const getPatientName = () => {
+                    // First try the prediction's patientName field
+                    if (prediction.patientName && prediction.patientName.trim() && prediction.patientName !== 'undefined') {
+                      return prediction.patientName;
+                    }
+                    
+                    // Fallback to finding patient in the patients array
+                    const patient = patients.find(p => 
+                      p.patientId === prediction.patientId || 
+                      p.id === prediction.patientId ||
+                      p.patientId === prediction.patientId?.toString() ||
+                      p.id === prediction.patientId?.toString()
+                    );
+                    
+                    if (patient) {
+                      return patient.name;
+                    }
+                    
+                    // Final fallback
+                    return `Patient ${prediction.patientId}`;
+                  };
+
+                  const patientName = getPatientName();
+
+                  return (
+                    <div key={prediction.id} className="border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2">
+                            {getPredictionIcon(prediction.predictionResult)}
+                            <span className="font-medium text-sm text-blue-600">
+                              {patientName}
+                            </span>
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRiskLevelColor(prediction.riskLevel)}`}>
+                              {prediction.riskLevel?.toUpperCase()}
+                            </span>
+                          </div>
+                          <div className="mt-1 text-sm text-gray-600">
+                            <div className="font-medium">Patient ID: {prediction.patientId}</div>
+                            <div>Result: {prediction.predictionResult === 1 ? 'Diabetes' : 'No Diabetes'}</div>
+                            <div>Probability: {(prediction.predictionProbability * 100).toFixed(1)}%</div>
+                            <div className="text-xs text-gray-500 mt-1">
+                              {new Date(prediction.createdAt).toLocaleDateString()}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      <div className="flex space-x-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            const streamlitUrl = `${import.meta.env.VITE_STREAMLIT_URL || 'http://localhost:8502'}/?pregnancies=${prediction.pregnancies}&glucose=${prediction.glucose}&bmi=${prediction.bmi}&age=${prediction.age}&insulin=${prediction.insulin}&auto_predict=true`;
-                            window.open(streamlitUrl, '_blank');
-                          }}
-                          className="text-xs"
-                        >
-                          <Eye className="w-3 h-3 mr-1" />
-                          View Details
-                        </Button>
+                        <div className="flex space-x-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              const streamlitUrl = `${import.meta.env.VITE_STREAMLIT_URL || 'http://localhost:8502'}/?pregnancies=${prediction.pregnancies}&glucose=${prediction.glucose}&bmi=${prediction.bmi}&age=${prediction.age}&insulin=${prediction.insulin}&auto_predict=true`;
+                              window.open(streamlitUrl, '_blank');
+                            }}
+                            className="text-xs"
+                          >
+                            <Eye className="w-3 h-3 mr-1" />
+                            View Details
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
                 {diabetesPredictions.length === 0 && (
                   <div className="text-center text-gray-500 py-8">
                     No predictions yet
