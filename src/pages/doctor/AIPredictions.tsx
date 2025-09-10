@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
-import { Eye, CheckCircle, AlertTriangle, FileText, Clock } from 'lucide-react';
+import { Eye, CheckCircle, AlertTriangle, FileText, Clock, Search } from 'lucide-react';
 import { apiService } from '../../services/api';
 
 interface AIPrediction {
@@ -45,6 +45,10 @@ const AIPredictions = () => {
   const [followUpRequired, setFollowUpRequired] = useState(false);
   const [followUpDate, setFollowUpDate] = useState('');
   const [severityAssessment, setSeverityAssessment] = useState<'low' | 'medium' | 'high' | 'critical'>('medium');
+  
+  // Search and filter states
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showReviewed, setShowReviewed] = useState(false);
 
   useEffect(() => {
     fetchPredictions();
@@ -179,6 +183,20 @@ const AIPredictions = () => {
   const certifiedCount = predictions.filter(p => p.certification_status === 'certified').length;
   const highRiskCount = predictions.filter(p => p.riskLevel === 'high').length;
 
+  // Filter predictions based on search term and reviewed checkbox
+  const filteredPredictions = predictions.filter(prediction => {
+    // Search filter - check patient name and ID
+    const matchesSearch = searchTerm === '' || 
+      prediction.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      prediction.patientId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      prediction.id.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // Status filter - if showReviewed is false, only show processed records
+    const matchesStatus = showReviewed || prediction.status === 'processed';
+    
+    return matchesSearch && matchesStatus;
+  });
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString();
   };
@@ -301,6 +319,46 @@ const AIPredictions = () => {
         </Card>
       </div>
 
+      {/* Search and Filter Controls */}
+      <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+          {/* Search Bar */}
+          <div className="flex-1">
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                placeholder="Search by patient name or ID..."
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+          </div>
+          
+          {/* Show Reviewed Checkbox */}
+          <div className="flex items-center">
+            <input
+              id="showReviewed"
+              type="checkbox"
+              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              checked={showReviewed}
+              onChange={(e) => setShowReviewed(e.target.checked)}
+            />
+            <label htmlFor="showReviewed" className="ml-2 block text-sm text-gray-900">
+              Show reviewed records
+            </label>
+          </div>
+          
+          {/* Results Count */}
+          <div className="text-sm text-gray-500">
+            Showing {filteredPredictions.length} of {predictions.length} records
+          </div>
+        </div>
+      </div>
+
       {/* Predictions Table */}
       <Card>
         <div className="overflow-x-auto">
@@ -337,7 +395,7 @@ const AIPredictions = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {predictions.map((prediction) => (
+              {filteredPredictions.map((prediction) => (
                 <tr key={prediction.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">
@@ -449,9 +507,9 @@ const AIPredictions = () => {
               ))}
             </tbody>
           </table>
-          {predictions.length === 0 && (
+          {filteredPredictions.length === 0 && (
             <div className="text-center py-8 text-gray-500">
-              No AI predictions found
+              {predictions.length === 0 ? 'No AI predictions found' : 'No records match your search criteria'}
             </div>
           )}
         </div>
