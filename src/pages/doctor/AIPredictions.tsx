@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
@@ -37,8 +37,13 @@ const AIPredictions = () => {
   const [predictions, setPredictions] = useState<AIPrediction[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPrediction, setSelectedPrediction] = useState<AIPrediction | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isCertifyModalOpen, setIsCertifyModalOpen] = useState(false);
   const [doctorNotes, setDoctorNotes] = useState('');
+  const [clinicalAssessment, setClinicalAssessment] = useState('');
+  const [recommendations, setRecommendations] = useState('');
+  const [followUpRequired, setFollowUpRequired] = useState(false);
+  const [followUpDate, setFollowUpDate] = useState('');
+  const [severityAssessment, setSeverityAssessment] = useState<'low' | 'medium' | 'high' | 'critical'>('medium');
 
   useEffect(() => {
     fetchPredictions();
@@ -67,13 +72,20 @@ const AIPredictions = () => {
     }
   };
 
-  const handleReviewPrediction = (predictionId: string) => {
-    const prediction = predictions.find(p => p.id === predictionId);
-    if (prediction) {
-      setSelectedPrediction(prediction);
-      setDoctorNotes(prediction.doctor_notes || '');
-      setIsModalOpen(true);
-    }
+  const openCertifyModal = (prediction: AIPrediction) => {
+    setSelectedPrediction(prediction);
+    setDoctorNotes(prediction.doctor_notes || '');
+    setClinicalAssessment('');
+    setRecommendations('');
+    setFollowUpRequired(false);
+    setFollowUpDate('');
+    setSeverityAssessment('medium');
+    setIsCertifyModalOpen(true);
+  };
+
+  const handleViewDetails = (prediction: AIPrediction) => {
+    const streamlitUrl = `${import.meta.env.VITE_STREAMLIT_URL || 'http://localhost:8502'}/?pregnancies=${prediction.pregnancies}&glucose=${prediction.glucose}&bmi=${prediction.bmi}&age=${prediction.age}&insulin=${prediction.insulin}&auto_predict=true`;
+    window.open(streamlitUrl, '_blank');
   };
 
   const handleSubmitReview = async (action: 'certified' | 'rejected') => {
@@ -89,10 +101,11 @@ const AIPredictions = () => {
           body: JSON.stringify({
             certification_status: action,
             doctor_notes: doctorNotes,
-            clinical_assessment: '',
-            recommendations: '',
-            follow_up_required: false,
-            severity_assessment: selectedPrediction.riskLevel
+            clinical_assessment: clinicalAssessment,
+            recommendations: recommendations,
+            follow_up_required: followUpRequired,
+            follow_up_date: followUpDate || null,
+            severity_assessment: severityAssessment
           }),
         });
 
@@ -105,9 +118,14 @@ const AIPredictions = () => {
                 : p
             )
           );
-          setIsModalOpen(false);
+          setIsCertifyModalOpen(false);
           setSelectedPrediction(null);
           setDoctorNotes('');
+          setClinicalAssessment('');
+          setRecommendations('');
+          setFollowUpRequired(false);
+          setFollowUpDate('');
+          setSeverityAssessment('medium');
         } else {
           alert(`Error: ${data.message}`);
         }
@@ -157,7 +175,6 @@ const AIPredictions = () => {
 
   const pendingCount = predictions.filter(p => p.status === 'processed' && !p.certification_status).length;
   const processedCount = predictions.filter(p => p.status === 'processed').length;
-  const reviewedCount = predictions.filter(p => p.status === 'reviewed').length;
   const certifiedCount = predictions.filter(p => p.certification_status === 'certified').length;
   const highRiskCount = predictions.filter(p => p.riskLevel === 'high').length;
 
@@ -391,17 +408,28 @@ const AIPredictions = () => {
                       <Button 
                         variant="outline" 
                         size="sm"
-                        onClick={() => handleReviewPrediction(prediction.id)}
+                        onClick={() => handleViewDetails(prediction)}
+                        title="View Details in Streamlit"
                       >
-                        <Eye className="w-4 h-4" />
+                        <Eye className="w-4 h-4 mr-1" />
+                        View Details
                       </Button>
                       {!prediction.certification_status && (
                         <Button
                           size="sm"
-                          onClick={() => handleReviewPrediction(prediction.id)}
-                          className="bg-blue-600 hover:bg-blue-700"
+                          onClick={() => openCertifyModal(prediction)}
+                          className="bg-blue-600 hover:bg-blue-700 text-white"
                         >
                           Certify
+                        </Button>
+                      )}
+                      {prediction.certification_status && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openCertifyModal(prediction)}
+                        >
+                          Edit Review
                         </Button>
                       )}
                     </div>
@@ -418,8 +446,8 @@ const AIPredictions = () => {
         </div>
       </Card>
 
-      {/* Review Modal */}
-      {isModalOpen && selectedPrediction && (
+      {/* Certification Modal */}
+      {isCertifyModalOpen && selectedPrediction && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
           <div className="relative top-20 mx-auto p-5 border w-[600px] shadow-lg rounded-md bg-white">
             <div className="mt-3">
@@ -473,28 +501,102 @@ const AIPredictions = () => {
                 </div>
               </div>
 
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Clinical Notes {selectedPrediction.certification_status && '(Editable)'}
-                </label>
-                <textarea
-                  value={doctorNotes}
-                  onChange={(e) => setDoctorNotes(e.target.value)}
-                  rows={4}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Add your clinical assessment, recommendations, or additional notes..."
-                />
+              {/* Clinical Assessment Form */}
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Clinical Assessment
+                  </label>
+                  <textarea
+                    value={clinicalAssessment}
+                    onChange={(e) => setClinicalAssessment(e.target.value)}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Provide your clinical assessment of the AI prediction..."
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Doctor Notes
+                  </label>
+                  <textarea
+                    value={doctorNotes}
+                    onChange={(e) => setDoctorNotes(e.target.value)}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Add your clinical notes and observations..."
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Recommendations
+                  </label>
+                  <textarea
+                    value={recommendations}
+                    onChange={(e) => setRecommendations(e.target.value)}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Provide treatment recommendations and next steps..."
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Severity Assessment
+                    </label>
+                    <select
+                      value={severityAssessment}
+                      onChange={(e) => setSeverityAssessment(e.target.value as 'low' | 'medium' | 'high' | 'critical')}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      aria-label="Severity Assessment"
+                    >
+                      <option value="low">Low</option>
+                      <option value="medium">Medium</option>
+                      <option value="high">High</option>
+                      <option value="critical">Critical</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={followUpRequired}
+                        onChange={(e) => setFollowUpRequired(e.target.checked)}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-sm font-medium text-gray-700">Follow-up Required</span>
+                    </label>
+                    {followUpRequired && (
+                      <input
+                        type="date"
+                        value={followUpDate}
+                        onChange={(e) => setFollowUpDate(e.target.value)}
+                        className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        min={new Date().toISOString().split('T')[0]}
+                        aria-label="Follow-up Date"
+                        title="Select follow-up date"
+                      />
+                    )}
+                  </div>
+                </div>
+
                 {selectedPrediction.certified_at && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    Last certified: {new Date(selectedPrediction.certified_at).toLocaleString()}
-                  </p>
+                  <div className="bg-blue-50 p-3 rounded-md">
+                    <p className="text-xs text-blue-600">
+                      Last certified: {new Date(selectedPrediction.certified_at).toLocaleString()}
+                    </p>
+                  </div>
                 )}
               </div>
 
               <div className="flex justify-end space-x-3">
                 <Button
                   variant="outline"
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={() => setIsCertifyModalOpen(false)}
                 >
                   {selectedPrediction.certification_status ? 'Close' : 'Cancel'}
                 </Button>
