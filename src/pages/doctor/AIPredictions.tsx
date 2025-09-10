@@ -19,6 +19,7 @@ interface AIPrediction {
   predictionProbability: number;
   riskLevel: 'low' | 'medium' | 'high';
   status: 'pending' | 'processed' | 'reviewed';
+  isReviewed?: boolean;
   createdAt: string;
   processedAt?: string;
   certification_status?: 'certified' | 'rejected';
@@ -388,9 +389,19 @@ const AIPredictions = () => {
                     {formatDate(prediction.createdAt)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <Badge className={getStatusColor(prediction.status)}>
-                      {prediction.status}
-                    </Badge>
+                    <div className="flex items-center space-x-2">
+                      <Badge className={getStatusColor(prediction.status)}>
+                        {prediction.status}
+                      </Badge>
+                      {prediction.isReviewed && (
+                        <div className="relative group">
+                          <CheckCircle className="h-4 w-4 text-green-500" />
+                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-800 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap">
+                            Reviewed
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     {prediction.certification_status ? (
