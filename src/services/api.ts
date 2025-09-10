@@ -327,6 +327,10 @@ class ApiService {
     return this.makeRequest<any>(`/doctors/appointments${queryString ? `?${queryString}` : ''}`);
   }
 
+  async getTodayAppointments(): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>('/doctors/appointments/today');
+  }
+
   async getDoctorStatistics(): Promise<ApiResponse<any>> {
     return this.makeRequest<any>('/doctors/statistics');
   }
@@ -487,10 +491,6 @@ class ApiService {
       method: 'PUT',
       body: JSON.stringify({ is_active: isActive }),
     });
-  }
-
-  async getTodayAppointments(): Promise<ApiResponse<any[]>> {
-    return this.makeRequest<any[]>('/doctor/appointments/today');
   }
 
   async callNextPatient(appointmentId: string): Promise<ApiResponse<any>> {
