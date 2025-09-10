@@ -181,6 +181,7 @@ const UploadReports = () => {
     setLoading(true);
     try {
       const token = apiService.getToken();
+      console.log('Submitting diabetes prediction with form data:', diabetesForm);
       const response = await fetch(`${API_BASE_URL}/admin/reports/diabetes-predictions`, {
         method: 'POST',
         headers: {
@@ -285,18 +286,18 @@ const UploadReports = () => {
   };
 
   const getSelectedPatientName = (patientId: string) => {
-    const patient = patients.find(p => p.id === patientId);
+    const patient = patients.find(p => p.patientId === patientId);
     return patient ? `${patient.name} (${patient.patientId})` : '';
   };
 
   const handleDiabetesPatientSelect = (patient: Patient) => {
-    setDiabetesForm({ ...diabetesForm, patientId: patient.id });
+    setDiabetesForm({ ...diabetesForm, patientId: patient.patientId });
     setDiabetesPatientSearch(`${patient.name} (${patient.patientId})`);
     setIsDiabetesDropdownOpen(false);
   };
 
   const handleMedicalPatientSelect = (patient: Patient) => {
-    setMedicalForm({ ...medicalForm, patientId: patient.id });
+    setMedicalForm({ ...medicalForm, patientId: patient.patientId });
     setMedicalPatientSearch(`${patient.name} (${patient.patientId})`);
     setIsMedicalDropdownOpen(false);
   };
@@ -581,6 +582,20 @@ const UploadReports = () => {
                             {new Date(prediction.createdAt).toLocaleDateString()}
                           </div>
                         </div>
+                      </div>
+                      <div className="flex space-x-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            const streamlitUrl = `${import.meta.env.VITE_STREAMLIT_URL || 'http://localhost:8502'}/?pregnancies=${prediction.pregnancies}&glucose=${prediction.glucose}&bmi=${prediction.bmi}&age=${prediction.age}&insulin=${prediction.insulin}&auto_predict=true`;
+                            window.open(streamlitUrl, '_blank');
+                          }}
+                          className="text-xs"
+                        >
+                          <Eye className="w-3 h-3 mr-1" />
+                          View Details
+                        </Button>
                       </div>
                     </div>
                   </div>
