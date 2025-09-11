@@ -96,6 +96,44 @@ const ManageQueue = () => {
     await completeConsultation(appointmentId);
   };
 
+  const handlePaymentStatusUpdate = async (appointmentId: string, newStatus: string) => {
+    try {
+      const response = await fetch(`/api/doctors/appointments/${appointmentId}/payment-status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ paymentStatus: newStatus })
+      });
+
+      if (response.ok) {
+        // Refresh queue data to show updated payment status
+        fetchTodayAppointments();
+        fetchQueueStatus();
+      } else {
+        console.error('Failed to update payment status');
+      }
+    } catch (error) {
+      console.error('Error updating payment status:', error);
+    }
+  };
+
+  const getPaymentStatusColor = (status: string) => {
+    switch (status) {
+      case 'paid':
+        return 'bg-green-100 text-green-800';
+      case 'unpaid':
+        return 'bg-red-100 text-red-800';
+      case 'partially_paid':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'refunded':
+        return 'bg-gray-100 text-gray-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
   const waitingPatients = getWaitingPatients();
   const inProgressPatients = getInProgressPatients();
   const completedPatients = getCompletedPatients();
@@ -247,24 +285,55 @@ const ManageQueue = () => {
           </div>
           
           {queueStatus && (
-            <div className="mt-4 grid grid-cols-4 gap-4 text-center">
-              <div className="bg-blue-50 p-3 rounded">
-                <div className="text-2xl font-bold text-blue-600">{waitingPatients.length}</div>
-                <div className="text-sm text-gray-600">Waiting</div>
+            <>
+              {/* Status Statistics */}
+              <div className="mt-4 grid grid-cols-4 gap-4 text-center">
+                <div className="bg-blue-50 p-3 rounded">
+                  <div className="text-2xl font-bold text-blue-600">{waitingPatients.length}</div>
+                  <div className="text-sm text-gray-600">Waiting</div>
+                </div>
+                <div className="bg-yellow-50 p-3 rounded">
+                  <div className="text-2xl font-bold text-yellow-600">{inProgressPatients.length}</div>
+                  <div className="text-sm text-gray-600">In Progress</div>
+                </div>
+                <div className="bg-green-50 p-3 rounded">
+                  <div className="text-2xl font-bold text-green-600">{completedPatients.length}</div>
+                  <div className="text-sm text-gray-600">Completed</div>
+                </div>
+                <div className="bg-red-50 p-3 rounded">
+                  <div className="text-2xl font-bold text-red-600">{emergencyPatients.length}</div>
+                  <div className="text-sm text-gray-600">Emergency</div>
+                </div>
               </div>
-              <div className="bg-yellow-50 p-3 rounded">
-                <div className="text-2xl font-bold text-yellow-600">{inProgressPatients.length}</div>
-                <div className="text-sm text-gray-600">In Progress</div>
+              
+              {/* Payment Statistics */}
+              <div className="mt-4 grid grid-cols-4 gap-4 text-center">
+                <div className="bg-green-50 p-3 rounded">
+                  <div className="text-2xl font-bold text-green-600">
+                    {queue.filter(p => p.payment_status === 'paid').length}
+                  </div>
+                  <div className="text-sm text-gray-600">Paid</div>
+                </div>
+                <div className="bg-red-50 p-3 rounded">
+                  <div className="text-2xl font-bold text-red-600">
+                    {queue.filter(p => p.payment_status === 'unpaid').length}
+                  </div>
+                  <div className="text-sm text-gray-600">Unpaid</div>
+                </div>
+                <div className="bg-yellow-50 p-3 rounded">
+                  <div className="text-2xl font-bold text-yellow-600">
+                    {queue.filter(p => p.payment_status === 'partially_paid').length}
+                  </div>
+                  <div className="text-sm text-gray-600">Partial</div>
+                </div>
+                <div className="bg-gray-50 p-3 rounded">
+                  <div className="text-2xl font-bold text-gray-600">
+                    {queue.filter(p => p.payment_status === 'refunded').length}
+                  </div>
+                  <div className="text-sm text-gray-600">Refunded</div>
+                </div>
               </div>
-              <div className="bg-green-50 p-3 rounded">
-                <div className="text-2xl font-bold text-green-600">{completedPatients.length}</div>
-                <div className="text-sm text-gray-600">Completed</div>
-              </div>
-              <div className="bg-red-50 p-3 rounded">
-                <div className="text-2xl font-bold text-red-600">{emergencyPatients.length}</div>
-                <div className="text-sm text-gray-600">Emergency</div>
-              </div>
-            </div>
+            </>
           )}
         </div>
       </Card>
@@ -294,6 +363,9 @@ const ManageQueue = () => {
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Payment
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Reason
@@ -342,6 +414,19 @@ const ManageQueue = () => {
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(patient.status)}`}>
                           {patient.status}
                         </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <select
+                          value={patient.payment_status || 'unpaid'}
+                          onChange={(e) => handlePaymentStatusUpdate(patient.id, e.target.value)}
+                          className={`text-xs font-semibold rounded px-2 py-1 border-0 focus:ring-1 focus:ring-blue-500 ${getPaymentStatusColor(patient.payment_status || 'unpaid')}`}
+                          title={`Payment status for ${patient.name}`}
+                        >
+                          <option value="unpaid">Unpaid</option>
+                          <option value="paid">Paid</option>
+                          <option value="partially_paid">Partially Paid</option>
+                          <option value="refunded">Refunded</option>
+                        </select>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900 max-w-xs truncate">

@@ -14,6 +14,7 @@ interface QueueItem {
   status: QueueStatus;
   priority: 'low' | 'medium' | 'high' | 'urgent';
   is_emergency: boolean;
+  payment_status: 'unpaid' | 'paid' | 'partially_paid' | 'refunded';
   reason_for_visit?: string;
   symptoms?: string;
   estimatedWaitTime?: number;
