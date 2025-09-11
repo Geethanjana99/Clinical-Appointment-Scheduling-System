@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
+import PaymentModal from '../../components/modals/PaymentModal';
 import { CalendarIcon, UserIcon, ClockIcon, CheckCircleIcon, StarIcon, SearchIcon, FilterIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiService } from '../../services/api';
@@ -48,7 +49,12 @@ const BookAppointment = () => {
   // const [loadingSlots, setLoadingSlots] = useState(false);
   // const [slotsError, setSlotsError] = useState<string | null>(null);
   
-  const [step, setStep] = useState(1); // 1: Select Doctor, 2: Select Date/Time, 3: Confirm
+  const [step, setStep] = useState(1); // 1: Select Doctor, 2: Select Date/Time, 3: Confirm, 4: Payment
+  
+  // Payment state
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState('');
+  const [paymentStatus, setPaymentStatus] = useState('unpaid');
   
   // Success state
   const [bookingSuccess, setBookingSuccess] = useState(false);
@@ -205,7 +211,25 @@ const BookAppointment = () => {
     }
     setStep(3);
   };
-  const handleBookAppointment = async () => {
+  const handleConfirmAppointment = () => {
+    if (!selectedDoctor || !selectedDate || !reason.trim()) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+    // Show payment modal
+    setShowPaymentModal(true);
+  };
+
+  const handlePaymentConfirm = (method: string, status: string) => {
+    setPaymentMethod(method);
+    setPaymentStatus(status);
+    setShowPaymentModal(false);
+    
+    // Proceed with booking after payment selection
+    bookAppointmentWithPayment(method, status);
+  };
+
+  const bookAppointmentWithPayment = async (method: string, status: string) => {
     if (!selectedDoctor || !selectedDate || !reason.trim()) {
       toast.error('Please fill in all required fields');
       return;
@@ -221,7 +245,9 @@ const BookAppointment = () => {
         reasonForVisit: reason,
         symptoms: notes,
         priority: 'medium',
-        isEmergency: isEmergency
+        isEmergency: isEmergency,
+        paymentMethod: method,
+        paymentStatus: status
       };      
 
       const response = await apiService.bookQueueAppointment(appointmentData);
@@ -233,15 +259,21 @@ const BookAppointment = () => {
           doctorName: selectedDoctor.name,
           doctorSpecialty: selectedDoctor.specialty,
           queueNumber: response.data.queueNumber,
-          isEmergency: response.data.isEmergency
+          isEmergency: response.data.isEmergency,
+          paymentMethod: method,
+          paymentStatus: status
         };
         
         setBookedAppointment(appointmentWithDoctorInfo);
         setBookingSuccess(true);
         
-        // Show success toast message
-        toast.success(response.data.message, {
-          duration: 4000
+        // Show success toast message with payment info
+        const paymentMessage = status === 'paid' 
+          ? `Payment of $${selectedDoctor.consultation_fee} processed successfully!`
+          : 'You can pay at the counter when you visit.';
+          
+        toast.success(`${response.data.message} ${paymentMessage}`, {
+          duration: 5000
         });
         
         // Reset form
@@ -250,13 +282,15 @@ const BookAppointment = () => {
         setReason('');
         setNotes('');
         setIsEmergency(false);
+        setPaymentMethod('');
+        setPaymentStatus('unpaid');
         setStep(1);
         
         // Reset success state after a delay
         setTimeout(() => {
           setBookingSuccess(false);
           setBookedAppointment(null);
-        }, 8000);
+        }, 10000);
       } else {
         toast.error(response.message || 'Failed to book appointment');
       }
@@ -266,6 +300,11 @@ const BookAppointment = () => {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // Keep the old function for backward compatibility, but redirect to new flow
+  const handleBookAppointment = () => {
+    handleConfirmAppointment();
   };
 
   const renderStars = (rating: number) => {
@@ -308,6 +347,22 @@ const BookAppointment = () => {
                     {bookedAppointment.isEmergency && <span className="text-red-500 ml-1">(Emergency)</span>}
                   </p>
                   <p><strong>Status:</strong> {bookedAppointment.status}</p>
+                  {bookedAppointment.paymentStatus && (
+                    <p><strong>Payment:</strong> 
+                      <span className={`ml-2 font-medium ${
+                        bookedAppointment.paymentStatus === 'paid' ? 'text-green-600' :
+                        bookedAppointment.paymentStatus === 'partially_paid' ? 'text-yellow-600' :
+                        'text-red-600'
+                      }`}>
+                        {bookedAppointment.paymentStatus === 'paid' ? '✅ Paid' : 
+                         bookedAppointment.paymentStatus === 'partially_paid' ? '⚠️ Partially Paid' : 
+                         '❌ Pay at Counter'}
+                      </span>
+                      {bookedAppointment.paymentStatus === 'paid' && bookedAppointment.consultationFee && (
+                        <span className="text-gray-600"> - ${bookedAppointment.consultationFee}</span>
+                      )}
+                    </p>
+                  )}
                 </div>
                 <div className="mt-3 text-sm text-green-600">
                   <p>
@@ -316,6 +371,16 @@ const BookAppointment = () => {
                       : "You're in the queue. Please arrive on the scheduled date and wait for your number to be called."
                     }
                   </p>
+                  {bookedAppointment.paymentStatus === 'unpaid' && (
+                    <p className="mt-2 text-orange-600">
+                      💰 <strong>Payment Required:</strong> Please bring ${bookedAppointment.consultationFee || 'consultation fee'} to pay at the counter when you visit.
+                    </p>
+                  )}
+                  {bookedAppointment.paymentStatus === 'paid' && (
+                    <p className="mt-2 text-green-600">
+                      ✅ <strong>Payment Confirmed:</strong> Your payment of ${bookedAppointment.consultationFee} has been processed successfully.
+                    </p>
+                  )}
                 </div>
                 <div className="mt-4">
                   <Button
@@ -346,9 +411,9 @@ const BookAppointment = () => {
             </div>
             <span className="ml-2 font-medium">Select Doctor</span>
           </div>
-          <div className="flex-1 h-1 mx-4 bg-gray-200">
+          <div className="flex-1 h-1 mx-2 bg-gray-200">
             <div className={`h-1 transition-all duration-300 ${
-              step >= 2 ? 'bg-blue-600 w-1/2' : 'bg-gray-200 w-0'
+              step >= 2 ? 'bg-blue-600 w-full' : 'bg-gray-200 w-0'
             }`}></div>
           </div>
           <div className={`flex items-center ${step >= 2 ? 'text-blue-600' : 'text-gray-400'}`}>
@@ -358,6 +423,19 @@ const BookAppointment = () => {
               2
             </div>
             <span className="ml-2 font-medium">Date & Time</span>
+          </div>
+          <div className="flex-1 h-1 mx-2 bg-gray-200">
+            <div className={`h-1 transition-all duration-300 ${
+              step >= 3 ? 'bg-blue-600 w-full' : 'bg-gray-200 w-0'
+            }`}></div>
+          </div>
+          <div className={`flex items-center ${step >= 3 ? 'text-blue-600' : 'text-gray-400'}`}>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+              step >= 3 ? 'bg-blue-600 text-white' : 'bg-gray-200'
+            }`}>
+              3
+            </div>
+            <span className="ml-2 font-medium">Confirm</span>
           </div>
           <div className="flex-1 h-1 mx-4 bg-gray-200">
             <div className={`h-1 transition-all duration-300 ${
@@ -757,6 +835,22 @@ const BookAppointment = () => {
             </div>
           </div>
         </Card>
+      )}
+      
+      {/* Payment Modal */}
+      {selectedDoctor && (
+        <PaymentModal
+          isOpen={showPaymentModal}
+          onClose={() => setShowPaymentModal(false)}
+          onPaymentConfirm={handlePaymentConfirm}
+          appointmentDetails={{
+            doctorName: selectedDoctor.name,
+            doctorSpecialty: selectedDoctor.specialty,
+            appointmentDate: selectedDate,
+            consultationFee: selectedDoctor.consultation_fee,
+            isEmergency: isEmergency
+          }}
+        />
       )}
     </div>
   );
