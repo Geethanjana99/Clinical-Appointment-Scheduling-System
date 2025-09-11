@@ -40,17 +40,18 @@ const Login = () => {
     initializeAuth();
   }, [initializeAuth]);  // Redirect if already authenticated
   useEffect(() => {
-    if (isAuthenticated && user && user.role && !authLoading) {
+    if (isAuthenticated && user && user.role && !authLoading && !isLoading) {
       const validRoles = ['patient', 'doctor', 'admin', 'billing'];
       
       if (validRoles.includes(user.role)) {
+        console.log('✅ User authenticated, redirecting to:', `/${user.role}`);
         navigate(`/${user.role}`);
       } else {
         console.warn('Invalid user role:', user.role);
         setError('Invalid user role. Please contact support.');
       }
     }
-  }, [isAuthenticated, user, navigate, authLoading]);
+  }, [isAuthenticated, user, navigate, authLoading, isLoading]);
 
   // Handle auth errors
   useEffect(() => {

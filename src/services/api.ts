@@ -175,6 +175,38 @@ class ApiService {
     return this.token;
   }
 
+  private async makeRequestWithRetry<T>(
+    endpoint: string,
+    options: RequestInit = {},
+    isRetry: boolean = false
+  ): Promise<ApiResponse<T>> {
+    try {
+      return await this.makeRequest<T>(endpoint, options);
+    } catch (error) {
+      // If it's a 401 error and we haven't already retried, try refreshing the token
+      if (!isRetry && error instanceof Error && error.message.includes('401') && endpoint !== '/auth/refresh-token') {
+        const refreshToken = localStorage.getItem('refreshToken');
+        if (refreshToken) {
+          try {
+            console.log('🔄 Attempting automatic token refresh...');
+            const refreshResponse = await this.refreshToken();
+            if (refreshResponse.success && refreshResponse.data) {
+              console.log('✅ Token refreshed, retrying original request...');
+              // Retry the original request with the new token
+              return await this.makeRequest<T>(endpoint, options);
+            }
+          } catch (refreshError) {
+            console.log('❌ Token refresh failed:', refreshError);
+            // Clear tokens and let the error propagate
+            this.setToken(null);
+            localStorage.removeItem('refreshToken');
+          }
+        }
+      }
+      throw error;
+    }
+  }
+
   private async makeRequest<T>(
     endpoint: string,
     options: RequestInit = {}
@@ -202,11 +234,12 @@ class ApiService {
       const data = await response.json();
 
       if (!response.ok) {
-        // If it's an authentication error and we have a token, it might be corrupted
-        if (response.status === 401 || response.status === 500) {
-          if (this.token && (data.message === 'Token is not valid' || data.message === 'Server error during authentication')) {
-            console.warn('Authentication failed, clearing potentially corrupted token');
+        // Handle authentication errors
+        if (response.status === 401) {
+          if (this.token && (data.message === 'Token is not valid' || data.message === 'Token has expired' || data.message === 'Server error during authentication')) {
+            console.warn('Authentication failed with token, clearing it');
             this.setToken(null);
+            localStorage.removeItem('refreshToken');
           }
         }
         throw new Error(data.message || `HTTP error! status: ${response.status}`);
@@ -214,7 +247,11 @@ class ApiService {
 
       return data;
     } catch (error) {
-      console.error('API request failed:', error);
+      console.error('API request failed:', {
+        url,
+        error: error instanceof Error ? error.message : error,
+        token: this.token ? 'present' : 'absent'
+      });
       throw error;
     }
   }
@@ -243,15 +280,25 @@ class ApiService {
   }
 
   async logout(): Promise<void> {
+    const currentToken = this.getToken();
+    
     try {
-      await this.makeRequest('/auth/logout', {
-        method: 'POST',
-      });
+      // Only make API call if we have a token
+      if (currentToken) {
+        await this.makeRequest('/auth/logout', {
+          method: 'POST',
+        });
+        console.log('✅ Backend logout notification sent');
+      } else {
+        console.log('ℹ️ No token present, skipping backend logout call');
+      }
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error('❌ Logout API error (continuing anyway):', error);
     } finally {
+      // Always clear local tokens regardless of API call result
       this.setToken(null);
       localStorage.removeItem('refreshToken');
+      console.log('🧹 Local tokens cleared');
     }
   }
 
@@ -275,11 +322,11 @@ class ApiService {
   }
 
   async getProfile(): Promise<ApiResponse<User>> {
-    return this.makeRequest<User>('/auth/profile');
+    return this.makeRequestWithRetry<User>('/auth/profile');
   }
 
   async updateProfile(profileData: Partial<User>): Promise<ApiResponse<User>> {
-    return this.makeRequest<User>('/auth/profile', {
+    return this.makeRequestWithRetry<User>('/auth/profile', {
       method: 'PUT',
       body: JSON.stringify(profileData),
     });
@@ -287,25 +334,25 @@ class ApiService {
 
   // Patient methods
   async getPatients(): Promise<ApiResponse<any[]>> {
-    return this.makeRequest<any[]>('/patients');
+    return this.makeRequestWithRetry<any[]>('/patients');
   }
 
   async getPatient(id: string): Promise<ApiResponse<any>> {
-    return this.makeRequest<any>(`/patients/${id}`);
+    return this.makeRequestWithRetry<any>(`/patients/${id}`);
   }
 
   // Doctor methods
   async getDoctors(): Promise<ApiResponse<any[]>> {
-    return this.makeRequest<any[]>('/doctors');
+    return this.makeRequestWithRetry<any[]>('/doctors');
   }
 
   async getDoctor(id: string): Promise<ApiResponse<any>> {
-    return this.makeRequest<any>(`/doctors/${id}`);
+    return this.makeRequestWithRetry<any>(`/doctors/${id}`);
   }
 
   // Doctor Dashboard methods
   async getDoctorDashboard(): Promise<ApiResponse<any>> {
-    return this.makeRequest<any>('/doctors/dashboard');
+    return this.makeRequestWithRetry<any>('/doctors/dashboard');
   }
 
   async getDoctorAppointments(params?: { 

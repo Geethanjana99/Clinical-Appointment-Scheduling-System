@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
+import { apiService } from '../../services/api';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import { UsersIcon, UserPlusIcon, CalendarIcon, FileUpIcon, SearchIcon, PlusIcon, AlertCircle } from 'lucide-react';
@@ -22,7 +23,7 @@ interface Patient {
 // Placeholder component for the Admin Dashboard
 const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
+  const { user, isAuthenticated } = useAuthStore();
   
   // State for patient data
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -35,6 +36,17 @@ const AdminDashboard: React.FC = () => {
 
   // Fetch patients from API
   const fetchPatients = async () => {
+    const hasValidToken = apiService.getToken();
+    
+    if (!isAuthenticated || !hasValidToken) {
+      console.log('⚠️ Admin Dashboard: Cannot fetch patients - authentication failed', {
+        isAuthenticated,
+        hasValidToken: !!hasValidToken
+      });
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -74,8 +86,19 @@ const AdminDashboard: React.FC = () => {
 
   // Load patients on component mount and when search term changes
   useEffect(() => {
-    fetchPatients();
-  }, [searchTerm]);
+    const hasValidToken = apiService.getToken();
+    
+    if (isAuthenticated && hasValidToken) {
+      console.log('✅ Admin Dashboard: Fetching patients - authenticated with valid token');
+      fetchPatients();
+    } else {
+      console.log('⚠️ Admin Dashboard: Skipping data fetch', { 
+        isAuthenticated, 
+        hasValidToken: !!hasValidToken 
+      });
+      setLoading(false);
+    }
+  }, [searchTerm, isAuthenticated]);
 
   // Handle search input
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
