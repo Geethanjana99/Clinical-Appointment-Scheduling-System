@@ -4,6 +4,7 @@ import Button from '../../components/ui/Button';
 import StatusBadge from '../../components/ui/StatusBadge';
 import { useQueueStore } from '../../store/queueStore';
 import { useAuthStore } from '../../store/authStore';
+import WorkingHoursSuccessModal from '../../components/modals/WorkingHoursSuccessModal';
 import { 
   UserIcon, 
   ClockIcon, 
@@ -33,6 +34,7 @@ const ManageQueue = () => {
     doctorAvailability,
     isLoading,
     error,
+    showWorkingHoursSuccessModal,
     fetchTodayAppointments,
     fetchQueueStatus,
     fetchDoctorAvailability,
@@ -41,6 +43,7 @@ const ManageQueue = () => {
     toggleQueue,
     callNextPatient,
     completeConsultation,
+    setShowWorkingHoursSuccessModal,
     getWaitingPatients,
     getInProgressPatients,
     getCompletedPatients,
@@ -441,6 +444,12 @@ const ManageQueue = () => {
       {/* Tab Content */}
       {activeTab === 'availability' && renderAvailabilityTab()}
       {activeTab === 'queue' && renderQueueTab()}
+
+      {/* Working Hours Success Modal */}
+      <WorkingHoursSuccessModal
+        isOpen={showWorkingHoursSuccessModal}
+        onClose={() => setShowWorkingHoursSuccessModal(false)}
+      />
     </div>
   );
 };

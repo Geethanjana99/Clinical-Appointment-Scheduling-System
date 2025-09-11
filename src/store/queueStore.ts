@@ -48,6 +48,9 @@ interface QueueState {
   isLoading: boolean;
   error: string | null;
   
+  // Success modal state
+  showWorkingHoursSuccessModal: boolean;
+  
   // Actions
   fetchTodayAppointments: () => Promise<void>;
   fetchQueueStatus: () => Promise<void>;
@@ -57,6 +60,9 @@ interface QueueState {
   toggleQueue: (isActive: boolean) => Promise<void>;
   callNextPatient: (appointmentId: string) => Promise<void>;
   completeConsultation: (appointmentId: string) => Promise<void>;
+  
+  // Modal actions
+  setShowWorkingHoursSuccessModal: (show: boolean) => void;
   
   // Selectors
   getWaitingPatients: () => QueueItem[];
@@ -72,6 +78,7 @@ export const useQueueStore = create<QueueState>((set, get) => ({
   doctorAvailability: null,
   isLoading: false,
   error: null,
+  showWorkingHoursSuccessModal: false,
 
   fetchTodayAppointments: async () => {
     try {
@@ -162,7 +169,8 @@ export const useQueueStore = create<QueueState>((set, get) => ({
         set(state => ({
           doctorAvailability: state.doctorAvailability 
             ? { ...state.doctorAvailability, working_hours: workingHours }
-            : null
+            : null,
+          showWorkingHoursSuccessModal: true
         }));
       } else {
         set({ error: response.error || 'Failed to update working hours' });
@@ -234,6 +242,12 @@ export const useQueueStore = create<QueueState>((set, get) => ({
     }
   },
 
+  // Modal actions
+  setShowWorkingHoursSuccessModal: (show: boolean) => {
+    set({ showWorkingHoursSuccessModal: show });
+  },
+
+  // Selectors
   getWaitingPatients: () => {
     const { queue } = get();
     return queue.filter(item => ['scheduled', 'confirmed'].includes(item.status));
