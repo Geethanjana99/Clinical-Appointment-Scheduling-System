@@ -437,18 +437,18 @@ const BookAppointment = () => {
             </div>
             <span className="ml-2 font-medium">Confirm</span>
           </div>
-          <div className="flex-1 h-1 mx-4 bg-gray-200">
+          <div className="flex-1 h-1 mx-2 bg-gray-200">
             <div className={`h-1 transition-all duration-300 ${
-              step >= 3 ? 'bg-blue-600 w-full' : 'bg-gray-200 w-0'
+              step >= 4 ? 'bg-blue-600 w-full' : 'bg-gray-200 w-0'
             }`}></div>
           </div>
-          <div className={`flex items-center ${step >= 3 ? 'text-blue-600' : 'text-gray-400'}`}>
+          <div className={`flex items-center ${step >= 4 ? 'text-blue-600' : 'text-gray-400'}`}>
             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-              step >= 3 ? 'bg-blue-600 text-white' : 'bg-gray-200'
+              step >= 4 ? 'bg-blue-600 text-white' : 'bg-gray-200'
             }`}>
-              3
+              4
             </div>
-            <span className="ml-2 font-medium">Confirm</span>
+            <span className="ml-2 font-medium">Payment</span>
           </div>
         </div>
       </Card>      {/* Step 1: Select Doctor */}
