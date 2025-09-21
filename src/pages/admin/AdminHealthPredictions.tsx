@@ -152,6 +152,12 @@ const AdminHealthPredictions = () => {
   };
 
   const handleViewDetails = async (submission: PatientSubmission) => {
+    // Generate Streamlit URL with patient health data pre-filled
+    const streamlitUrl = `${import.meta.env.VITE_STREAMLIT_URL || 'http://localhost:8502'}/?pregnancies=${submission.healthData.pregnancies}&glucose=${submission.healthData.glucose}&bmi=${submission.healthData.bmi}&age=${submission.healthData.age}&insulin=${submission.healthData.insulin}&auto_predict=true`;
+    window.open(streamlitUrl, '_blank');
+  };
+
+  const handleShowDetailModal = async (submission: PatientSubmission) => {
     try {
       const response = await apiService.getPatientSubmissionById(submission.id);
       if (response.success) {
@@ -469,9 +475,10 @@ const AdminHealthPredictions = () => {
                           variant="outline"
                           size="sm"
                           onClick={() => handleViewDetails(submission)}
+                          title="View analysis in Streamlit interface"
                         >
                           <ExternalLink className="w-4 h-4 mr-1" />
-                          View Details
+                          View Analysis
                         </Button>
                         
                         {(submission.status === 'pending' || submission.status === 'failed') && (
