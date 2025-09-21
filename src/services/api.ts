@@ -616,6 +616,42 @@ class ApiService {
   async getHealthDashboard(): Promise<ApiResponse<any>> {
     return this.makeRequest<any>('/patient/health-predictions/dashboard');
   }
+
+  // Admin Health Prediction Management
+  async getPatientSubmissions(params?: {
+    page?: number;
+    limit?: number;
+    status?: 'pending' | 'processing' | 'processed' | 'failed' | 'all';
+  }): Promise<ApiResponse<any>> {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.status) queryParams.append('status', params.status);
+    
+    const url = `/admin/health-predictions${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return this.makeRequest<any>(url);
+  }
+
+  async getPatientSubmissionById(id: string): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>(`/admin/health-predictions/${id}`);
+  }
+
+  async processPatientSubmission(id: string): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>(`/admin/health-predictions/${id}/process`, {
+      method: 'POST',
+    });
+  }
+
+  async batchProcessSubmissions(submissionIds: string[]): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>('/admin/health-predictions/batch-process', {
+      method: 'POST',
+      body: JSON.stringify({ submissionIds }),
+    });
+  }
+
+  async getAdminHealthDashboard(): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>('/admin/health-predictions/dashboard');
+  }
 }
 
 export const apiService = ApiService.getInstance();

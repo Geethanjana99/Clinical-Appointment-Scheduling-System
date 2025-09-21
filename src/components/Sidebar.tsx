@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { HomeIcon, CalendarIcon, UserIcon, UsersIcon, FileTextIcon, UploadIcon, ClockIcon, ActivityIcon, CreditCardIcon, BarChartIcon, FileIcon, Settings2Icon, ShieldIcon } from 'lucide-react';
+import { HomeIcon, CalendarIcon, UserIcon, UsersIcon, FileTextIcon, UploadIcon, ClockIcon, ActivityIcon, CreditCardIcon, BarChartIcon, FileIcon, Settings2Icon, ShieldIcon, Brain } from 'lucide-react';
 const Sidebar = () => {
   const location = useLocation();
   const {
@@ -73,6 +73,10 @@ const Sidebar = () => {
           name: 'Appointments',
           path: '/admin/appointments',
           icon: <CalendarIcon className="w-5 h-5" />
+        }, {
+          name: 'Health Predictions',
+          path: '/admin/health-predictions',
+          icon: <Brain className="w-5 h-5" />
         }, {
           name: 'Upload Reports',
           path: '/admin/reports',
