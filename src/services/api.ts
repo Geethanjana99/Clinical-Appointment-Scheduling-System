@@ -577,6 +577,45 @@ class ApiService {
       body: JSON.stringify(appointmentData),
     });
   }
+
+  // Patient Health Data Submission
+  async submitHealthData(healthData: {
+    pregnancies?: number;
+    glucose: number;
+    bmi: number;
+    age: number;
+    insulin?: number;
+    notes?: string;
+  }): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>('/patient/health-predictions', {
+      method: 'POST',
+      body: JSON.stringify(healthData),
+    });
+  }
+
+  async getHealthSubmissions(params?: {
+    page?: number;
+    limit?: number;
+    sortBy?: string;
+    sortOrder?: 'ASC' | 'DESC';
+  }): Promise<ApiResponse<any>> {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
+    if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder);
+    
+    const url = `/patient/health-predictions${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return this.makeRequest<any>(url);
+  }
+
+  async getHealthSubmissionById(id: string): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>(`/patient/health-predictions/${id}`);
+  }
+
+  async getHealthDashboard(): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>('/patient/health-predictions/dashboard');
+  }
 }
 
 export const apiService = ApiService.getInstance();
