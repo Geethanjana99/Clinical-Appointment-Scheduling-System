@@ -31,6 +31,7 @@ import ManagePatients from './pages/admin/ManagePatients';
 import ManageAppointments from './pages/admin/ManageAppointments';
 import ManageDoctors from './pages/admin/ManageDoctors';
 import UploadReports from './pages/admin/UploadReports';
+import AdminHealthPredictions from './pages/admin/AdminHealthPredictions';
 // Billing Pages
 import BillingDashboard from './pages/billing/Dashboard';
 import Invoices from './pages/billing/Invoices';
@@ -45,7 +46,16 @@ interface ProtectedRouteProps {
 
 // Protected route component
 const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated, isLoading } = useAuthStore();
+  
+  // Show loading while authentication is being initialized
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
   
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
@@ -121,6 +131,7 @@ export function App() {
             <Route path="patients" element={<ManagePatients />} />
             <Route path="doctors" element={<ManageDoctors />} />
             <Route path="appointments" element={<ManageAppointments />} />
+            <Route path="health-predictions" element={<AdminHealthPredictions />} />
             <Route path="reports" element={<UploadReports />} />
           </Route>
           

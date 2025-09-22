@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import apiService from '../../services/api';
+import { useAuthStore } from '../../store/authStore';
 import { 
   CalendarIcon, 
   ClockIcon, 
@@ -66,22 +67,54 @@ const DoctorDashboard = () => {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { user, isAuthenticated, isLoading: authLoading } = useAuthStore();
 
   useEffect(() => {
-    fetchDashboardData();
-  }, []);  const fetchDashboardData = async () => {
+    // Only fetch data if user is authenticated, not in loading state, and has a valid token
+    const hasValidToken = apiService.getToken();
+    
+    if (isAuthenticated && user && !authLoading && hasValidToken) {
+      console.log('✅ Dashboard: Fetching data - authenticated with valid token');
+      fetchDashboardData();
+    } else {
+      console.log('⚠️ Dashboard: Skipping data fetch', { 
+        isAuthenticated, 
+        hasUser: !!user, 
+        authLoading, 
+        hasValidToken: !!hasValidToken 
+      });
+      setLoading(false);
+    }
+  }, [isAuthenticated, user, authLoading]);
+
+  const fetchDashboardData = async () => {
+    // Triple-check authentication and token before making API call
+    const hasValidToken = apiService.getToken();
+    
+    if (!isAuthenticated || !user || !hasValidToken) {
+      console.log('⚠️ Dashboard: Cannot fetch data - authentication failed', {
+        isAuthenticated,
+        hasUser: !!user,
+        hasValidToken: !!hasValidToken
+      });
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
+      console.log('🔄 Dashboard: Making API request to getDoctorDashboard...');
       
       const result = await apiService.getDoctorDashboard();
       
       if (result.success) {
         setDashboardData(result.data);
+        console.log('✅ Dashboard: Data fetched successfully');
       } else {
         throw new Error(result.message || 'Failed to fetch dashboard data');
       }
     } catch (err) {
-      console.error('Error fetching dashboard data:', err);
+      console.error('❌ Dashboard: Error fetching dashboard data:', err);
       setError(err instanceof Error ? err.message : 'An error occurred');
       
       // Fallback to mock queue data for demonstration

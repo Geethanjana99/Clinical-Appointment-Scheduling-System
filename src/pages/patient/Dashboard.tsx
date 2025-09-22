@@ -5,6 +5,7 @@ import StatusBadge from '../../components/ui/StatusBadge';
 import Button from '../../components/ui/Button';
 import { CalendarIcon, ClockIcon, ActivityIcon, ChevronRightIcon } from 'lucide-react';
 import { apiService } from '../../services/api';
+import { useAuthStore } from '../../store/authStore';
 import { toast } from 'sonner';
 
 interface Appointment {
@@ -45,13 +46,36 @@ const PatientDashboard = () => {
   const [upcomingAppointments, setUpcomingAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { isAuthenticated } = useAuthStore();
 
   // Fetch upcoming appointments on component mount
   useEffect(() => {
-    fetchUpcomingAppointments();
-  }, []);
+    const hasValidToken = apiService.getToken();
+    
+    if (isAuthenticated && hasValidToken) {
+      console.log('✅ Patient Dashboard: Fetching appointments - authenticated with valid token');
+      fetchUpcomingAppointments();
+    } else {
+      console.log('⚠️ Patient Dashboard: Skipping data fetch', { 
+        isAuthenticated, 
+        hasValidToken: !!hasValidToken 
+      });
+      setLoading(false);
+    }
+  }, [isAuthenticated]);
 
   const fetchUpcomingAppointments = async () => {
+    const hasValidToken = apiService.getToken();
+    
+    if (!isAuthenticated || !hasValidToken) {
+      console.log('⚠️ Patient Dashboard: Cannot fetch appointments - authentication failed', {
+        isAuthenticated,
+        hasValidToken: !!hasValidToken
+      });
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
