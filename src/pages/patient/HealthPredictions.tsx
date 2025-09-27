@@ -34,17 +34,18 @@ interface HealthSubmission {
   patientEmail: string;
   
   // Doctor certification data (only shown if certified)
-  certification?: {
-    id: string;
+  doctorReview?: {
+    certificationId: string;
+    certificationStatus: string;
+    doctorNotes: string;
+    clinicalAssessment: string;
+    recommendations: string;
+    followUpRequired: boolean;
+    followUpDate?: string;
+    severityAssessment: 'low' | 'medium' | 'high' | 'critical';
+    certifiedAt: string;
     doctorName: string;
     doctorSpecialty: string;
-    recommendations: string;
-    clinicalNotes: string;
-    followupRequired: boolean;
-    followupDate?: string;
-    severity: 'low' | 'moderate' | 'high';
-    isActive: boolean;
-    certifiedAt: string;
   };
 }
 
@@ -179,9 +180,11 @@ const HealthPredictions = () => {
     switch (severity) {
       case 'low':
         return 'success';
-      case 'moderate':
+      case 'medium':
         return 'warning';
       case 'high':
+        return 'danger';
+      case 'critical':
         return 'danger';
       default:
         return 'default';
@@ -344,9 +347,9 @@ const HealthPredictions = () => {
                     <Badge variant={getStatusColor(submission.status)}>
                       {submission.status.replace('_', ' ').toUpperCase()}
                     </Badge>
-                    {submission.certification && (
-                      <Badge variant={getSeverityColor(submission.certification.severity)}>
-                        {submission.certification.severity.toUpperCase()} SEVERITY
+                    {submission.doctorReview && (
+                      <Badge variant={getSeverityColor(submission.doctorReview.severityAssessment)}>
+                        {submission.doctorReview.severityAssessment.toUpperCase()} SEVERITY
                       </Badge>
                     )}
                   </div>
@@ -399,40 +402,66 @@ const HealthPredictions = () => {
                         Professional Assessment
                       </h4>
                       
-                      {submission.certification ? (
+                      {submission.doctorReview ? (
                         <div className="bg-blue-50 rounded-lg p-3 space-y-3 text-sm">
                           <div>
                             <span className="text-gray-600 block">Doctor:</span>
-                            <span className="font-medium">{submission.certification.doctorName}</span>
+                            <span className="font-medium">{submission.doctorReview.doctorName}</span>
                             <span className="text-gray-500 text-xs block">
-                              {submission.certification.doctorSpecialty}
+                              {submission.doctorReview.doctorSpecialty}
                             </span>
                           </div>
-                          
-                          <div>
-                            <span className="text-gray-600 block">Recommendations:</span>
-                            <p className="font-medium text-gray-800 whitespace-pre-wrap">
-                              {submission.certification.recommendations}
-                            </p>
-                          </div>
-                          
-                          {submission.certification.clinicalNotes && (
+
+                          {submission.doctorReview.clinicalAssessment && (
                             <div>
-                              <span className="text-gray-600 block">Clinical Notes:</span>
+                              <span className="text-gray-600 block">Clinical Assessment:</span>
                               <p className="font-medium text-gray-800 whitespace-pre-wrap">
-                                {submission.certification.clinicalNotes}
+                                {submission.doctorReview.clinicalAssessment}
                               </p>
                             </div>
                           )}
                           
-                          {submission.certification.followupRequired && (
+                          {submission.doctorReview.recommendations && (
+                            <div>
+                              <span className="text-gray-600 block">Recommendations:</span>
+                              <p className="font-medium text-gray-800 whitespace-pre-wrap">
+                                {submission.doctorReview.recommendations}
+                              </p>
+                            </div>
+                          )}
+                          
+                          {submission.doctorReview.doctorNotes && (
+                            <div>
+                              <span className="text-gray-600 block">Doctor Notes:</span>
+                              <p className="font-medium text-gray-800 whitespace-pre-wrap">
+                                {submission.doctorReview.doctorNotes}
+                              </p>
+                            </div>
+                          )}
+
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <span className="text-gray-600 block">Severity Assessment:</span>
+                              <Badge variant={getSeverityColor(submission.doctorReview.severityAssessment)}>
+                                {submission.doctorReview.severityAssessment.toUpperCase()}
+                              </Badge>
+                            </div>
+                            <div>
+                              <span className="text-gray-600 block">Status:</span>
+                              <Badge variant={submission.doctorReview.certificationStatus === 'certified' ? 'success' : 'warning'}>
+                                {submission.doctorReview.certificationStatus.toUpperCase()}
+                              </Badge>
+                            </div>
+                          </div>
+                          
+                          {submission.doctorReview.followUpRequired && (
                             <div className="bg-yellow-100 rounded p-2">
                               <span className="text-yellow-800 font-medium text-xs flex items-center">
                                 <Calendar className="w-3 h-3 mr-1" />
                                 Follow-up Required
-                                {submission.certification.followupDate && (
+                                {submission.doctorReview.followUpDate && (
                                   <span className="ml-2">
-                                    by {new Date(submission.certification.followupDate).toLocaleDateString()}
+                                    by {new Date(submission.doctorReview.followUpDate).toLocaleDateString()}
                                   </span>
                                 )}
                               </span>
@@ -440,7 +469,7 @@ const HealthPredictions = () => {
                           )}
                           
                           <div className="text-xs text-gray-500 pt-2 border-t border-blue-200">
-                            Certified on {new Date(submission.certification.certifiedAt).toLocaleDateString()}
+                            Certified on {new Date(submission.doctorReview.certifiedAt).toLocaleDateString()}
                           </div>
                         </div>
                       ) : (
@@ -465,14 +494,14 @@ const HealthPredictions = () => {
                     </div>
                     
                     <div className="flex items-center gap-2">
-                      {submission.certification && (
+                      {submission.doctorReview && (
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => {
                             setResultData({
                               submission,
-                              certification: submission.certification
+                              doctorReview: submission.doctorReview
                             });
                             setShowResultModal(true);
                           }}
