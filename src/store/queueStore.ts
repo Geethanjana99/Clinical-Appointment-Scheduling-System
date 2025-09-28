@@ -62,6 +62,12 @@ interface QueueState {
   callNextPatient: (appointmentId: string) => Promise<void>;
   completeConsultation: (appointmentId: string) => Promise<void>;
   
+  // New enhanced queue management actions
+  startQueue: () => Promise<void>;
+  stopQueue: () => Promise<void>;
+  getNextPaidPatient: () => Promise<QueueItem | null>;
+  updatePaymentStatus: (appointmentId: string, paymentStatus: string) => Promise<void>;
+  
   // Modal actions
   setShowWorkingHoursSuccessModal: (show: boolean) => void;
   
@@ -84,32 +90,79 @@ export const useQueueStore = create<QueueState>((set, get) => ({
   fetchTodayAppointments: async () => {
     try {
       set({ isLoading: true, error: null });
-      const response = await apiService.getTodayAppointments();
       
-      if (response.success && response.data) {
-        const appointments = response.data.map((appointment: any) => ({
-          id: appointment.id,
-          appointment_id: appointment.appointment_id,
-          patient_id: appointment.patient_id,
-          name: appointment.name,
-          email: appointment.email,
-          phone: appointment.phone,
-          queue_number: appointment.queue_number,
-          status: appointment.status,
-          priority: appointment.priority,
-          is_emergency: appointment.is_emergency,
-          reason_for_visit: appointment.reason_for_visit,
-          symptoms: appointment.symptoms,
-          estimatedWaitTime: 15 // Default estimate
-        }));
+      // Try to get enhanced queue data first
+      let queueResponse;
+      try {
+        queueResponse = await apiService.getQueue();
+      } catch (error) {
+        console.warn('Enhanced queue API failed, falling back to basic appointments:', error);
+        // Fallback to basic appointments
+        queueResponse = await apiService.getTodayAppointments();
+      }
+      
+      if (queueResponse.success && queueResponse.data) {
+        let appointments = [];
+        let queueStatus = null;
         
-        set({ queue: appointments, isLoading: false });
+        // Handle enhanced queue response format
+        if (queueResponse.data.appointments) {
+          const queueData = queueResponse.data;
+          appointments = queueData.appointments?.map((appointment: any) => ({
+            id: appointment.id,
+            appointment_id: appointment.appointment_id,
+            patient_id: appointment.patient_id,
+            name: appointment.patient_name || appointment.name,
+            email: appointment.email,
+            phone: appointment.patient_phone || appointment.phone,
+            queue_number: appointment.queue_number,
+            status: appointment.status,
+            priority: appointment.priority || 'medium',
+            is_emergency: appointment.is_emergency,
+            payment_status: appointment.payment_status,
+            reason_for_visit: appointment.reason_for_visit,
+            symptoms: appointment.symptoms,
+            estimatedWaitTime: 15
+          })) || [];
+          
+          queueStatus = queueData.queueStatus;
+        } 
+        // Handle basic appointments response format  
+        else if (Array.isArray(queueResponse.data)) {
+          appointments = queueResponse.data.map((appointment: any) => ({
+            id: appointment.id,
+            appointment_id: appointment.appointment_id,
+            patient_id: appointment.patient_id,
+            name: appointment.name,
+            email: appointment.email,
+            phone: appointment.phone,
+            queue_number: appointment.queue_number,
+            status: appointment.status,
+            priority: appointment.priority || 'medium',
+            is_emergency: appointment.is_emergency,
+            payment_status: appointment.payment_status || 'unpaid',
+            reason_for_visit: appointment.reason_for_visit,
+            symptoms: appointment.symptoms,
+            estimatedWaitTime: 15
+          }));
+        }
+        
+        set({ 
+          queue: appointments, 
+          isLoading: false,
+          error: null 
+        });
+        
+        // Update queue status if available
+        if (queueStatus) {
+          set({ queueStatus });
+        }
       } else {
-        set({ error: response.error || 'Failed to fetch appointments', isLoading: false });
+        set({ error: queueResponse.error || 'Failed to fetch appointments', isLoading: false });
       }
     } catch (error) {
       set({ error: 'Failed to fetch appointments', isLoading: false });
-      console.error('Error fetching today appointments:', error);
+      console.error('Error fetching appointments:', error);
     }
   },
 
@@ -184,19 +237,30 @@ export const useQueueStore = create<QueueState>((set, get) => ({
 
   toggleQueue: async (isActive: boolean) => {
     try {
-      const response = await apiService.toggleQueue(isActive);
+      set({ isLoading: true, error: null });
+      
+      let response;
+      if (isActive) {
+        response = await apiService.startQueue();
+      } else {
+        response = await apiService.stopQueue();
+      }
       
       if (response.success) {
         set(state => ({
           queueStatus: state.queueStatus 
             ? { ...state.queueStatus, is_active: isActive }
-            : null
+            : null,
+          isLoading: false
         }));
+        
+        // Refresh queue data to show filtered results when queue is active
+        get().fetchTodayAppointments();
       } else {
-        set({ error: response.error || 'Failed to toggle queue' });
+        set({ error: response.error || 'Failed to toggle queue', isLoading: false });
       }
     } catch (error) {
-      set({ error: 'Failed to toggle queue' });
+      set({ error: 'Failed to toggle queue', isLoading: false });
       console.error('Error toggling queue:', error);
     }
   },
@@ -240,6 +304,117 @@ export const useQueueStore = create<QueueState>((set, get) => ({
     } catch (error) {
       set({ error: 'Failed to complete consultation' });
       console.error('Error completing consultation:', error);
+    }
+  },
+
+  // Enhanced queue management actions
+  startQueue: async () => {
+    try {
+      set({ isLoading: true, error: null });
+      const response = await apiService.startQueue();
+      
+      if (response.success) {
+        set(state => ({
+          queueStatus: state.queueStatus 
+            ? { ...state.queueStatus, is_active: true }
+            : null,
+          isLoading: false
+        }));
+        
+        // Refresh queue data to show only paid patients
+        get().fetchTodayAppointments();
+      } else {
+        set({ error: response.error || 'Failed to start queue', isLoading: false });
+      }
+    } catch (error) {
+      set({ error: 'Failed to start queue', isLoading: false });
+      console.error('Error starting queue:', error);
+    }
+  },
+
+  stopQueue: async () => {
+    try {
+      set({ isLoading: true, error: null });
+      const response = await apiService.stopQueue();
+      
+      if (response.success) {
+        set(state => ({
+          queueStatus: state.queueStatus 
+            ? { ...state.queueStatus, is_active: false }
+            : null,
+          isLoading: false
+        }));
+        
+        // Refresh queue data to show all patients
+        get().fetchTodayAppointments();
+      } else {
+        set({ error: response.error || 'Failed to stop queue', isLoading: false });
+      }
+    } catch (error) {
+      set({ error: 'Failed to stop queue', isLoading: false });
+      console.error('Error stopping queue:', error);
+    }
+  },
+
+  getNextPaidPatient: async () => {
+    try {
+      console.log('🔎 Calling API for next paid patient...');
+      const response = await apiService.getNextPaidPatient();
+      console.log('📡 API Response:', response);
+      
+      if (response.success && response.data?.patient) {
+        const patient = response.data.patient;
+        console.log('✅ Found paid patient:', patient.patient_name, 'Status:', patient.payment_status);
+        
+        return {
+          id: patient.id,
+          appointment_id: patient.appointment_id,
+          patient_id: patient.patient_id,
+          name: patient.patient_name,
+          email: patient.email,
+          phone: patient.patient_phone,
+          queue_number: patient.queue_number,
+          status: patient.status,
+          priority: patient.priority || 'medium',
+          is_emergency: patient.is_emergency,
+          payment_status: patient.payment_status,
+          reason_for_visit: patient.reason_for_visit,
+          symptoms: patient.symptoms,
+          estimatedWaitTime: 15
+        };
+      } else {
+        console.log('❌ No paid patient found. Response:', response);
+        return null;
+      }
+    } catch (error) {
+      console.error('❌ Error getting next paid patient:', error);
+      return null;
+    }
+  },
+
+  updatePaymentStatus: async (appointmentId: string, paymentStatus: string) => {
+    try {
+      set({ isLoading: true, error: null });
+      const response = await apiService.updatePaymentStatus(appointmentId, paymentStatus);
+      
+      if (response.success) {
+        set(state => ({
+          queue: state.queue.map(item =>
+            item.appointment_id === appointmentId
+              ? { ...item, payment_status: paymentStatus as any }
+              : item
+          ),
+          isLoading: false
+        }));
+        
+        // Refresh queue to reflect payment changes in filtered view
+        get().fetchTodayAppointments();
+      } else {
+        set({ error: response.error || 'Failed to update payment status', isLoading: false });
+      }
+    } catch (error) {
+      set({ error: 'Failed to update payment status', isLoading: false });
+      console.error('Error updating payment status:', error);
     }
   },
 

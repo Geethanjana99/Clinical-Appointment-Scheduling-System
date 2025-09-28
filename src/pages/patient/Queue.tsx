@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Card from '../../components/ui/Card';
 import StatusBadge from '../../components/ui/StatusBadge';
 import { apiService } from '../../services/api';
+import { useAuthStore } from '../../store/authStore';
 import { ClockIcon, UserIcon, CalendarIcon } from 'lucide-react';
 
 interface QueuePosition {
@@ -19,33 +20,116 @@ interface QueuePosition {
   queue_active: boolean;
   queue_position: number;
   estimated_wait_time: number;
+  payment_status: string;
+  message: string;
+}
+
+interface PatientNotification {
+  status: 'be_ready' | 'prepare' | 'waiting' | 'payment_required' | 'queue_not_active' | 'completed' | 'current_or_missed';
+  message: string;
+  position?: number;
+  isNext?: boolean;
+  appointment: {
+    queueNumber: string;
+    isEmergency: boolean;
+    doctorName: string;
+    specialty: string;
+    status: string;
+  };
+  queueInfo?: {
+    currentNumber: string;
+    isActive: boolean;
+  };
 }
 
 const PatientQueue = () => {
+  const { user, isAuthenticated } = useAuthStore();
   const [appointments, setAppointments] = useState<QueuePosition[]>([]);
+  const [notifications, setNotifications] = useState<{ [key: string]: PatientNotification }>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Only fetch if user is authenticated
+    if (!isAuthenticated || !user) {
+      console.log('Patient Queue: User not authenticated, skipping fetch');
+      setIsLoading(false);
+      return;
+    }
+
     fetchQueuePosition();
     
-    // Poll for updates every 30 seconds
-    const interval = setInterval(fetchQueuePosition, 30000);
+    // Poll for updates every 60 seconds (reduced frequency)
+    const interval = setInterval(() => {
+      if (isAuthenticated && user) {
+        console.log('Polling queue position...');
+        fetchQueuePosition();
+      }
+    }, 60000);
     
     return () => clearInterval(interval);
-  }, []);
+  }, [isAuthenticated, user]);
 
   const fetchQueuePosition = async () => {
+    // Double check authentication
+    if (!isAuthenticated || !user) {
+      console.log('fetchQueuePosition: Not authenticated');
+      setIsLoading(false);
+      return;
+    }
+
     try {
       setIsLoading(true);
       setError(null);
       
-      const response = await apiService.getPatientQueuePosition();
+      console.log('Fetching queue position for user:', user.id);
       
-      if (response.success && response.data) {
-        setAppointments(response.data.appointments || []);
+      // Get queue position for all doctors (no specific doctorId)
+      const positionResponse = await apiService.getPatientQueuePosition();
+      
+      console.log('📊 Raw API Response:', positionResponse);
+      
+      if (positionResponse.success && positionResponse.data) {
+        const appointmentData = Array.isArray(positionResponse.data) 
+          ? positionResponse.data 
+          : [positionResponse.data];
+        
+        console.log('📋 Processed appointment data:', appointmentData);
+        
+        // Fix data format issues
+        const fixedData = appointmentData.map(appointment => ({
+          ...appointment,
+          queue_position: appointment.queue_position !== undefined ? Number(appointment.queue_position) : 0,
+          estimated_wait_time: appointment.estimated_wait_time !== undefined ? Number(appointment.estimated_wait_time) : 0,
+          queue_number: appointment.queue_number || appointment.queueNumber || 'N/A'
+        }));
+        
+        console.log('🔧 Fixed appointment data:', fixedData);
+        setAppointments(fixedData);
+        
+        // Only get notifications for the first appointment to avoid too many API calls
+        if (appointmentData.length > 0) {
+          try {
+            const firstAppointment = appointmentData[0];
+            const doctorId = firstAppointment.doctor_id || firstAppointment.doctorId;
+            
+            if (doctorId) {
+              console.log('Fetching notification for doctor:', doctorId);
+              const notifResponse = await apiService.getPatientNotification(doctorId);
+              
+              if (notifResponse.success && notifResponse.data) {
+                setNotifications({
+                  [doctorId]: notifResponse.data
+                });
+              }
+            }
+          } catch (err) {
+            console.warn('Failed to fetch notification:', err);
+            // Continue without notifications if they fail
+          }
+        }
       } else {
-        setError(response.error || 'Failed to fetch queue position');
+        setError(positionResponse.error || 'Failed to fetch queue position');
       }
     } catch (err) {
       setError('Failed to fetch queue position');
@@ -55,7 +139,10 @@ const PatientQueue = () => {
     }
   };
 
-  const formatWaitTime = (minutes: number) => {
+  const formatWaitTime = (minutes: number | undefined | null) => {
+    if (minutes === undefined || minutes === null || isNaN(minutes) || minutes < 0) {
+      return 'Unknown';
+    }
     if (minutes === 0) return 'Now';
     if (minutes < 60) return `${minutes}min`;
     const hours = Math.floor(minutes / 60);
@@ -67,6 +154,20 @@ const PatientQueue = () => {
     return (
       <div className="flex justify-center items-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated || !user) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Card>
+          <div className="p-8 text-center">
+            <UserIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Please Log In</h3>
+            <p className="text-gray-500">You need to be logged in to view your queue status.</p>
+          </div>
+        </Card>
       </div>
     );
   }
@@ -96,13 +197,46 @@ const PatientQueue = () => {
             <CalendarIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No Appointments Today</h3>
             <p className="text-gray-500">You don't have any appointments scheduled for today.</p>
+            <p className="text-sm text-gray-400 mt-2">Please book an appointment with a doctor to join the queue.</p>
           </div>
         </Card>
       ) : (
         <div className="space-y-4">
-          {appointments.map((appointment) => (
+          {appointments.map((appointment) => {
+            const notification = notifications[appointment.doctor_id];
+            
+            return (
             <Card key={appointment.id}>
               <div className="p-6">
+                {/* Enhanced notification banner */}
+                {notification && (
+                  <div className={`mb-4 p-3 rounded-lg border-l-4 ${
+                    notification.status === 'be_ready' 
+                      ? 'bg-red-50 border-red-400 text-red-800'
+                    : notification.status === 'prepare'
+                      ? 'bg-yellow-50 border-yellow-400 text-yellow-800'
+                    : notification.status === 'payment_required'
+                      ? 'bg-orange-50 border-orange-400 text-orange-800'
+                    : notification.status === 'queue_not_active'
+                      ? 'bg-gray-50 border-gray-400 text-gray-800'
+                    : notification.status === 'completed'
+                      ? 'bg-green-50 border-green-400 text-green-800'
+                    : 'bg-blue-50 border-blue-400 text-blue-800'
+                  }`}>
+                    <div className="flex items-center space-x-2">
+                      {notification.status === 'be_ready' && (
+                        <div className="animate-pulse font-bold text-lg">🔔</div>
+                      )}
+                      <p className="font-medium">{notification.message}</p>
+                    </div>
+                    {notification.position && (
+                      <p className="text-sm mt-1">
+                        Position in queue: {notification.position} 
+                        {notification.isNext && " (You're next!)"}
+                      </p>
+                    )}
+                  </div>
+                )}
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center space-x-3">
                     <div className="flex-shrink-0 h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
@@ -133,13 +267,19 @@ const PatientQueue = () => {
                       <div>
                         <div className="text-sm font-medium text-gray-700">Your Queue Number</div>
                         <div className="text-2xl font-bold text-blue-600">
-                          {appointment.is_emergency ? `E${appointment.queue_number}` : appointment.queue_number}
+                          {appointment.queue_number === undefined || appointment.queue_number === null 
+                            ? 'N/A' 
+                            : appointment.is_emergency 
+                              ? `E${appointment.queue_number}` 
+                              : appointment.queue_number}
                         </div>
                       </div>
                       <div className="text-right">
                         <div className="text-sm text-gray-500">Current Number</div>
                         <div className="text-lg font-semibold text-gray-900">
-                          {appointment.is_emergency ? appointment.current_emergency_number : appointment.current_number}
+                          {appointment.is_emergency 
+                            ? (appointment.current_emergency_number || 'N/A')
+                            : (appointment.current_number || 'N/A')}
                         </div>
                       </div>
                     </div>
@@ -150,7 +290,11 @@ const PatientQueue = () => {
                       <div>
                         <div className="text-sm font-medium text-gray-700">Position in Queue</div>
                         <div className="text-2xl font-bold text-yellow-600">
-                          {appointment.queue_position === 0 ? 'Next' : `${appointment.queue_position + 1}`}
+                          {appointment.queue_position === undefined || appointment.queue_position === null || isNaN(appointment.queue_position) 
+                            ? 'Unknown' 
+                            : appointment.queue_position === 0 
+                              ? 'Next' 
+                              : `${appointment.queue_position + 1}`}
                         </div>
                       </div>
                       <ClockIcon className="w-6 h-6 text-yellow-600" />
@@ -167,6 +311,35 @@ const PatientQueue = () => {
                       </div>
                       <ClockIcon className="w-6 h-6 text-green-600" />
                     </div>
+                  </div>
+                </div>
+
+                {/* Payment Status Section */}
+                <div className="mt-4 p-4 border rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-sm font-medium text-gray-700">Payment Status</div>
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        appointment.payment_status === 'paid' 
+                          ? 'bg-green-100 text-green-800'
+                        : appointment.payment_status === 'partially_paid'
+                          ? 'bg-yellow-100 text-yellow-800'
+                        : appointment.payment_status === 'unpaid'
+                          ? 'bg-red-100 text-red-800'
+                        : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {appointment.payment_status === 'paid' ? 'Paid ✓' :
+                         appointment.payment_status === 'partially_paid' ? 'Partially Paid' :
+                         appointment.payment_status === 'unpaid' ? 'Payment Required' : 'Refunded'}
+                      </span>
+                    </div>
+                    {appointment.payment_status === 'unpaid' && (
+                      <div className="text-right">
+                        <div className="text-xs text-red-600 font-medium">
+                          Complete payment to join active queue
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -192,7 +365,8 @@ const PatientQueue = () => {
                 </div>
               </div>
             </Card>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
