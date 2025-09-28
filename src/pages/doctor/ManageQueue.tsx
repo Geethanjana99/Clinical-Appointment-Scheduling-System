@@ -12,7 +12,6 @@ import {
   SettingsIcon, 
   PlayIcon, 
   PauseIcon,
-  AlertTriangleIcon,
   PhoneIcon
 } from 'lucide-react';
 
@@ -40,14 +39,12 @@ const ManageQueue = () => {
     fetchDoctorAvailability,
     updateAvailabilityStatus,
     updateWorkingHours,
-    toggleQueue,
     callNextPatient,
     completeConsultation,
     setShowWorkingHoursSuccessModal,
     getWaitingPatients,
     getInProgressPatients,
     getCompletedPatients,
-    getEmergencyPatients,
     // New enhanced methods
     startQueue,
     stopQueue,
@@ -217,7 +214,6 @@ const ManageQueue = () => {
   const waitingPatients = getWaitingPatients();
   const inProgressPatients = getInProgressPatients();
   const completedPatients = getCompletedPatients();
-  const emergencyPatients = getEmergencyPatients();
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -380,10 +376,6 @@ const ManageQueue = () => {
                   <div className="text-2xl font-bold text-green-600">{completedPatients.length}</div>
                   <div className="text-sm text-gray-600">Completed</div>
                 </div>
-                <div className="bg-red-50 p-3 rounded">
-                  <div className="text-2xl font-bold text-red-600">{emergencyPatients.length}</div>
-                  <div className="text-sm text-gray-600">Emergency</div>
-                </div>
               </div>
               
               {/* Payment Statistics */}
@@ -492,11 +484,6 @@ const ManageQueue = () => {
                   </div>
                   <div className="text-right">
                     <div className="flex space-x-2">
-                      {nextPatient.is_emergency && (
-                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
-                          Emergency
-                        </span>
-                      )}
                       <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
                         Paid
                       </span>
@@ -592,7 +579,7 @@ const ManageQueue = () => {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {queue.map((patient) => (
-                    <tr key={patient.id} className={patient.is_emergency ? 'bg-red-50' : ''}>
+                    <tr key={patient.id}>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="flex-shrink-0 h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
@@ -610,19 +597,14 @@ const ManageQueue = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          {patient.is_emergency && (
-                            <AlertTriangleIcon className="h-4 w-4 text-red-500 mr-2" />
-                          )}
                           <span className="text-sm font-medium">
-                            {patient.is_emergency ? `E${patient.queue_number}` : patient.queue_number}
+                            {patient.queue_number}
                           </span>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          patient.is_emergency ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'
-                        }`}>
-                          {patient.is_emergency ? 'Emergency' : 'Regular'}
+                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                          Regular
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">

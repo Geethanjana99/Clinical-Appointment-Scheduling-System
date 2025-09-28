@@ -13,7 +13,6 @@ interface QueueItem {
   queue_number: number;
   status: QueueStatus;
   priority: 'low' | 'medium' | 'high' | 'urgent';
-  is_emergency: boolean;
   payment_status: 'unpaid' | 'paid' | 'partially_paid' | 'refunded';
   reason_for_visit?: string;
   symptoms?: string;
@@ -25,9 +24,6 @@ interface QueueStatusInfo {
   doctor_id: string;
   queue_date: string;
   current_number: string;
-  current_emergency_number: string;
-  max_emergency_slots: number;
-  emergency_used: number;
   regular_count: number;
   available_from: string;
   available_to: string;
@@ -75,8 +71,6 @@ interface QueueState {
   getWaitingPatients: () => QueueItem[];
   getInProgressPatients: () => QueueItem[];
   getCompletedPatients: () => QueueItem[];
-  getEmergencyPatients: () => QueueItem[];
-  getRegularPatients: () => QueueItem[];
 }
 
 export const useQueueStore = create<QueueState>((set, get) => ({
@@ -118,7 +112,6 @@ export const useQueueStore = create<QueueState>((set, get) => ({
             queue_number: appointment.queue_number,
             status: appointment.status,
             priority: appointment.priority || 'medium',
-            is_emergency: appointment.is_emergency,
             payment_status: appointment.payment_status,
             reason_for_visit: appointment.reason_for_visit,
             symptoms: appointment.symptoms,
@@ -139,7 +132,6 @@ export const useQueueStore = create<QueueState>((set, get) => ({
             queue_number: appointment.queue_number,
             status: appointment.status,
             priority: appointment.priority || 'medium',
-            is_emergency: appointment.is_emergency,
             payment_status: appointment.payment_status || 'unpaid',
             reason_for_visit: appointment.reason_for_visit,
             symptoms: appointment.symptoms,
@@ -376,7 +368,6 @@ export const useQueueStore = create<QueueState>((set, get) => ({
           queue_number: patient.queue_number,
           status: patient.status,
           priority: patient.priority || 'medium',
-          is_emergency: patient.is_emergency,
           payment_status: patient.payment_status,
           reason_for_visit: patient.reason_for_visit,
           symptoms: patient.symptoms,
@@ -439,13 +430,5 @@ export const useQueueStore = create<QueueState>((set, get) => ({
     return queue.filter(item => item.status === 'completed');
   },
 
-  getEmergencyPatients: () => {
-    const { queue } = get();
-    return queue.filter(item => item.is_emergency);
-  },
 
-  getRegularPatients: () => {
-    const { queue } = get();
-    return queue.filter(item => !item.is_emergency);
-  }
 }));

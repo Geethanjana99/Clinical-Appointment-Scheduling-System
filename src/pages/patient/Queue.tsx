@@ -12,11 +12,9 @@ interface QueuePosition {
   queue_number: number;
   status: string;
   priority: string;
-  is_emergency: boolean;
   doctor_name: string;
   specialty: string;
   current_number: string;
-  current_emergency_number: string;
   queue_active: boolean;
   queue_position: number;
   estimated_wait_time: number;
@@ -31,7 +29,6 @@ interface PatientNotification {
   isNext?: boolean;
   appointment: {
     queueNumber: string;
-    isEmergency: boolean;
     doctorName: string;
     specialty: string;
     status: string;
@@ -251,11 +248,6 @@ const PatientQueue = () => {
                   </div>
                   <div className="text-right">
                     <div className="flex items-center space-x-2">
-                      {appointment.is_emergency && (
-                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
-                          Emergency
-                        </span>
-                      )}
                       <StatusBadge status={appointment.status as any} />
                     </div>
                   </div>
@@ -269,17 +261,13 @@ const PatientQueue = () => {
                         <div className="text-2xl font-bold text-blue-600">
                           {appointment.queue_number === undefined || appointment.queue_number === null 
                             ? 'N/A' 
-                            : appointment.is_emergency 
-                              ? `E${appointment.queue_number}` 
-                              : appointment.queue_number}
+                            : appointment.queue_number}
                         </div>
                       </div>
                       <div className="text-right">
                         <div className="text-sm text-gray-500">Current Number</div>
                         <div className="text-lg font-semibold text-gray-900">
-                          {appointment.is_emergency 
-                            ? (appointment.current_emergency_number || 'N/A')
-                            : (appointment.current_number || 'N/A')}
+                          {appointment.current_number || 'N/A'}
                         </div>
                       </div>
                     </div>
