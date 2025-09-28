@@ -19,6 +19,7 @@ const ManageDoctors = () => {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [dataSource, setDataSource] = useState<string>('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDoctor, setEditingDoctor] = useState<Doctor | null>(null);
@@ -27,6 +28,7 @@ const ManageDoctors = () => {
     email: '',
     specialty: '',
     phone: '',
+    availability: [] as string[],
     status: 'active' as 'active' | 'inactive'
   });
 
@@ -74,11 +76,15 @@ const ManageDoctors = () => {
       if (result.success) {
         await fetchDoctors();
         setError(null);
+        setSuccess(`Doctor "${doctorData.name}" added successfully!`);
+        // Clear success message after 3 seconds
+        setTimeout(() => setSuccess(null), 3000);
         return result.data;
       } else throw new Error(result.message);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to add doctor';
       setError(msg);
+      setSuccess(null);
       throw new Error(msg);
     }
   };
@@ -94,11 +100,15 @@ const ManageDoctors = () => {
       if (result.success) {
         await fetchDoctors();
         setError(null);
+        setSuccess(`Doctor "${doctorData.name}" updated successfully!`);
+        // Clear success message after 3 seconds
+        setTimeout(() => setSuccess(null), 3000);
         return result.data;
       } else throw new Error(result.message);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to update doctor';
       setError(msg);
+      setSuccess(null);
       throw new Error(msg);
     }
   };
@@ -112,18 +122,22 @@ const ManageDoctors = () => {
       if (result.success) {
         await fetchDoctors();
         setError(null);
+        setSuccess('Doctor deleted successfully!');
+        // Clear success message after 3 seconds
+        setTimeout(() => setSuccess(null), 3000);
         return result.data;
       } else throw new Error(result.message);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to delete doctor';
       setError(msg);
+      setSuccess(null);
       throw new Error(msg);
     }
   };
 
   const handleAddDoctor = () => {
     setEditingDoctor(null);
-    setFormData({ name: '', email: '', specialty: '', phone: '', status: 'active' });
+    setFormData({ name: '', email: '', specialty: '', phone: '', availability: [], status: 'active' });
     setIsModalOpen(true);
   };
 
@@ -134,6 +148,7 @@ const ManageDoctors = () => {
       email: doctor.email,
       specialty: doctor.specialty,
       phone: doctor.phone,
+      availability: doctor.availability || [],
       status: doctor.status,
     });
     setIsModalOpen(true);
@@ -143,6 +158,15 @@ const ManageDoctors = () => {
     if (window.confirm('Are you sure you want to delete this doctor?')) {
       await deleteDoctor(id);
     }
+  };
+
+  const handleAvailabilityChange = (day: string) => {
+    setFormData(prev => ({
+      ...prev,
+      availability: prev.availability.includes(day)
+        ? prev.availability.filter(d => d !== day)
+        : [...prev.availability, day]
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -175,6 +199,22 @@ const ManageDoctors = () => {
           Add Doctor
         </Button>
       </div>
+
+      {success && (
+        <div className="bg-green-50 border border-green-200 rounded-md p-4">
+          <div className="flex">
+            <svg className="h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            </svg>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-green-800">Success</h3>
+              <div className="mt-2 text-sm text-green-700">
+                <p>{success}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-md p-4">
@@ -221,42 +261,53 @@ const ManageDoctors = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {doctors.map((doctor) => (
-                  <tr key={doctor.id}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{doctor.name}</div>
-                      <div className="text-sm text-gray-500">{doctor.email}</div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-900">{doctor.specialty}</td>
-                    <td className="px-6 py-4 text-sm text-gray-900">{doctor.phone}</td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-wrap gap-1">
-                        {(doctor.availability || []).map((day) => (
-                          <span key={day} className="px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
-                            {day.slice(0, 3)}
-                          </span>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        doctor.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                      }`}>
-                        {doctor.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex space-x-2">
-                        <Button variant="outline" size="sm" onClick={() => handleEditDoctor(doctor)}>
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => handleDeleteDoctor(doctor.id)} className="text-red-600 hover:text-red-900">
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
+                {doctors.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                      No doctors found. Click "Add Doctor" to create the first doctor.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  doctors.map((doctor) => (
+                    <tr key={doctor.id}>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">{doctor.name}</div>
+                        <div className="text-sm text-gray-500">{doctor.email}</div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-900">{doctor.specialty}</td>
+                      <td className="px-6 py-4 text-sm text-gray-900">{doctor.phone}</td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-wrap gap-1">
+                          {(doctor.availability || []).map((day) => (
+                            <span key={day} className="px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
+                              {day.slice(0, 3)}
+                            </span>
+                          ))}
+                          {(!doctor.availability || doctor.availability.length === 0) && (
+                            <span className="text-sm text-gray-400">Not set</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          doctor.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        }`}>
+                          {doctor.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex space-x-2">
+                          <Button variant="outline" size="sm" onClick={() => handleEditDoctor(doctor)}>
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => handleDeleteDoctor(doctor.id)} className="text-red-600 hover:text-red-900">
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -284,6 +335,24 @@ const ManageDoctors = () => {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
             <Input type="tel" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} required />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              Availability (Days of the week)
+            </label>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
+                <label key={day} className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={formData.availability.includes(day)}
+                    onChange={() => handleAvailabilityChange(day)}
+                    className="mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-gray-700">{day}</span>
+                </label>
+              ))}
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>

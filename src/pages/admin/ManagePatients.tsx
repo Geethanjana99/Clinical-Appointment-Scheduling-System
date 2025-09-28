@@ -22,6 +22,7 @@ const ManagePatients = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [showPatientRegistration, setShowPatientRegistration] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
@@ -114,17 +115,10 @@ const ManagePatients = () => {
         console.log('✅ Patient saved successfully to mock API!');
         console.log('💾 Mock API record created:', result.data);
         
-        alert(`✅ PATIENT SUCCESSFULLY SAVED!
-
-📍 Data Storage Locations:
-• Frontend: Form cleared
-• Backend API: ✅ Processed
-• Mock Storage: ✅ Saved
-  - User ID: ${result.data.user?.id}
-  - Patient ID: ${result.data.patient?.patient_id}
-
-📋 Stored Data:
-${JSON.stringify(result.data, null, 2)}`);
+        setSuccess(`Patient "${patientData.firstName} ${patientData.lastName}" added successfully!`);
+        setError(null);
+        // Clear success message after 5 seconds
+        setTimeout(() => setSuccess(null), 5000);
         
         setShowPatientRegistration(false);
         setFormData({
@@ -145,10 +139,12 @@ ${JSON.stringify(result.data, null, 2)}`);
       } else {
         console.error('❌ Failed to save patient:', result.message);
         setError(result.message || 'Failed to create patient');
+        setSuccess(null);
       }
     } catch (error) {
       console.error('❌ Error creating patient:', error);
       setError(error instanceof Error ? error.message : 'Failed to create patient');
+      setSuccess(null);
     }
   };
 
@@ -301,26 +297,25 @@ ${JSON.stringify(result.data, null, 2)}`);
           // Remove from local state
           setPatients(prevPatients => prevPatients.filter(p => p.id !== patient.id));
           
-          alert(`✅ Patient ${patient.name} has been deleted successfully!
-          
-📍 Deletion Process:
-• Frontend: ✅ Removed from display
-• Backend API: ✅ Delete request processed
-• Database: ✅ Record removed/deactivated
-
-Note: Patient data has been permanently removed from the system.`);
+          setSuccess(`Patient "${patient.name}" deleted successfully!`);
+          setError(null);
+          // Clear success message after 3 seconds
+          setTimeout(() => setSuccess(null), 3000);
         } else {
           throw new Error(result.message || 'Failed to delete patient');
         }
       } else {
         // Fallback: just remove from local state
         setPatients(prevPatients => prevPatients.filter(p => p.id !== patient.id));
-        alert(`✅ Patient ${patient.name} has been removed from the display.`);
+        setSuccess(`Patient "${patient.name}" removed from display.`);
+        setError(null);
+        setTimeout(() => setSuccess(null), 3000);
       }
 
     } catch (error) {
       console.error('❌ Error deleting patient:', error);
       setError(error instanceof Error ? error.message : 'Failed to delete patient');
+      setSuccess(null);
     }
   };
 
@@ -405,16 +400,10 @@ Note: Patient data has been permanently removed from the system.`);
             emergencyPhone: ''
           });
 
-          alert(`✅ Patient ${updatedPatient.name} has been updated successfully!
-          
-📍 Update Process:
-• Frontend: ✅ Form data collected
-• Backend API: ✅ Update request processed
-• Database: ✅ Record updated
-• Display: ✅ Table refreshed
-
-📋 Updated Data:
-${JSON.stringify(updateData, null, 2)}`);
+          setSuccess(`Patient "${updatedPatient.name}" updated successfully!`);
+          setError(null);
+          // Clear success message after 3 seconds
+          setTimeout(() => setSuccess(null), 3000);
         } else {
           throw new Error(result.message || 'Failed to update patient');
         }
@@ -425,10 +414,27 @@ ${JSON.stringify(updateData, null, 2)}`);
     } catch (error) {
       console.error('❌ Error updating patient:', error);
       setError(error instanceof Error ? error.message : 'Failed to update patient');
+      setSuccess(null);
     }
   };
 
   return <div className="space-y-6">
+      {success && (
+        <div className="bg-green-50 border border-green-200 rounded-md p-4">
+          <div className="flex">
+            <svg className="h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            </svg>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-green-800">Success</h3>
+              <div className="mt-2 text-sm text-green-700">
+                <p>{success}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
           Error: {error}
