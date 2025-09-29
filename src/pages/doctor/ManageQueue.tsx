@@ -492,19 +492,19 @@ const ManageQueue = () => {
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Current Number Being Served */}
-            <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-xl shadow-lg">
+            <div className="bg-gradient-to-br from-blue-300 to-blue-400 text-gray-800 p-6 rounded-xl shadow-lg">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-blue-100 text-sm font-medium">Currently Serving</p>
-                  <p className="text-3xl font-bold">
+                  <p className="text-blue-800 text-sm font-medium">Currently Serving</p>
+                  <p className="text-3xl font-bold text-gray-900">
                     {(() => {
                       const currentPatient = queue.find(p => p.status === 'in-progress');
                       return currentPatient ? currentPatient.queue_number : (queueStatus?.current_number || '0');
                     })()}
                   </p>
                 </div>
-                <div className="bg-white bg-opacity-20 p-3 rounded-lg">
-                  <UserIcon className="h-8 w-8" />
+                <div className="bg-white bg-opacity-40 p-3 rounded-lg">
+                  <UserIcon className="h-8 w-8 text-blue-700" />
                 </div>
               </div>
             </div>
@@ -512,39 +512,39 @@ const ManageQueue = () => {
             {/* Queue Activity Status */}
             <div className={`p-6 rounded-xl shadow-lg ${
               queueStatus?.is_active 
-                ? 'bg-gradient-to-br from-green-500 to-green-600 text-white' 
-                : 'bg-gradient-to-br from-gray-400 to-gray-500 text-white'
+                ? 'bg-gradient-to-br from-green-300 to-green-400 text-gray-800' 
+                : 'bg-gradient-to-br from-gray-300 to-gray-400 text-gray-800'
             }`}>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className={`text-sm font-medium ${queueStatus?.is_active ? 'text-green-100' : 'text-gray-100'}`}>
+                  <p className={`text-sm font-medium ${queueStatus?.is_active ? 'text-green-800' : 'text-gray-700'}`}>
                     Queue Status
                   </p>
-                  <p className="text-2xl font-bold">
+                  <p className="text-2xl font-bold text-gray-900">
                     {queueStatus?.is_active ? 'ACTIVE' : 'INACTIVE'}
                   </p>
                 </div>
-                <div className="bg-white bg-opacity-20 p-3 rounded-lg">
+                <div className="bg-white bg-opacity-40 p-3 rounded-lg">
                   {queueStatus?.is_active ? (
-                    <PlayIcon className="h-8 w-8" />
+                    <PlayIcon className="h-8 w-8 text-green-700" />
                   ) : (
-                    <PauseIcon className="h-8 w-8" />
+                    <PauseIcon className="h-8 w-8 text-gray-600" />
                   )}
                 </div>
               </div>
             </div>
 
             {/* Remaining Paid Patients */}
-            <div className="bg-gradient-to-br from-green-500 to-green-600 text-white p-6 rounded-xl shadow-lg">
+            <div className="bg-gradient-to-br from-green-300 to-green-400 text-gray-800 p-6 rounded-xl shadow-lg">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-green-100 text-sm font-medium">Remaining Paid Patients</p>
-                  <p className="text-3xl font-bold">
+                  <p className="text-green-800 text-sm font-medium">Remaining Paid Patients</p>
+                  <p className="text-3xl font-bold text-gray-900">
                     {queue.filter(p => p.payment_status === 'paid' && ['scheduled', 'confirmed'].includes(p.status)).length}
                   </p>
                 </div>
-                <div className="bg-white bg-opacity-20 p-3 rounded-lg">
-                  <UserIcon className="h-8 w-8" />
+                <div className="bg-white bg-opacity-40 p-3 rounded-lg">
+                  <UserIcon className="h-8 w-8 text-green-700" />
                 </div>
               </div>
             </div>
