@@ -399,6 +399,10 @@ class ApiService {
     return this.makeRequest<any>('/doctors/statistics');
   }
 
+  async getDoctorPatients(): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>('/doctors/patients');
+  }
+
   async getDoctorEarnings(): Promise<ApiResponse<any>> {
     return this.makeRequest<any>('/doctors/earnings');
   }
