@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Card from '../../components/ui/Card';
-import StatusBadge from '../../components/ui/StatusBadge';
 import Button from '../../components/ui/Button';
+import AppointmentCard from '../../components/ui/AppointmentCard';
+import AppointmentDetailModal from '../../components/ui/AppointmentDetailModal';
 import { CalendarIcon, ClockIcon, ActivityIcon, ChevronRightIcon } from 'lucide-react';
 import { apiService } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
@@ -16,6 +17,8 @@ interface Appointment {
   appointment_date: string;
   appointment_time: string;
   status: string;
+  queue_number?: number | string;
+  queue_position?: number;
 }
 
 // Mock data for other sections (will be replaced later)
@@ -46,6 +49,8 @@ const PatientDashboard = () => {
   const [upcomingAppointments, setUpcomingAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const { isAuthenticated } = useAuthStore();
 
   // Fetch upcoming appointments on component mount
@@ -99,21 +104,14 @@ const PatientDashboard = () => {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      weekday: 'short',
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
+  const handleViewDetails = (appointment: Appointment) => {
+    setSelectedAppointment(appointment);
+    setIsDetailModalOpen(true);
   };
 
-  const formatTime = (timeString: string) => {
-    return new Date(`1970-01-01T${timeString}`).toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    });
+  const handleCloseDetailModal = () => {
+    setIsDetailModalOpen(false);
+    setSelectedAppointment(null);
   };
 
   return <div className="space-y-6">
@@ -148,29 +146,12 @@ const PatientDashboard = () => {
           ) : upcomingAppointments.length > 0 ? (
             <div className="space-y-4">
               {upcomingAppointments.map(appointment => (
-                <div key={appointment.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                  <div>
-                    <h3 className="font-medium text-gray-900">
-                      {appointment.doctor_name}
-                    </h3>
-                    <p className="text-sm text-gray-500">
-                      {appointment.specialty}
-                    </p>
-                    <div className="flex items-center mt-1 text-sm text-gray-700">
-                      <CalendarIcon className="w-4 h-4 mr-1 text-gray-400" />
-                      {formatDate(appointment.appointment_date)} at {formatTime(appointment.appointment_time)}
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                      ID: {appointment.appointment_id}
-                    </p>
-                  </div>
-                  <div className="flex flex-col items-end">
-                    <StatusBadge status={appointment.status as any} />
-                    <Link to={`/patient/queue`} className="mt-2 text-sm text-blue-600 hover:text-blue-800">
-                      Check queue
-                    </Link>
-                  </div>
-                </div>
+                <AppointmentCard
+                  key={appointment.id}
+                  appointment={appointment}
+                  variant="dashboard"
+                  onViewDetails={handleViewDetails}
+                />
               ))}            </div>
           ) : (
             <div className="text-center py-8">
@@ -259,6 +240,13 @@ const PatientDashboard = () => {
             </div>}
         </Card>
       </div>
-    </div>;
+    </div>
+    
+    {/* Appointment Detail Modal */}
+    <AppointmentDetailModal
+      isOpen={isDetailModalOpen}
+      onClose={handleCloseDetailModal}
+      appointment={selectedAppointment}
+    />;
 };
 export default PatientDashboard;
