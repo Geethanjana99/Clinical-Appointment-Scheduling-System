@@ -240,25 +240,27 @@ const GenerateInvoiceModal: React.FC<GenerateInvoiceModalProps> = ({
                         {error && (
                             <p className="text-red-600 text-sm mt-1">{error}</p>
                         )}
-                    </div><div className="space-y-2">
-                            <label className="block text-sm font-medium text-gray-700">
-                                Appointment Date
-                            </label>
-                            <Input
-                                type="date"
-                                value={formData.appointmentDate}
-                                onChange={(e) => handleInputChange('appointmentDate', e.target.value)}
-                                required
-                                className="transition-all duration-200 hover:border-blue-400 focus:border-blue-500 h-12 text-base"
-                            />
-                        </div>
-                    </div>                    <div className="mt-6">
+                    <div className="space-y-2"></div>
+                        <label className="block text-sm font-medium text-gray-700">
+                            Appointment Date
+                        </label>
+                        <Input
+                            type="date"
+                            value={formData.appointmentDate}
+                            min={new Date().toISOString().split('T')[0]}
+                            onChange={(e) => handleInputChange('appointmentDate', e.target.value)}
+                            required
+                            className="transition-all duration-200 hover:border-blue-400 focus:border-blue-500 h-12 text-base"
+                        />
+                    </div>
+                    <div className="mt-6"></div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                             Payment Due Date
                         </label>
                         <Input
                             type="date"
                             value={formData.dueDate}
+                            min={new Date().toISOString().split('T')[0]}
                             onChange={(e) => handleInputChange('dueDate', e.target.value)}
                             required
                             className="max-w-xs transition-all duration-200 hover:border-blue-400 focus:border-blue-500 h-12 text-base"

@@ -204,6 +204,36 @@ class ApiService {
     return this.makeRequest<any[]>('/billing/patient-names');
   }
 
+  async getDoctorNames (): Promise<ApiResponse<any[]>> {
+    return this.makeRequest<any[]>('/doctors/names');
+  }
+
+  // Create a new insurance claim
+  async createInsuranceClaim(claimData: any): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>('/insurance-claims', {
+      method: 'POST',
+      body: JSON.stringify(claimData),
+    });
+  }
+
+  // Get all insurance claims
+  async getInsuranceClaims(): Promise<ApiResponse<any[]>> {
+    return this.makeRequest<any[]>('/insurance-claims');
+  }
+
+  // Get insurance claim by ID
+  async getInsuranceClaimById(id: string): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>(`/insurance-claims/${id}`);
+  }
+
+  // Update insurance claim status
+  async updateInsuranceClaimStatus(id: string, status: string): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>(`/insurance-claims/${id}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    });
+  }
+
   // Create a new invoice
   async createInvoice(invoiceData: any): Promise<ApiResponse<any>> {
     return this.makeRequest<any>('/billing/invoices', {

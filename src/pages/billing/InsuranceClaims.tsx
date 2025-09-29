@@ -3,24 +3,22 @@ import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
 import CreateClaimModal from '../../components/modals/CreateClaimModal';
-import ViewClaimModal from '../../components/modals/ViewClaimModal';
+import { apiService } from '../../services/api';
 import { FileText, Clock, CheckCircle, XCircle, AlertTriangle, Search, Filter, Plus } from 'lucide-react';
 
 interface InsuranceClaim {
   id: string;
-  patientName: string;
-  patientId: string;
-  appointmentId: string;
-  doctorName: string;
-  serviceDate: string;
-  claimDate: string;
+  patient_name: string;
+  doctor_name: string;
+  service_date: string;
+  claim_date: string;
   amount: number;
-  insuranceProvider: string;
-  status: 'pending' | 'approved' | 'denied' | 'processing' | 'paid';
-  denialReason?: string;
-  approvedAmount?: number;
-  paidAmount?: number;
-  serviceType: string;
+  insurance_provider: string;
+  status: 'pending' | 'approved' | 'rejected' | 'processing' | 'paid';
+  service_type: string;
+  notes?: string;
+  created_at: string;
+  updated_at?: string;
 }
 
 const InsuranceClaims = () => {
@@ -28,27 +26,48 @@ const InsuranceClaims = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-  const [selectedClaim, setSelectedClaim] = useState<InsuranceClaim | null>(null);
+  const [loading, setLoading] = useState(true);
 
   React.useEffect(() => {
-    // Fetch insurance claims from backend API
-    fetch('/api/insurance-claims')
-      .then(res => {
-        if (!res.ok) throw new Error('Failed to fetch claims');
-        return res.json();
-      })
-      .then(data => {
-        setClaims(Array.isArray(data) ? data : []);
-      })
-      .catch(err => {
-        console.error('Error fetching insurance claims:', err);
-      });
+    fetchInsuranceClaims();
   }, []);
 
+  const fetchInsuranceClaims = async () => {
+    try {
+      setLoading(true);
+      const response = await apiService.getInsuranceClaims();
+      console.log('API Response:', response);
+      if (response.success && response.data) {
+        setClaims(response.data);
+        console.log('Claims set:', response.data);
+      } else {
+        console.error('Failed to fetch claims:', response.error);
+      }
+    } catch (err) {
+      console.error('Error fetching insurance claims:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleCreateClaim = (claimData: InsuranceClaim) => {
+    console.log('New claim created:', claimData);
     setClaims(prevClaims => [claimData, ...prevClaims]);
     setIsCreateModalOpen(false);
+    // Refresh the claims list to get the latest data
+    fetchInsuranceClaims();
+  };
+
+  const viewClaimDetails = (claimId: string) => {
+    // TODO: Implement view claim details modal
+    console.log('View claim details for:', claimId);
+    alert(`View details for claim ${claimId} - Feature coming soon!`);
+  };
+
+  const resubmitClaim = (claimId: string) => {
+    // TODO: Implement resubmit functionality
+    console.log('Resubmit claim:', claimId);
+    alert(`Resubmit claim ${claimId} - Feature coming soon!`);
   };
 
   const getStatusColor = (status: string) => {
@@ -61,14 +80,38 @@ const InsuranceClaims = () => {
         return 'success';
       case 'paid':
         return 'success';
-      case 'denied':
+      case 'rejected':
         return 'danger';
       default:
         return 'default';
     }
   };
 
-  const getStatusIcon = (status: string) => {
+    // Handle status change from pending to paid
+  const handleMarkAsPaid = async (claimId: string) => {
+    try {
+      // Call the API to update the status to 'paid'
+      const response = await apiService.updateInsuranceClaimStatus(claimId, 'paid');
+      
+      if (response.success) {
+        // Update local state optimistically
+        setClaims(prevClaims => 
+          prevClaims.map(claim => 
+            claim.id === claimId ? { ...claim, status: 'paid' } : claim
+          )
+        );
+        console.log('Claim marked as paid successfully');
+      } else {
+        console.error('Failed to mark claim as paid:', response.error);
+      }
+      
+    } catch (error) {
+      console.error('Error marking claim as paid:', error);
+      // Optionally show a user-friendly error message
+    }
+  };
+
+  const getStatusIcon = (status: InsuranceClaim['status']) => {
     switch (status) {
       case 'pending':
         return <Clock className="w-4 h-4" />;
@@ -77,7 +120,7 @@ const InsuranceClaims = () => {
       case 'approved':
       case 'paid':
         return <CheckCircle className="w-4 h-4" />;
-      case 'denied':
+      case 'rejected':
         return <XCircle className="w-4 h-4" />;
       default:
         return <FileText className="w-4 h-4" />;
@@ -85,51 +128,29 @@ const InsuranceClaims = () => {
   };
 
   const filteredClaims = claims.filter(claim => {
-    const matchesSearch = claim.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch = claim.patient_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          claim.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         claim.insuranceProvider.toLowerCase().includes(searchTerm.toLowerCase());
+                         claim.insurance_provider.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || claim.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
   const getClaimSummary = () => {
     const totalClaims = claims.length;
-    const totalAmount = claims.reduce((sum, claim) => sum + claim.amount, 0);
-    const paidAmount = claims.filter(c => c.status === 'paid').reduce((sum, claim) => sum + (claim.paidAmount || 0), 0);
-    const pendingAmount = claims.filter(c => c.status === 'pending' || c.status === 'processing').reduce((sum, claim) => sum + claim.amount, 0);
+    const totalAmount = claims.reduce((sum, claim) => sum + Number(claim.amount), 0);
+    const paidAmount = claims.filter(c => c.status === 'paid').reduce((sum, claim) => sum + Number(claim.amount), 0);
+    const pendingAmount = claims.filter(c => c.status === 'pending' || c.status === 'processing').reduce((sum, claim) => sum + Number(claim.amount), 0);
     
     return { totalClaims, totalAmount, paidAmount, pendingAmount };
   };
 
   const summary = getClaimSummary();
-  const resubmitClaim = (claimId: string) => {
-    setClaims(prevClaims => 
-      prevClaims.map(claim => 
-        claim.id === claimId 
-          ? { 
-              ...claim, 
-              status: 'pending' as const, 
-              claimDate: new Date().toISOString().split('T')[0],
-              denialReason: undefined // Clear the denial reason
-            }
-          : claim
-      )
-    );
-    // Show success message
-    alert(`Claim ${claimId} has been resubmitted successfully. Status changed to Pending.`);
-  };
-  const viewClaimDetails = (claimId: string) => {
-    const claim = claims.find(c => c.id === claimId);
-    if (claim) {
-      setSelectedClaim(claim);
-      setIsViewModalOpen(true);
-    }
-  };
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-900">Insurance Claims</h1>        <Button onClick={() => setIsCreateModalOpen(true)}>
+        <h1 className="text-2xl font-bold text-gray-900">Insurance Claims</h1>        
+        <Button onClick={() => setIsCreateModalOpen(true)}>
           <Plus className="w-4 h-4 mr-2" />
           Create New Claim
         </Button>
@@ -218,10 +239,10 @@ const InsuranceClaims = () => {
             >
               <option value="all">All Status</option>
               <option value="pending">Pending</option>
-              <option value="processing">Processing</option>
-              <option value="approved">Approved</option>
+              {/* <option value="processing">Processing</option>
+              <option value="approved">Approved</option> */}
               <option value="paid">Paid</option>
-              <option value="denied">Denied</option>
+              {/* <option value="rejected">Rejected</option> */}
             </select>
           </div>
         </div>
@@ -229,8 +250,14 @@ const InsuranceClaims = () => {
 
       {/* Claims Table */}
       <Card>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
+        {loading ? (
+          <div className="text-center py-12">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <p className="mt-2 text-sm text-gray-500">Loading claims...</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -266,26 +293,20 @@ const InsuranceClaims = () => {
                     {claim.id}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{claim.patientName}</div>
-                    <div className="text-sm text-gray-500">ID: {claim.patientId}</div>
+                    <div className="text-sm font-medium text-gray-900">{claim.patient_name}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {claim.doctorName}
+                    {claim.doctor_name}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{claim.serviceType}</div>
-                    <div className="text-sm text-gray-500">{claim.serviceDate}</div>
+                    <div className="text-sm text-gray-900">{claim.service_type}</div>
+                    <div className="text-sm text-gray-500">{new Date(claim.service_date).toLocaleDateString()}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {claim.insuranceProvider}
+                    {claim.insurance_provider}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">${claim.amount.toFixed(2)}</div>
-                    {claim.approvedAmount && (
-                      <div className="text-sm text-green-600">
-                        Approved: ${claim.approvedAmount.toFixed(2)}
-                      </div>
-                    )}
+                    <div className="text-sm text-gray-900">${Number(claim.amount).toFixed(2)}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
@@ -294,9 +315,6 @@ const InsuranceClaims = () => {
                         {claim.status}
                       </Badge>
                     </div>
-                    {claim.denialReason && (
-                      <div className="text-xs text-red-600 mt-1">{claim.denialReason}</div>
-                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex space-x-2">
@@ -307,7 +325,16 @@ const InsuranceClaims = () => {
                       >
                         View
                       </Button>
-                      {claim.status === 'denied' && (
+                      {claim.status === 'pending' && (
+                        <Button
+                          size="sm"
+                          onClick={() => handleMarkAsPaid(claim.id)}
+                          className="bg-green-600 hover:bg-green-700 text-white"
+                        >
+                          Mark as Paid
+                        </Button>
+                      )}
+                      {claim.status === 'rejected' && (
                         <Button
                           size="sm"
                           onClick={() => resubmitClaim(claim.id)}
@@ -322,7 +349,10 @@ const InsuranceClaims = () => {
             </tbody>
           </table>
         </div>
-      </Card>      {filteredClaims.length === 0 && (
+        )}
+      </Card>
+
+      {!loading && filteredClaims.length === 0 && (
         <Card>
           <div className="text-center py-12">
             <FileText className="mx-auto h-12 w-12 text-gray-400" />
@@ -339,17 +369,6 @@ const InsuranceClaims = () => {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onCreateClaim={handleCreateClaim}
-      />
-
-      {/* View Claim Modal */}
-      <ViewClaimModal
-        isOpen={isViewModalOpen}
-        onClose={() => {
-          setIsViewModalOpen(false);
-          setSelectedClaim(null);
-        }}
-        claim={selectedClaim}
-        onResubmit={resubmitClaim}
       />
     </div>
   );

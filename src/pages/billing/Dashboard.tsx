@@ -134,9 +134,6 @@ const BillingDashboard = () => {
   const stats = calculateStats();  const handleGenerateInvoice = async (invoiceData: any) => {
     console.log('Generated Invoice:', invoiceData);
     
-    // Show success message
-    alert(`Invoice ${invoiceData.invoiceNumber} generated successfully for ${invoiceData.patientName}!`);
-    
     // Refresh both recent invoices and all invoices to update dashboard stats
     await fetchRecentInvoices();
     await fetchAllInvoices();
@@ -159,31 +156,22 @@ const BillingDashboard = () => {
     setSelectedInvoice(formattedInvoice);
     setIsViewModalOpen(true);
   };  const handleRecordPaymentFromModal = async (invoice: any) => {
-    // Show confirmation dialog
-    const confirmPayment = window.confirm(
-      `Are you sure you want to record payment for Invoice ${invoice.invoice_number || invoice.invoiceNumber}?\nAmount: ${formatCurrency(invoice.total_amount || invoice.totalAmount)}`
-    );
-    
-    if (confirmPayment) {
-      try {
-        // Call the backend API to update the payment status
-        console.log('Updating invoice status for ID:', invoice.id);
-        const response = await apiService.updateInvoiceStatus(invoice.id, 'paid');
-        
-        console.log('Update response:', response);
-          if (response.success) {
-          alert(`Payment recorded successfully for Invoice ${invoice.invoice_number || invoice.invoiceNumber}!`);
-          // Refresh the recent invoices and all invoices to show updated status and stats
-          await fetchRecentInvoices();
-          await fetchAllInvoices();
-        } else {
-          console.error('API returned success: false', response);
-          alert(`Failed to record payment: ${response.message || 'Unknown error'}`);
-        }      } catch (error) {
-        console.error('Error recording payment:', error);
-        const errorMessage = error instanceof Error ? error.message : 'Please try again.';
-        alert(`Error recording payment: ${errorMessage}`);
+    try {
+      // Call the backend API to update the payment status
+      console.log('Updating invoice status for ID:', invoice.id);
+      const response = await apiService.updateInvoiceStatus(invoice.id, 'paid');
+      
+      console.log('Update response:', response);
+      
+      if (response.success) {
+        // Refresh the recent invoices and all invoices to show updated status and stats
+        await fetchRecentInvoices();
+        await fetchAllInvoices();
+      } else {
+        console.error('API returned success: false', response);
       }
+    } catch (error) {
+      console.error('Error recording payment:', error);
     }
   };
 
