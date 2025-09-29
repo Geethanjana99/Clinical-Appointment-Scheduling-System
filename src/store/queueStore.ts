@@ -20,14 +20,22 @@ interface QueueItem {
 }
 
 interface QueueStatusInfo {
-  id: string;
+  id?: string;
   doctor_id: string;
-  queue_date: string;
+  queue_date?: string;
   current_number: string;
+  current_emergency_number?: string;
   regular_count: number;
+  emergency_used?: number;
+  max_emergency_slots?: number;
   available_from: string;
   available_to: string;
   is_active: boolean;
+  created_at?: string | null;
+  updated_at?: string | null;
+  doctor_name?: string;
+  specialty?: string;
+  message?: string;
 }
 
 interface DoctorAvailability {
@@ -85,12 +93,13 @@ export const useQueueStore = create<QueueState>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
       
-      // Try to get enhanced queue data first
+      // Use the enhanced doctor appointments API that includes queue status in a single call
       let queueResponse;
       try {
-        queueResponse = await apiService.getQueue();
+        // This API returns appointments WITH queue status for doctors
+        queueResponse = await apiService.getTodayAppointments();
       } catch (error) {
-        console.warn('Enhanced queue API failed, falling back to basic appointments:', error);
+        console.warn('Enhanced appointments API failed, falling back to basic appointments:', error);
         // Fallback to basic appointments
         queueResponse = await apiService.getTodayAppointments();
       }
@@ -99,17 +108,41 @@ export const useQueueStore = create<QueueState>((set, get) => ({
         let appointments = [];
         let queueStatus = null;
         
-        // Handle enhanced queue response format
-        if (queueResponse.data.appointments) {
+        // Handle enhanced doctor appointments API response format
+        if (Array.isArray(queueResponse.data)) {
+          // Enhanced doctor appointments API returns array of appointments with queue status
+          appointments = queueResponse.data.map((appointment: any) => ({
+            id: appointment.appointment_id || appointment.id,
+            appointment_id: appointment.appointment_id || appointment.id,
+            patient_id: appointment.patient_id,
+            name: appointment.name || 'Unknown Patient',
+            email: appointment.email || '',
+            phone: appointment.phone || '',
+            queue_number: appointment.queue_number,
+            status: appointment.status,
+            priority: appointment.priority || 'medium',
+            payment_status: appointment.payment_status || 'unpaid',
+            reason_for_visit: appointment.reason_for_visit,
+            symptoms: appointment.symptoms,
+            estimatedWaitTime: 15
+          }));
+          
+          // Extract queue status from the response - it should be included in each appointment
+          if (queueResponse.data.length > 0 && queueResponse.data[0].queueStatus) {
+            queueStatus = queueResponse.data[0].queueStatus;
+          }
+
+        }
+        // Handle legacy appointments response format  
+        else if (queueResponse.data.appointments) {
           const queueData = queueResponse.data;
           appointments = queueData.appointments?.map((appointment: any) => ({
             id: appointment.id,
             appointment_id: appointment.appointment_id,
             patient_id: appointment.patient_id,
-            // Handle multiple possible field names for patient data
-            name: appointment.patient_name || appointment.name || 'Unknown Patient',
-            email: appointment.patient_email || appointment.email || '',
-            phone: appointment.patient_phone || appointment.phone || '',
+            name: appointment.name || 'Unknown Patient',
+            email: appointment.email || '',
+            phone: appointment.phone || '',
             queue_number: appointment.queue_number,
             status: appointment.status,
             priority: appointment.priority || 'medium',
@@ -120,25 +153,6 @@ export const useQueueStore = create<QueueState>((set, get) => ({
           })) || [];
           
           queueStatus = queueData.queueStatus;
-        } 
-        // Handle basic appointments response format  
-        else if (Array.isArray(queueResponse.data)) {
-          appointments = queueResponse.data.map((appointment: any) => ({
-            id: appointment.id,
-            appointment_id: appointment.appointment_id,
-            patient_id: appointment.patient_id,
-            // Handle both enhanced and basic response formats
-            name: appointment.patient_name || appointment.name || 'Unknown Patient',
-            email: appointment.patient_email || appointment.email || '',
-            phone: appointment.patient_phone || appointment.phone || '',
-            queue_number: appointment.queue_number,
-            status: appointment.status,
-            priority: appointment.priority || 'medium',
-            payment_status: appointment.payment_status || 'unpaid',
-            reason_for_visit: appointment.reason_for_visit,
-            symptoms: appointment.symptoms,
-            estimatedWaitTime: 15
-          }));
         }
         
         set({ 
@@ -147,9 +161,14 @@ export const useQueueStore = create<QueueState>((set, get) => ({
           error: null 
         });
         
-        // Update queue status if available
+        // Update queue status if available from the enhanced API response
         if (queueStatus) {
+          console.log('Queue status extracted from enhanced appointments API:', queueStatus);
           set({ queueStatus });
+        }
+        // If no queue status found in appointments, get it from root level
+        if (!queueStatus && (queueResponse as any).queueStatus) {
+          queueStatus = (queueResponse as any).queueStatus;
         }
       } else {
         set({ error: queueResponse.error || 'Failed to fetch appointments', isLoading: false });

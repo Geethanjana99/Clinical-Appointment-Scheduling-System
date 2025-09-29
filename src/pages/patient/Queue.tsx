@@ -93,15 +93,22 @@ const PatientQueue = () => {
         
         console.log('📋 Processed appointment data:', appointmentData);
         
-        // Fix data format issues
+        // Fix data format issues - map backend property names to frontend expected names
         const fixedData = appointmentData.map(appointment => ({
           ...appointment,
-          queue_position: appointment.queue_position !== undefined ? Number(appointment.queue_position) : 0,
+          // Map position from backend to queue_position for frontend
+          queue_position: appointment.position !== undefined ? Number(appointment.position) : 
+                         (appointment.queue_position !== undefined ? Number(appointment.queue_position) : 0),
           estimated_wait_time: appointment.estimated_wait_time !== undefined ? Number(appointment.estimated_wait_time) : 0,
           queue_number: appointment.queue_number || appointment.queueNumber || 'N/A',
           payment_status: appointment.payment_status || appointment.paymentStatus || 'unpaid',
           doctor_name: appointment.doctor_name || appointment.doctorName || 'Unknown Doctor',
-          specialty: appointment.specialty || appointment.specialization || 'Unknown Specialty'
+          specialty: appointment.specialty || appointment.specialization || 'Unknown Specialty',
+          // Map currentNumber from backend to current_number for frontend
+          current_number: appointment.currentNumber || appointment.current_number || 'N/A',
+          // Map queueActive status
+          queue_active: appointment.queueActive !== undefined ? appointment.queueActive : 
+                       (appointment.queue_active !== undefined ? appointment.queue_active : false)
         }));
         
         console.log('🔧 Fixed appointment data:', fixedData);
@@ -285,9 +292,9 @@ const PatientQueue = () => {
                         <div className="text-2xl font-bold text-yellow-600">
                           {appointment.queue_position === undefined || appointment.queue_position === null || isNaN(appointment.queue_position) 
                             ? 'Unknown' 
-                            : appointment.queue_position === 0 
+                            : appointment.queue_position <= 1 
                               ? 'Next' 
-                              : `${appointment.queue_position + 1}`}
+                              : `${appointment.queue_position}`}
                         </div>
                       </div>
                       <ClockIcon className="w-6 h-6 text-yellow-600" />

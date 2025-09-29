@@ -35,7 +35,6 @@ const ManageQueue = () => {
     error,
     showWorkingHoursSuccessModal,
     fetchTodayAppointments,
-    fetchQueueStatus,
     fetchDoctorAvailability,
     updateAvailabilityStatus,
     updateWorkingHours,
@@ -66,8 +65,8 @@ const ManageQueue = () => {
 
   useEffect(() => {
     if (user) {
+      // fetchTodayAppointments now includes queue status, so no need for separate fetchQueueStatus call
       fetchTodayAppointments();
-      fetchQueueStatus();
       fetchDoctorAvailability();
     }
   }, [user]);
@@ -102,8 +101,7 @@ const ManageQueue = () => {
       if (newStatus) {
         // Starting queue
         await startQueue();
-        await fetchQueueStatus();
-        await fetchTodayAppointments();
+        await fetchTodayAppointments(); // This now includes queue status
         
         // Wait a moment for data to update
         setTimeout(async () => {
@@ -113,8 +111,7 @@ const ManageQueue = () => {
       } else {
         // Stopping queue
         await stopQueue();
-        // Refresh queue status and appointments
-        await fetchQueueStatus();
+        // Refresh appointments with queue status
         await fetchTodayAppointments();
         setNextPatient(null);
       }
@@ -353,6 +350,12 @@ const ManageQueue = () => {
                   <div className="text-2xl font-bold text-green-600">{completedPatients.length}</div>
                   <div className="text-sm text-gray-600">Completed</div>
                 </div>
+                <div className="bg-purple-50 p-3 rounded">
+                  <div className="text-2xl font-bold text-purple-600">
+                    {queueStatus?.current_number || '0'}
+                  </div>
+                  <div className="text-sm text-gray-600">Current #</div>
+                </div>
               </div>
               
               {/* Payment Statistics */}
@@ -383,6 +386,115 @@ const ManageQueue = () => {
                 </div>
               </div>
             </>
+          )}
+        </div>
+      </Card>
+
+      {/* Queue Status Details */}
+      {queueStatus && (
+        <Card>
+          <div className="p-6">
+            <h3 className="text-lg font-semibold mb-4">Queue Status Information</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <div className="text-sm font-medium text-gray-700">Current Number</div>
+                <div className="text-2xl font-bold text-blue-600">
+                  {queueStatus.current_number || '0'}
+                </div>
+              </div>
+              <div className="bg-green-50 p-4 rounded-lg">
+                <div className="text-sm font-medium text-gray-700">Queue Active</div>
+                <div className="text-2xl font-bold text-green-600">
+                  {queueStatus.is_active ? 'YES' : 'NO'}
+                </div>
+              </div>
+              <div className="bg-purple-50 p-4 rounded-lg">
+                <div className="text-sm font-medium text-gray-700">Available Hours</div>
+                <div className="text-lg font-semibold text-purple-600">
+                  {queueStatus.available_from} - {queueStatus.available_to}
+                </div>
+              </div>
+              <div className="bg-orange-50 p-4 rounded-lg">
+                <div className="text-sm font-medium text-gray-700">Emergency Count</div>
+                <div className="text-2xl font-bold text-orange-600">
+                  {queueStatus.emergency_used || 0}/{queueStatus.max_emergency_slots || 5}
+                </div>
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Enhanced Queue Status Display */}
+      <Card>
+        <div className="p-6">
+          <h3 className="text-lg font-semibold mb-4">Live Queue Status</h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Current Number Being Served */}
+            <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-xl shadow-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-blue-100 text-sm font-medium">Currently Serving</p>
+                  <p className="text-3xl font-bold">{queueStatus?.current_number || '0'}</p>
+                </div>
+                <div className="bg-white bg-opacity-20 p-3 rounded-lg">
+                  <UserIcon className="h-8 w-8" />
+                </div>
+              </div>
+            </div>
+
+            {/* Queue Activity Status */}
+            <div className={`p-6 rounded-xl shadow-lg ${
+              queueStatus?.is_active 
+                ? 'bg-gradient-to-br from-green-500 to-green-600 text-white' 
+                : 'bg-gradient-to-br from-gray-400 to-gray-500 text-white'
+            }`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className={`text-sm font-medium ${queueStatus?.is_active ? 'text-green-100' : 'text-gray-100'}`}>
+                    Queue Status
+                  </p>
+                  <p className="text-2xl font-bold">
+                    {queueStatus?.is_active ? 'ACTIVE' : 'INACTIVE'}
+                  </p>
+                </div>
+                <div className="bg-white bg-opacity-20 p-3 rounded-lg">
+                  {queueStatus?.is_active ? (
+                    <PlayIcon className="h-8 w-8" />
+                  ) : (
+                    <PauseIcon className="h-8 w-8" />
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Emergency Number */}
+            <div className="bg-gradient-to-br from-orange-500 to-orange-600 text-white p-6 rounded-xl shadow-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-orange-100 text-sm font-medium">Emergency Serving</p>
+                  <p className="text-3xl font-bold">{queueStatus?.current_emergency_number || 'E0'}</p>
+                </div>
+                <div className="bg-white bg-opacity-20 p-3 rounded-lg">
+                  <PhoneIcon className="h-8 w-8" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Queue Operating Hours */}
+          {queueStatus && (
+            <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600">Operating Hours:</span>
+                <span className="font-semibold text-gray-800">
+                  {queueStatus.available_from} - {queueStatus.available_to}
+                </span>
+                <span className="text-gray-600">Date:</span>
+                <span className="font-semibold text-gray-800">{queueStatus.queue_date}</span>
+              </div>
+            </div>
           )}
         </div>
       </Card>
