@@ -12,7 +12,10 @@ import {
   SettingsIcon, 
   PlayIcon, 
   PauseIcon,
-  PhoneIcon
+  PhoneIcon,
+  RefreshCwIcon,
+  Stethoscope,
+  UserCheck
 } from 'lucide-react';
 
 type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
@@ -81,8 +84,22 @@ const ManageQueue = () => {
   }, [queueStatus?.is_active]);
 
   useEffect(() => {
+    console.log('Doctor availability data:', doctorAvailability);
     if (doctorAvailability?.working_hours) {
-      setWorkingHours(doctorAvailability.working_hours);
+      console.log('Working hours from backend:', doctorAvailability.working_hours);
+      // Merge backend data with defaults to ensure all days are present
+      const mergedHours = {
+        monday: doctorAvailability.working_hours.monday || { start: '09:00', end: '17:00', enabled: true },
+        tuesday: doctorAvailability.working_hours.tuesday || { start: '09:00', end: '17:00', enabled: true },
+        wednesday: doctorAvailability.working_hours.wednesday || { start: '09:00', end: '17:00', enabled: true },
+        thursday: doctorAvailability.working_hours.thursday || { start: '09:00', end: '17:00', enabled: true },
+        friday: doctorAvailability.working_hours.friday || { start: '09:00', end: '17:00', enabled: true },
+        saturday: doctorAvailability.working_hours.saturday || { start: '10:00', end: '14:00', enabled: false },
+        sunday: doctorAvailability.working_hours.sunday || { start: '10:00', end: '14:00', enabled: false }
+      };
+      setWorkingHours(mergedHours);
+    } else {
+      console.log('No working hours received from backend, keeping defaults');
     }
   }, [doctorAvailability]);
 
@@ -487,93 +504,187 @@ const ManageQueue = () => {
         </div>
       </Card>
 
-      {/* Next Patient Section - Only show when queue is active */}
+      {/* Enhanced Next Patient Section - Only show when queue is active */}
       {queueStatus?.is_active && (
-        <Card>
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-blue-600">Next Patient</h3>
+        <Card className="shadow-lg border-t-4 border-t-blue-500">
+          <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 rounded-t-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-white/20 rounded-full">
+                  <UserIcon className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold">Next Patient</h3>
+                  <p className="text-blue-100 text-sm">{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                </div>
+              </div>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleGetNextPatient}
-                className="text-blue-600 border-blue-600 hover:bg-blue-50"
+                className="bg-white/10 text-white border-white/30 hover:bg-white/20 backdrop-blur-sm"
               >
-                Refresh Next Patient
+                <RefreshCwIcon className="w-4 h-4 mr-2" />
+                Refresh
               </Button>
             </div>
-            
+          </div>
+          
+          <div className="p-6">
             {nextPatient ? (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="flex-shrink-0 h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center">
-                      <UserIcon className="h-6 w-6 text-blue-600" />
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl shadow-sm">
+                {/* Patient Header */}
+                <div className="px-6 py-4 border-b border-blue-200">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div className="relative">
+                        <div className="h-16 w-16 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center shadow-lg">
+                          <UserIcon className="h-8 w-8 text-white" />
+                        </div>
+                        <div className="absolute -bottom-1 -right-1 h-6 w-6 bg-green-500 rounded-full flex items-center justify-center shadow-sm">
+                          <span className="text-xs font-bold text-white">#{nextPatient.queue_number}</span>
+                        </div>
+                      </div>
+                      <div>
+                        <h4 className="text-xl font-bold text-gray-900">{nextPatient.name}</h4>
+                        <div className="flex items-center space-x-4 mt-1">
+                          <div className="flex items-center text-gray-600">
+                            <PhoneIcon className="h-4 w-4 mr-1" />
+                            <span className="text-sm">{nextPatient.phone}</span>
+                          </div>
+                          {nextPatient.email && (
+                            <div className="flex items-center text-gray-600">
+                              <span className="text-sm">{nextPatient.email}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-900">{nextPatient.name}</h4>
-                      <p className="text-sm text-gray-600">Queue #{nextPatient.queue_number}</p>
-                      <p className="text-xs text-gray-500">{nextPatient.phone}</p>
+                    <div className="text-right">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <span className="inline-flex px-3 py-1 text-sm font-semibold rounded-full bg-green-100 text-green-800 shadow-sm">
+                          💳 Paid
+                        </span>
+                        <span className={`inline-flex px-3 py-1 rounded-full text-sm font-medium shadow-sm ${
+                          nextPatient.status === 'in-progress' 
+                            ? 'bg-amber-100 text-amber-800' 
+                            : nextPatient.status === 'confirmed'
+                            ? 'bg-blue-100 text-blue-800'
+                            : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {nextPatient.status === 'in-progress' ? '🔄 In Consultation' : 
+                           nextPatient.status === 'confirmed' ? '⏳ Ready to Start' : 
+                           `📋 ${nextPatient.status}`}
+                        </span>
+                      </div>
+                      {nextPatient.estimatedWaitTime && (
+                        <p className="text-sm text-gray-600">
+                          ⏱️ Est. wait: {nextPatient.estimatedWaitTime} min
+                        </p>
+                      )}
                     </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="flex space-x-2">
-                      <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-                        Paid
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-600 mt-1">
-                      {nextPatient.reason_for_visit || 'No reason specified'}
-                    </p>
                   </div>
                 </div>
-                <div className="mt-4 flex space-x-2">
-                  {nextPatient.status === 'in-progress' ? (
-                    <Button
-                      variant="primary"
-                      onClick={() => handleCompleteConsultation(nextPatient.id)}
-                      className="flex items-center space-x-1 bg-green-600 hover:bg-green-700"
-                    >
-                      <CheckIcon className="w-4 h-4" />
-                      <span>Finish Consultation</span>
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="primary"
-                      onClick={() => handleCallNextPatient(nextPatient.id)}
-                      className="flex items-center space-x-1"
-                    >
-                      <PhoneIcon className="w-4 h-4" />
-                      <span>Start Consultation</span>
-                    </Button>
-                  )}
-                  
-                  <div className="flex items-center space-x-2 text-sm">
-                    <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
-                      nextPatient.status === 'in-progress' 
-                        ? 'bg-yellow-100 text-yellow-800' 
-                        : 'bg-blue-100 text-blue-800'
-                    }`}>
-                      {nextPatient.status === 'in-progress' ? 'In Consultation' : 'Waiting'}
-                    </span>
+
+                {/* Patient Details */}
+                <div className="px-6 py-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-3">
+                      <div className="bg-white rounded-lg p-3 shadow-sm border border-blue-100">
+                        <h5 className="font-semibold text-gray-700 text-sm mb-1">Reason for Visit</h5>
+                        <p className="text-gray-900">{nextPatient.reason_for_visit || 'General consultation'}</p>
+                      </div>
+                      {nextPatient.symptoms && (
+                        <div className="bg-white rounded-lg p-3 shadow-sm border border-orange-100">
+                          <h5 className="font-semibold text-gray-700 text-sm mb-1">Symptoms</h5>
+                          <p className="text-gray-900">{nextPatient.symptoms}</p>
+                        </div>
+                      )}
+                    </div>
+                    <div className="space-y-3">
+                      <div className="bg-white rounded-lg p-3 shadow-sm border border-purple-100">
+                        <h5 className="font-semibold text-gray-700 text-sm mb-1">Priority Level</h5>
+                        <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
+                          nextPatient.priority === 'urgent' ? 'bg-red-100 text-red-800' :
+                          nextPatient.priority === 'high' ? 'bg-orange-100 text-orange-800' :
+                          nextPatient.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-green-100 text-green-800'
+                        }`}>
+                          {nextPatient.priority || 'normal'}
+                        </span>
+                      </div>
+                      <div className="bg-white rounded-lg p-3 shadow-sm border border-indigo-100">
+                        <h5 className="font-semibold text-gray-700 text-sm mb-1">Appointment Type</h5>
+                        <p className="text-gray-900">
+                          {nextPatient.is_emergency ? '🚨 Emergency' : '📅 Regular'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="px-6 py-4 bg-white/50 rounded-b-xl border-t border-blue-200">
+                  <div className="flex items-center justify-between">
+                    <div className="flex space-x-3">
+                      {nextPatient.status === 'in-progress' ? (
+                        <Button
+                          variant="primary"
+                          onClick={() => handleCompleteConsultation(nextPatient.id)}
+                          className="flex items-center space-x-2 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 shadow-lg"
+                        >
+                          <CheckIcon className="w-5 h-5" />
+                          <span>Complete Consultation</span>
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="primary"
+                          onClick={() => handleCallNextPatient(nextPatient.id)}
+                          className="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg"
+                        >
+                          <Stethoscope className="w-5 h-5" />
+                          <span>Start Consultation</span>
+                        </Button>
+                      )}
+                    </div>
+                    
+                    <div className="text-sm text-gray-500">
+                      <div className="flex items-center space-x-2">
+                        <span>🕒</span>
+                        <span>Queue position: #{nextPatient.queue_number}</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="text-center py-8 text-gray-500">
-                <div className="mb-4">
-                  <UserIcon className="h-12 w-12 mx-auto text-gray-400 mb-3" />
-                  <p className="text-lg font-medium">No more patients in queue</p>
-                  <p className="text-sm">All paid patients have been served or there are no paid patients waiting.</p>
+              <div className="text-center py-12">
+                <div className="max-w-sm mx-auto">
+                  <div className="mb-6">
+                    <div className="h-20 w-20 mx-auto bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center shadow-inner">
+                      <UserIcon className="h-10 w-10 text-gray-400" />
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <h4 className="text-xl font-semibold text-gray-900">Queue Complete! 🎉</h4>
+                    <p className="text-gray-600">
+                      Excellent work! All paid patients have been served.
+                    </p>
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 mt-4">
+                      <p className="text-sm text-green-800">
+                        ✅ You can now take a break or check for new appointments
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={handleGetNextPatient}
+                    className="mt-6 flex items-center space-x-2 mx-auto"
+                  >
+                    <RefreshCwIcon className="w-4 h-4" />
+                    <span>Check for New Patients</span>
+                  </Button>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleGetNextPatient}
-                  className="mt-2"
-                >
-                  Refresh Queue
-                </Button>
               </div>
             )}
           </div>
@@ -688,8 +799,8 @@ const ManageQueue = () => {
                               onClick={() => handleCallNextPatient(patient.id)}
                               className="flex items-center space-x-1"
                             >
-                              <PhoneIcon className="w-4 h-4" />
-                              <span>Call</span>
+                              <UserCheck className="w-4 h-4" />
+                              <span>Consult</span>
                             </Button>
                           )}
                           {patient.status === 'in-progress' && (
