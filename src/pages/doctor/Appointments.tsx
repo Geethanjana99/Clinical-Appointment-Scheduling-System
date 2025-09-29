@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
-import { Calendar, Clock, CheckCircle, XCircle, User, MapPin } from 'lucide-react';
+import { Calendar, CheckCircle, XCircle, User, MapPin } from 'lucide-react';
 import { apiService } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 
@@ -11,18 +11,19 @@ interface Appointment {
   appointment_id?: string;
   patient_id: string;
   doctor_id: string;
-  patient_name: string;
+  patient_name?: string;
+  patientName?: string;  // API returns camelCase
+  patientEmail?: string; // API returns camelCase
   patient_phone?: string;
   appointment_date: string;
   appointment_time: string;
-  appointment_type: 'consultation' | 'follow-up' | 'emergency';
+  appointment_type: 'consultation' | 'follow-up';
   status: 'scheduled' | 'confirmed' | 'completed' | 'cancelled' | 'pending';
   reason_for_visit: string;
   symptoms?: string;
   priority?: string;
   consultation_fee?: number;
   queue_number?: number;
-  is_emergency?: boolean;
   duration?: number; // in minutes
   notes?: string;
   created_at?: string;
@@ -34,6 +35,8 @@ const DoctorAppointments = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const { user } = useAuthStore();
 
   // Fetch appointments from API
@@ -42,9 +45,22 @@ const DoctorAppointments = () => {
       setLoading(true);
       setError(null);
       
+      console.log('🔄 Appointments: Fetching appointments for date:', selectedDate);
+      console.log('🔄 Appointments: User info:', { 
+        userId: user?.id, 
+        role: user?.role, 
+        name: user?.name 
+      });
+      
       // Calculate date range for the selected date
       const startDate = selectedDate;
       const endDate = selectedDate;
+      
+      console.log('🔄 Appointments: Making API call with params:', {
+        startDate,
+        endDate,
+        limit: 100
+      });
       
       const response = await apiService.getDoctorAppointments({
         startDate,
@@ -52,15 +68,24 @@ const DoctorAppointments = () => {
         limit: 100 // Get all appointments for the day
       });
       
+      console.log('✅ Appointments: API response received:', {
+        success: response.success,
+        dataType: typeof response.data,
+        dataLength: response.data?.length,
+        appointmentsLength: response.data?.appointments?.length,
+        rawData: response.data
+      });
+      
       if (response.success && response.data) {
         const appointmentsData = response.data.appointments || response.data || [];
         setAppointments(appointmentsData);
       } else {
+        console.error('❌ Appointments: API call failed:', response.message);
         setError(response.message || 'Failed to fetch appointments');
       }
     } catch (err) {
+      console.error('❌ Appointments: Error fetching appointments:', err);
       setError('An error occurred while fetching appointments');
-      console.error('Error fetching appointments:', err);
     } finally {
       setLoading(false);
     }
@@ -162,10 +187,24 @@ const DoctorAppointments = () => {
     }
   };
 
-  // Filter appointments for the selected date
-  const todayAppointments = appointments.filter(apt => {
-    const appointmentDate = apt.appointment_date;
-    return appointmentDate === selectedDate;
+  const handleViewDetails = (appointment: Appointment) => {
+    setSelectedAppointment(appointment);
+    setShowDetailsModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setSelectedAppointment(null);
+    setShowDetailsModal(false);
+  };
+
+  // Since the backend now filters by date correctly, we don't need frontend filtering
+  // Just use all appointments returned from the API
+  const todayAppointments = appointments;
+  
+  console.log('📋 Appointments: Frontend filtering result:', {
+    totalAppointments: appointments.length,
+    selectedDate: selectedDate,
+    appointmentsAfterFilter: todayAppointments.length
   });
   
   const pendingCount = todayAppointments.filter(apt => apt.status === 'pending' || apt.status === 'scheduled').length;
@@ -197,7 +236,7 @@ const DoctorAppointments = () => {
             <div className="flex items-center">
               <div className="flex-shrink-0">
                 <div className="w-8 h-8 bg-yellow-100 rounded-lg flex items-center justify-center">
-                  <Clock className="w-4 h-4 text-yellow-600" />
+                  <Calendar className="w-4 h-4 text-yellow-600" />
                 </div>
               </div>
               <div className="ml-5 w-0 flex-1">
@@ -319,9 +358,6 @@ const DoctorAppointments = () => {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Time
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Patient
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -346,21 +382,13 @@ const DoctorAppointments = () => {
                     <tr key={appointment.id || appointment.appointment_id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          <Clock className="w-4 h-4 text-gray-400 mr-2" />
-                          <span className="text-sm font-medium text-gray-900">
-                            {appointment.appointment_time?.slice(0, 5) || 'N/A'}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
                           <User className="w-4 h-4 text-gray-400 mr-2" />
                           <div>
                             <div className="text-sm font-medium text-gray-900">
-                              {appointment.patient_name || 'Unknown Patient'}
+                              {appointment.patientName || appointment.patient_name || 'Unknown Patient'}
                             </div>
                             <div className="text-sm text-gray-500">
-                              {appointment.patient_phone || 'No phone'}
+                              {appointment.patientEmail || appointment.patient_phone || 'No contact info'}
                             </div>
                           </div>
                         </div>
@@ -375,11 +403,6 @@ const DoctorAppointments = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         <div className="flex items-center">
-                          {appointment.is_emergency && (
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 mr-2">
-                              Emergency
-                            </span>
-                          )}
                           {appointment.priority || 'Normal'}
                         </div>
                       </td>
@@ -422,6 +445,7 @@ const DoctorAppointments = () => {
                             <Button
                               size="sm"
                               variant="outline"
+                              onClick={() => handleViewDetails(appointment)}
                             >
                               View Details
                             </Button>
@@ -436,6 +460,162 @@ const DoctorAppointments = () => {
           )}
         </div>
       </Card>
+
+      {/* Appointment Details Modal */}
+      {showDetailsModal && selectedAppointment && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold text-gray-900">Appointment Details</h2>
+              <button
+                onClick={handleCloseModal}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              {/* Patient Information */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h3 className="font-medium text-gray-900 mb-2">Patient Information</h3>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="font-medium">Name:</span> {selectedAppointment.patientName || selectedAppointment.patient_name || 'N/A'}
+                  </div>
+                  <div>
+                    <span className="font-medium">Email:</span> {selectedAppointment.patientEmail || 'N/A'}
+                  </div>
+                  <div>
+                    <span className="font-medium">Phone:</span> {selectedAppointment.patient_phone || 'N/A'}
+                  </div>
+                  <div>
+                    <span className="font-medium">Patient ID:</span> {selectedAppointment.patient_id || 'N/A'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Appointment Information */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h3 className="font-medium text-gray-900 mb-2">Appointment Information</h3>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="font-medium">Appointment ID:</span> {selectedAppointment.appointment_id || selectedAppointment.id}
+                  </div>
+                  <div>
+                    <span className="font-medium">Date:</span> {new Date(selectedAppointment.appointment_date).toLocaleDateString()}
+                  </div>
+                  <div>
+                    <span className="font-medium">Type:</span> 
+                    <Badge className={`ml-2 ${getTypeColor(selectedAppointment.appointment_type)}`}>
+                      {selectedAppointment.appointment_type}
+                    </Badge>
+                  </div>
+                  <div>
+                    <span className="font-medium">Status:</span> 
+                    <Badge className={`ml-2 ${getStatusColor(selectedAppointment.status)}`}>
+                      {selectedAppointment.status}
+                    </Badge>
+                  </div>
+                  <div>
+                    <span className="font-medium">Queue Number:</span> {selectedAppointment.queue_number || 'N/A'}
+                  </div>
+                  <div>
+                    <span className="font-medium">Priority:</span> {selectedAppointment.priority || 'Normal'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Medical Information */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h3 className="font-medium text-gray-900 mb-2">Medical Information</h3>
+                <div className="space-y-2 text-sm">
+                  <div>
+                    <span className="font-medium">Reason for Visit:</span> 
+                    <p className="mt-1">{selectedAppointment.reason_for_visit || 'N/A'}</p>
+                  </div>
+                  {selectedAppointment.symptoms && (
+                    <div>
+                      <span className="font-medium">Symptoms:</span> 
+                      <p className="mt-1">{selectedAppointment.symptoms}</p>
+                    </div>
+                  )}
+                  {selectedAppointment.notes && (
+                    <div>
+                      <span className="font-medium">Notes:</span> 
+                      <div className="mt-1 bg-white p-2 rounded border">
+                        {(() => {
+                          try {
+                            const notes = JSON.parse(selectedAppointment.notes);
+                            return (
+                              <div className="space-y-1">
+                                {notes.notes && <p><strong>Notes:</strong> {notes.notes}</p>}
+                                {notes.diagnosis && <p><strong>Diagnosis:</strong> {notes.diagnosis}</p>}
+                                {notes.prescription && <p><strong>Prescription:</strong> {notes.prescription}</p>}
+                              </div>
+                            );
+                          } catch {
+                            return <p>{selectedAppointment.notes}</p>;
+                          }
+                        })()}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Payment Information */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h3 className="font-medium text-gray-900 mb-2">Payment Information</h3>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="font-medium">Consultation Fee:</span> ${selectedAppointment.consultation_fee || 'N/A'}
+                  </div>
+                  <div>
+                    <span className="font-medium">Payment Status:</span> 
+                    <Badge className={`ml-2 ${(selectedAppointment as any).payment_status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                      {(selectedAppointment as any).payment_status || 'pending'}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+
+              {/* Timestamps */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h3 className="font-medium text-gray-900 mb-2">Timeline</h3>
+                <div className="space-y-2 text-sm">
+                  {selectedAppointment.created_at && (
+                    <div>
+                      <span className="font-medium">Created:</span> {new Date(selectedAppointment.created_at).toLocaleString()}
+                    </div>
+                  )}
+                  {(selectedAppointment as any).confirmed_at && (
+                    <div>
+                      <span className="font-medium">Confirmed:</span> {new Date((selectedAppointment as any).confirmed_at).toLocaleString()}
+                    </div>
+                  )}
+                  {(selectedAppointment as any).completed_at && (
+                    <div>
+                      <span className="font-medium">Completed:</span> {new Date((selectedAppointment as any).completed_at).toLocaleString()}
+                    </div>
+                  )}
+                  {selectedAppointment.updated_at && (
+                    <div>
+                      <span className="font-medium">Last Updated:</span> {new Date(selectedAppointment.updated_at).toLocaleString()}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end mt-6">
+              <Button variant="outline" onClick={handleCloseModal}>
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

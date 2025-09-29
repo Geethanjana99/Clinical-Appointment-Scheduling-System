@@ -34,17 +34,18 @@ interface HealthSubmission {
   patientEmail: string;
   
   // Doctor certification data (only shown if certified)
-  certification?: {
-    id: string;
+  doctorReview?: {
+    certificationId: string;
+    certificationStatus: string;
+    doctorNotes: string;
+    clinicalAssessment: string;
+    recommendations: string;
+    followUpRequired: boolean;
+    followUpDate?: string;
+    severityAssessment: 'low' | 'medium' | 'high' | 'critical';
+    certifiedAt: string;
     doctorName: string;
     doctorSpecialty: string;
-    recommendations: string;
-    clinicalNotes: string;
-    followupRequired: boolean;
-    followupDate?: string;
-    severity: 'low' | 'moderate' | 'high';
-    isActive: boolean;
-    certifiedAt: string;
   };
 }
 
@@ -115,7 +116,20 @@ const HealthPredictions = () => {
       ]);
 
       if (submissionsRes.success) {
-        setSubmissions(submissionsRes.data.submissions || []);
+        const submissions = submissionsRes.data.submissions || [];
+        // Flatten healthData and ensure each submission has required fields with defaults
+        const validatedSubmissions = submissions.map((submission: any) => ({
+          ...submission,
+          // Flatten healthData fields to root level for easier access
+          age: submission.healthData?.age || submission.age || 0,
+          bmi: submission.healthData?.bmi || submission.bmi || null,
+          glucose: submission.healthData?.glucose || submission.glucose || 0,
+          pregnancies: submission.healthData?.pregnancies || submission.pregnancies || 0,
+          insulin: submission.healthData?.insulin || submission.insulin || 0,
+          status: submission.status || 'submitted',
+          notes: submission.patientNotes || submission.notes || null
+        }));
+        setSubmissions(validatedSubmissions);
       }
 
       if (dashboardRes.success) {
@@ -179,9 +193,11 @@ const HealthPredictions = () => {
     switch (severity) {
       case 'low':
         return 'success';
-      case 'moderate':
+      case 'medium':
         return 'warning';
       case 'high':
+        return 'danger';
+      case 'critical':
         return 'danger';
       default:
         return 'default';
@@ -329,7 +345,7 @@ const HealthPredictions = () => {
             </div>
           </Card>
         ) : (
-          submissions.map((submission) => (
+          submissions.filter(submission => submission && submission.id).map((submission) => (
             <Card key={submission.id}>
               <div className="flex items-start space-x-4">
                 <div className="flex-shrink-0 mt-1">
@@ -342,11 +358,11 @@ const HealthPredictions = () => {
                       Health Data Submission
                     </h3>
                     <Badge variant={getStatusColor(submission.status)}>
-                      {submission.status.replace('_', ' ').toUpperCase()}
+                      {(submission.status || '').replace('_', ' ').toUpperCase()}
                     </Badge>
-                    {submission.certification && (
-                      <Badge variant={getSeverityColor(submission.certification.severity)}>
-                        {submission.certification.severity.toUpperCase()} SEVERITY
+                    {submission.doctorReview && submission.doctorReview.severityAssessment && (
+                      <Badge variant={getSeverityColor(submission.doctorReview.severityAssessment)}>
+                        {submission.doctorReview.severityAssessment.toUpperCase()} SEVERITY
                       </Badge>
                     )}
                   </div>
@@ -361,23 +377,23 @@ const HealthPredictions = () => {
                       <div className="bg-gray-50 rounded-lg p-3 space-y-2 text-sm">
                         <div className="flex justify-between">
                           <span className="text-gray-600">Age:</span>
-                          <span className="font-medium">{submission.age} years</span>
+                          <span className="font-medium">{submission.age && submission.age > 0 ? submission.age : 'N/A'} years</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-600">BMI:</span>
-                          <span className="font-medium">{submission.bmi.toFixed(1)}</span>
+                          <span className="font-medium">{submission.bmi && !isNaN(submission.bmi) ? Number(submission.bmi).toFixed(1) : 'N/A'}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-600">Glucose:</span>
-                          <span className="font-medium">{submission.glucose} mg/dL</span>
+                          <span className="font-medium">{submission.glucose && submission.glucose > 0 ? submission.glucose : 'N/A'} mg/dL</span>
                         </div>
-                        {submission.pregnancies > 0 && (
+                        {(submission.pregnancies || 0) > 0 && (
                           <div className="flex justify-between">
                             <span className="text-gray-600">Pregnancies:</span>
                             <span className="font-medium">{submission.pregnancies}</span>
                           </div>
                         )}
-                        {submission.insulin > 0 && (
+                        {(submission.insulin || 0) > 0 && (
                           <div className="flex justify-between">
                             <span className="text-gray-600">Insulin:</span>
                             <span className="font-medium">{submission.insulin}</span>
@@ -399,40 +415,66 @@ const HealthPredictions = () => {
                         Professional Assessment
                       </h4>
                       
-                      {submission.certification ? (
+                      {submission.doctorReview ? (
                         <div className="bg-blue-50 rounded-lg p-3 space-y-3 text-sm">
                           <div>
                             <span className="text-gray-600 block">Doctor:</span>
-                            <span className="font-medium">{submission.certification.doctorName}</span>
+                            <span className="font-medium">{submission.doctorReview.doctorName || 'N/A'}</span>
                             <span className="text-gray-500 text-xs block">
-                              {submission.certification.doctorSpecialty}
+                              {submission.doctorReview.doctorSpecialty || 'N/A'}
                             </span>
                           </div>
-                          
-                          <div>
-                            <span className="text-gray-600 block">Recommendations:</span>
-                            <p className="font-medium text-gray-800 whitespace-pre-wrap">
-                              {submission.certification.recommendations}
-                            </p>
-                          </div>
-                          
-                          {submission.certification.clinicalNotes && (
+
+                          {submission.doctorReview.clinicalAssessment && (
                             <div>
-                              <span className="text-gray-600 block">Clinical Notes:</span>
+                              <span className="text-gray-600 block">Clinical Assessment:</span>
                               <p className="font-medium text-gray-800 whitespace-pre-wrap">
-                                {submission.certification.clinicalNotes}
+                                {submission.doctorReview.clinicalAssessment}
                               </p>
                             </div>
                           )}
                           
-                          {submission.certification.followupRequired && (
+                          {submission.doctorReview.recommendations && (
+                            <div>
+                              <span className="text-gray-600 block">Recommendations:</span>
+                              <p className="font-medium text-gray-800 whitespace-pre-wrap">
+                                {submission.doctorReview.recommendations}
+                              </p>
+                            </div>
+                          )}
+                          
+                          {submission.doctorReview.doctorNotes && (
+                            <div>
+                              <span className="text-gray-600 block">Doctor Notes:</span>
+                              <p className="font-medium text-gray-800 whitespace-pre-wrap">
+                                {submission.doctorReview.doctorNotes}
+                              </p>
+                            </div>
+                          )}
+
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <span className="text-gray-600 block">Severity Assessment:</span>
+                              <Badge variant={getSeverityColor(submission.doctorReview.severityAssessment)}>
+                                {submission.doctorReview.severityAssessment.toUpperCase()}
+                              </Badge>
+                            </div>
+                            <div>
+                              <span className="text-gray-600 block">Status:</span>
+                              <Badge variant={submission.doctorReview.certificationStatus === 'certified' ? 'success' : 'warning'}>
+                                {submission.doctorReview.certificationStatus.toUpperCase()}
+                              </Badge>
+                            </div>
+                          </div>
+                          
+                          {submission.doctorReview.followUpRequired && (
                             <div className="bg-yellow-100 rounded p-2">
                               <span className="text-yellow-800 font-medium text-xs flex items-center">
                                 <Calendar className="w-3 h-3 mr-1" />
                                 Follow-up Required
-                                {submission.certification.followupDate && (
+                                {submission.doctorReview.followUpDate && (
                                   <span className="ml-2">
-                                    by {new Date(submission.certification.followupDate).toLocaleDateString()}
+                                    by {new Date(submission.doctorReview.followUpDate).toLocaleDateString()}
                                   </span>
                                 )}
                               </span>
@@ -440,7 +482,7 @@ const HealthPredictions = () => {
                           )}
                           
                           <div className="text-xs text-gray-500 pt-2 border-t border-blue-200">
-                            Certified on {new Date(submission.certification.certifiedAt).toLocaleDateString()}
+                            Certified on {new Date(submission.doctorReview.certifiedAt).toLocaleDateString()}
                           </div>
                         </div>
                       ) : (
@@ -465,14 +507,14 @@ const HealthPredictions = () => {
                     </div>
                     
                     <div className="flex items-center gap-2">
-                      {submission.certification && (
+                      {submission.doctorReview && (
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => {
                             setResultData({
                               submission,
-                              certification: submission.certification
+                              doctorReview: submission.doctorReview
                             });
                             setShowResultModal(true);
                           }}

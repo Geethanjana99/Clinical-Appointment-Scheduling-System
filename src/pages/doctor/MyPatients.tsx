@@ -1,73 +1,94 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
 import { useNavigate } from 'react-router-dom';
-import { Eye, Calendar, Clock, FileText, Activity } from 'lucide-react';
+import { Eye, Calendar, FileText, Activity } from 'lucide-react';
+import { apiService } from '../../services/api';
 
 interface Patient {
   id: string;
   name: string;
-  age: number;
-  gender: string;
-  lastVisit: string;
-  condition: string;
+  email?: string;
+  phone?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  bloodType?: string;
+  allergies?: string;
+  medicalHistory?: string;
+  currentMedications?: string;
+  totalAppointments: number;
+  completedAppointments: number;
+  cancelledAppointments: number;
+  lastVisit?: string;
+  lastCompletedVisit?: string;
   status: 'active' | 'inactive';
-  nextAppointment?: string;
-  diabetesRisk?: 'low' | 'medium' | 'high';
-  reports: number;
 }
 
 const MyPatients = () => {
   const navigate = useNavigate();
-  const [patients] = useState<Patient[]>([
-    {
-      id: '1',
-      name: 'John Smith',
-      age: 45,
-      gender: 'Male',
-      lastVisit: '2024-01-15',
-      condition: 'Diabetes Monitoring',
-      status: 'active',
-      nextAppointment: '2024-01-22',
-      diabetesRisk: 'medium',
-      reports: 3
-    },
-    {
-      id: '2',
-      name: 'Sarah Johnson',
-      age: 32,
-      gender: 'Female',
-      lastVisit: '2024-01-10',
-      condition: 'Routine Checkup',
-      status: 'active',
-      diabetesRisk: 'low',
-      reports: 2
-    },
-    {
-      id: '3',
-      name: 'Michael Brown',
-      age: 58,
-      gender: 'Male',
-      lastVisit: '2024-01-08',
-      condition: 'Hypertension',
-      status: 'active',
-      nextAppointment: '2024-01-25',
-      diabetesRisk: 'high',
-      reports: 5
-    },
-    {
-      id: '4',
-      name: 'Emily Davis',
-      age: 28,
-      gender: 'Female',
-      lastVisit: '2023-12-20',
-      condition: 'Annual Physical',
-      status: 'inactive',
-      diabetesRisk: 'low',
-      reports: 1
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchPatients();
+  }, []);
+
+  const fetchPatients = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await apiService.getDoctorPatients();
+      
+      if (response.success && response.data) {
+        setPatients(response.data.patients || []);
+      } else {
+        setError(response.message || 'Failed to fetch patients');
+      }
+    } catch (err) {
+      console.error('Error fetching patients:', err);
+      setError('Failed to load patients');
+    } finally {
+      setLoading(false);
     }
-  ]);
+  };
+
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return 'Never';
+    return new Date(dateString).toLocaleDateString();
+  };
+
+  const calculateAge = (dateOfBirth?: string) => {
+    if (!dateOfBirth) return 'Unknown';
+    const today = new Date();
+    const birthDate = new Date(dateOfBirth);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    
+    return age;
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-red-600 mb-4">{error}</p>
+        <Button onClick={fetchPatients}>Try Again</Button>
+      </div>
+    );
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -80,27 +101,13 @@ const MyPatients = () => {
     }
   };
 
-  const getRiskColor = (risk: string) => {
-    switch (risk) {
-      case 'low':
-        return 'bg-green-100 text-green-800';
-      case 'medium':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'high':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
   const handleViewPatient = (patientId: string) => {
     navigate(`/doctor/patient/${patientId}`);
   };
 
   const totalPatients = patients.length;
   const activePatients = patients.filter(p => p.status === 'active').length;
-  const upcomingAppointments = patients.filter(p => p.nextAppointment).length;
-  const highRiskPatients = patients.filter(p => p.diabetesRisk === 'high').length;
+  const completedAppointments = patients.reduce((sum, p) => sum + p.completedAppointments, 0);
 
   return (
     <div className="space-y-6">
@@ -165,10 +172,10 @@ const MyPatients = () => {
               <div className="ml-5 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">
-                    Upcoming Appointments
+                    Total Appointments
                   </dt>
                   <dd className="text-lg font-medium text-gray-900">
-                    {upcomingAppointments}
+                    {completedAppointments}
                   </dd>
                 </dl>
               </div>
@@ -180,17 +187,17 @@ const MyPatients = () => {
           <div className="p-6">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center">
-                  <Activity className="w-4 h-4 text-red-600" />
+                <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                  <Activity className="w-4 h-4 text-green-600" />
                 </div>
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">
-                    High Risk Patients
+                    Active Patients
                   </dt>
                   <dd className="text-lg font-medium text-gray-900">
-                    {highRiskPatients}
+                    {activePatients}
                   </dd>
                 </dl>
               </div>
@@ -209,19 +216,19 @@ const MyPatients = () => {
                   Patient
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Condition
+                  Medical History
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Last Visit
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Next Appointment
+                  Appointments
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Diabetes Risk
+                  Blood Type
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Reports
+                  Completed
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
@@ -237,36 +244,35 @@ const MyPatients = () => {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div>
                       <div className="text-sm font-medium text-gray-900">{patient.name}</div>
-                      <div className="text-sm text-gray-500">{patient.age} years, {patient.gender}</div>
+                      <div className="text-sm text-gray-500">
+                        {calculateAge(patient.dateOfBirth)} years, {patient.gender || 'Unknown'}
+                      </div>
+                      <div className="text-xs text-gray-400">{patient.email}</div>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {patient.condition}
+                    {patient.medicalHistory ? patient.medicalHistory.substring(0, 50) + '...' : 'No history'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {patient.lastVisit}
+                    {formatDate(patient.lastVisit)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {patient.nextAppointment ? (
-                      <div className="flex items-center">
-                        <Calendar className="w-4 h-4 text-gray-400 mr-1" />
-                        {patient.nextAppointment}
-                      </div>
-                    ) : (
-                      <span className="text-gray-400">Not scheduled</span>
-                    )}
+                    <div className="flex items-center">
+                      <Calendar className="w-4 h-4 text-gray-400 mr-1" />
+                      {patient.totalAppointments} total
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {patient.diabetesRisk && (
-                      <Badge className={getRiskColor(patient.diabetesRisk)}>
-                        {patient.diabetesRisk} risk
+                    {patient.bloodType && (
+                      <Badge className="bg-blue-100 text-blue-800">
+                        {patient.bloodType}
                       </Badge>
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center text-sm text-gray-900">
                       <FileText className="w-4 h-4 text-gray-400 mr-1" />
-                      {patient.reports}
+                      {patient.completedAppointments}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">

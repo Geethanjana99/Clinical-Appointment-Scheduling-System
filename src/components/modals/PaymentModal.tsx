@@ -13,7 +13,6 @@ interface PaymentModalProps {
     appointmentDate: string;
     consultationFee: number;
     queueNumber?: string;
-    isEmergency: boolean;
   };
 }
 
@@ -128,9 +127,7 @@ const PaymentModal = ({
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Type:</span>
-              <span className={appointmentDetails.isEmergency ? 'text-red-600 font-medium' : 'text-blue-600'}>
-                {appointmentDetails.isEmergency ? 'Emergency' : 'Regular'}
-              </span>
+              <span className="text-blue-600">Regular</span>
             </div>
             <div className="flex justify-between items-center pt-2 border-t">
               <span className="text-gray-900 font-medium">Consultation Fee:</span>

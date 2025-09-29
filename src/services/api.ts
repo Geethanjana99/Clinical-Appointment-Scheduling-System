@@ -371,7 +371,24 @@ class ApiService {
       });
     }
     const queryString = queryParams.toString();
-    return this.makeRequest<any>(`/doctors/appointments${queryString ? `?${queryString}` : ''}`);
+    const endpoint = `/doctors/appointments${queryString ? `?${queryString}` : ''}`;
+    
+    console.log('🔄 API: getDoctorAppointments called with:', {
+      params,
+      queryString,
+      fullEndpoint: endpoint
+    });
+    
+    const result = await this.makeRequest<any>(endpoint);
+    
+    console.log('✅ API: getDoctorAppointments response:', {
+      success: result.success,
+      dataType: typeof result.data,
+      dataLength: Array.isArray(result.data) ? result.data.length : 'not array',
+      hasAppointments: result.data?.appointments ? result.data.appointments.length : 'no appointments key'
+    });
+    
+    return result;
   }
 
   async getTodayAppointments(): Promise<ApiResponse<any>> {
@@ -380,6 +397,10 @@ class ApiService {
 
   async getDoctorStatistics(): Promise<ApiResponse<any>> {
     return this.makeRequest<any>('/doctors/statistics');
+  }
+
+  async getDoctorPatients(): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>('/doctors/patients');
   }
 
   async getDoctorEarnings(): Promise<ApiResponse<any>> {
@@ -448,7 +469,8 @@ class ApiService {
     reasonForVisit: string;
     symptoms?: string;
     priority?: string;
-    isEmergency?: boolean;
+    paymentMethod?: string;
+    paymentStatus?: string;
   }): Promise<ApiResponse<any>> {
     return this.makeRequest<any>('/patients/appointments/queue', {
       method: 'POST',
@@ -512,53 +534,101 @@ class ApiService {
 
   // Doctor Queue Management
   async getDoctorAvailability(): Promise<ApiResponse<any>> {
-    return this.makeRequest<any>('/doctor/availability');
+    return this.makeRequest<any>('/doctors/availability');
   }
 
   async updateWorkingHours(workingHours: any): Promise<ApiResponse<any>> {
-    return this.makeRequest<any>('/doctor/availability/working-hours', {
+    return this.makeRequest<any>('/doctors/availability/working-hours', {
       method: 'PUT',
       body: JSON.stringify({ working_hours: workingHours }),
     });
   }
 
   async updateAvailabilityStatus(status: 'available' | 'busy' | 'offline'): Promise<ApiResponse<any>> {
-    return this.makeRequest<any>('/doctor/availability/status', {
+    return this.makeRequest<any>('/doctors/availability/status', {
       method: 'PUT',
       body: JSON.stringify({ status }),
     });
   }
 
   async getQueueStatus(): Promise<ApiResponse<any>> {
-    return this.makeRequest<any>('/doctor/queue/status');
+    return this.makeRequest<any>('/doctors/queue/status');
   }
 
-  async toggleQueue(isActive: boolean): Promise<ApiResponse<any>> {
-    return this.makeRequest<any>('/doctor/queue/toggle', {
-      method: 'PUT',
-      body: JSON.stringify({ is_active: isActive }),
+  // New enhanced queue management methods
+  async startQueue(date?: string): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>('/doctors/queue/start', {
+      method: 'POST',
+      body: JSON.stringify({ date }),
     });
+  }
+
+  async stopQueue(date?: string): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>('/doctors/queue/stop', {
+      method: 'POST',
+      body: JSON.stringify({ date }),
+    });
+  }
+
+  async getQueue(date?: string): Promise<ApiResponse<any>> {
+    const params = new URLSearchParams();
+    if (date) params.append('date', date);
+    return this.makeRequest<any>(`/doctors/queue?${params.toString()}`);
+  }
+
+  async getNextPaidPatient(date?: string): Promise<ApiResponse<any>> {
+    const params = new URLSearchParams();
+    if (date) params.append('date', date);
+    return this.makeRequest<any>(`/doctors/queue/next-patient?${params.toString()}`);
+  }
+
+  // Legacy method - kept for compatibility but updated endpoint
+  async toggleQueue(isActive: boolean): Promise<ApiResponse<any>> {
+    // Use the new start/stop methods based on isActive flag
+    return isActive ? this.startQueue() : this.stopQueue();
   }
 
   async callNextPatient(appointmentId: string): Promise<ApiResponse<any>> {
-    return this.makeRequest<any>(`/doctor/appointments/${appointmentId}/call-next`, {
-      method: 'PUT',
+    return this.makeRequest<any>(`/doctors/queue/start/${appointmentId}`, {
+      method: 'POST',
     });
   }
 
-  async completeConsultation(appointmentId: string): Promise<ApiResponse<any>> {
-    return this.makeRequest<any>(`/doctor/appointments/${appointmentId}/complete`, {
+  async completeConsultation(appointmentId: string, consultationData?: { notes?: string, prescription?: string, diagnosis?: string }): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>(`/doctors/queue/complete/${appointmentId}`, {
+      method: 'POST',
+      body: JSON.stringify({
+        notes: consultationData?.notes || 'Consultation completed',
+        prescription: consultationData?.prescription || 'No prescription provided',
+        diagnosis: consultationData?.diagnosis || 'Diagnosis to be updated'
+      }),
+    });
+  }
+
+  async updatePaymentStatus(appointmentId: string, paymentStatus: string): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>(`/doctors/appointments/${appointmentId}/payment-status`, {
       method: 'PUT',
+      body: JSON.stringify({ paymentStatus }),
     });
   }
 
   // Patient Queue Management
-  async getPatientQueuePosition(): Promise<ApiResponse<any>> {
-    return this.makeRequest<any>('/patient/queue/position');
+  async getPatientQueuePosition(doctorId?: string, date?: string): Promise<ApiResponse<any>> {
+    const params = new URLSearchParams();
+    if (doctorId) params.append('doctorId', doctorId);
+    if (date) params.append('date', date);
+    return this.makeRequest<any>(`/patients/queue/position?${params.toString()}`);
+  }
+
+  async getPatientNotification(doctorId: string, date?: string): Promise<ApiResponse<any>> {
+    const params = new URLSearchParams();
+    params.append('doctorId', doctorId);
+    if (date) params.append('date', date);
+    return this.makeRequest<any>(`/patients/queue/notification?${params.toString()}`);
   }
 
   async getDoctorQueueInfo(doctorId: string): Promise<ApiResponse<any>> {
-    return this.makeRequest<any>(`/patient/queue/doctor/${doctorId}`);
+    return this.makeRequest<any>(`/patients/queue/status?doctorId=${doctorId}`);
   }
 
   // Admin-specific appointment booking
@@ -570,7 +640,6 @@ class ApiService {
     reasonForVisit: string;
     symptoms?: string;
     priority?: string;
-    isEmergency?: boolean;
   }): Promise<ApiResponse<any>> {
     return this.makeRequest<any>('/admin/appointments/queue', {
       method: 'POST',

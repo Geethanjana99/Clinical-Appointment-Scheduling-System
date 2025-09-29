@@ -12,8 +12,10 @@ import {
   SettingsIcon, 
   PlayIcon, 
   PauseIcon,
-  AlertTriangleIcon,
-  PhoneIcon
+  PhoneIcon,
+  RefreshCwIcon,
+  Stethoscope,
+  UserCheck
 } from 'lucide-react';
 
 type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
@@ -36,21 +38,24 @@ const ManageQueue = () => {
     error,
     showWorkingHoursSuccessModal,
     fetchTodayAppointments,
-    fetchQueueStatus,
     fetchDoctorAvailability,
     updateAvailabilityStatus,
     updateWorkingHours,
-    toggleQueue,
     callNextPatient,
     completeConsultation,
     setShowWorkingHoursSuccessModal,
     getWaitingPatients,
     getInProgressPatients,
     getCompletedPatients,
-    getEmergencyPatients
+    // New enhanced methods
+    startQueue,
+    stopQueue,
+    getNextPaidPatient,
+    updatePaymentStatus
   } = useQueueStore();
 
   const [activeTab, setActiveTab] = useState<'availability' | 'queue'>('availability');
+  const [nextPatient, setNextPatient] = useState<any>(null);
   const [workingHours, setWorkingHours] = useState<WorkingHours>({
     monday: { start: '09:00', end: '17:00', enabled: true },
     tuesday: { start: '09:00', end: '17:00', enabled: true },
@@ -63,15 +68,38 @@ const ManageQueue = () => {
 
   useEffect(() => {
     if (user) {
+      // fetchTodayAppointments now includes queue status, so no need for separate fetchQueueStatus call
       fetchTodayAppointments();
-      fetchQueueStatus();
       fetchDoctorAvailability();
     }
   }, [user]);
 
+  // Fetch next patient when queue status changes to active
   useEffect(() => {
+    if (queueStatus?.is_active) {
+      handleGetNextPatient();
+    } else {
+      setNextPatient(null);
+    }
+  }, [queueStatus?.is_active]);
+
+  useEffect(() => {
+    console.log('Doctor availability data:', doctorAvailability);
     if (doctorAvailability?.working_hours) {
-      setWorkingHours(doctorAvailability.working_hours);
+      console.log('Working hours from backend:', doctorAvailability.working_hours);
+      // Merge backend data with defaults to ensure all days are present
+      const mergedHours = {
+        monday: doctorAvailability.working_hours.monday || { start: '09:00', end: '17:00', enabled: true },
+        tuesday: doctorAvailability.working_hours.tuesday || { start: '09:00', end: '17:00', enabled: true },
+        wednesday: doctorAvailability.working_hours.wednesday || { start: '09:00', end: '17:00', enabled: true },
+        thursday: doctorAvailability.working_hours.thursday || { start: '09:00', end: '17:00', enabled: true },
+        friday: doctorAvailability.working_hours.friday || { start: '09:00', end: '17:00', enabled: true },
+        saturday: doctorAvailability.working_hours.saturday || { start: '10:00', end: '14:00', enabled: false },
+        sunday: doctorAvailability.working_hours.sunday || { start: '10:00', end: '14:00', enabled: false }
+      };
+      setWorkingHours(mergedHours);
+    } else {
+      console.log('No working hours received from backend, keeping defaults');
     }
   }, [doctorAvailability]);
 
@@ -85,37 +113,93 @@ const ManageQueue = () => {
 
   const handleToggleQueue = async () => {
     const newStatus = !queueStatus?.is_active;
-    await toggleQueue(newStatus);
+    
+    try {
+      if (newStatus) {
+        // Starting queue
+        await startQueue();
+        await fetchTodayAppointments(); // This now includes queue status
+        
+        // Wait a moment for data to update
+        setTimeout(async () => {
+          const next = await getNextPaidPatient();
+          setNextPatient(next);
+        }, 1000);
+      } else {
+        // Stopping queue
+        await stopQueue();
+        // Refresh appointments with queue status
+        await fetchTodayAppointments();
+        setNextPatient(null);
+      }
+    } catch (error) {
+    }
   };
 
   const handleCallNextPatient = async (appointmentId: string) => {
-    await callNextPatient(appointmentId);
+    try {
+      await callNextPatient(appointmentId);
+      // Refresh data after action - this will update the patient status to 'in-progress'
+      await fetchTodayAppointments();
+      // Refresh the next patient display to show updated status
+      await handleGetNextPatient();
+    } catch (error) {
+    }
   };
 
   const handleCompleteConsultation = async (appointmentId: string) => {
-    await completeConsultation(appointmentId);
+    try {
+      await completeConsultation(appointmentId);
+      // Refresh data after action
+      await fetchTodayAppointments();
+      
+      // Automatically get the next patient after completing consultation
+      if (queueStatus?.is_active) {
+        setTimeout(async () => {
+          await handleGetNextPatient();
+        }, 500); // Small delay to ensure backend updates are complete
+      }
+    } catch (error) {
+    }
   };
 
   const handlePaymentStatusUpdate = async (appointmentId: string, newStatus: string) => {
     try {
-      const response = await fetch(`/api/doctors/appointments/${appointmentId}/payment-status`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ paymentStatus: newStatus })
-      });
-
-      if (response.ok) {
-        // Refresh queue data to show updated payment status
-        fetchTodayAppointments();
-        fetchQueueStatus();
-      } else {
-        console.error('Failed to update payment status');
+      await updatePaymentStatus(appointmentId, newStatus);
+      // Refresh data after payment update
+      await fetchTodayAppointments();
+      if (queueStatus?.is_active) {
+        await handleGetNextPatient();
       }
     } catch (error) {
-      console.error('Error updating payment status:', error);
+    }
+  };
+
+  const handleGetNextPatient = async () => {
+    try {
+      // Check if user is authenticated and is a doctor
+      if (!user || user.role !== 'doctor') {
+        return;
+      }
+      
+      // Only get next patient if queue is active
+      if (!queueStatus?.is_active) {
+        setNextPatient(null);
+        return;
+      }
+      
+      const next = await getNextPaidPatient();
+      
+      if (next) {
+        setNextPatient(next);
+        console.log('Next patient loaded:', next.name, 'Queue #:', next.queue_number);
+      } else {
+        setNextPatient(null);
+        console.log('No more patients in queue');
+      }
+    } catch (error) {
+      console.error('Error getting next patient:', error);
+      setNextPatient(null);
     }
   };
 
@@ -137,7 +221,6 @@ const ManageQueue = () => {
   const waitingPatients = getWaitingPatients();
   const inProgressPatients = getInProgressPatients();
   const completedPatients = getCompletedPatients();
-  const emergencyPatients = getEmergencyPatients();
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -286,51 +369,115 @@ const ManageQueue = () => {
           
           {queueStatus && (
             <>
-              {/* Status Statistics */}
-              <div className="mt-4 grid grid-cols-4 gap-4 text-center">
-                <div className="bg-blue-50 p-3 rounded">
-                  <div className="text-2xl font-bold text-blue-600">{waitingPatients.length}</div>
-                  <div className="text-sm text-gray-600">Waiting</div>
-                </div>
-                <div className="bg-yellow-50 p-3 rounded">
-                  <div className="text-2xl font-bold text-yellow-600">{inProgressPatients.length}</div>
-                  <div className="text-sm text-gray-600">In Progress</div>
-                </div>
-                <div className="bg-green-50 p-3 rounded">
-                  <div className="text-2xl font-bold text-green-600">{completedPatients.length}</div>
-                  <div className="text-sm text-gray-600">Completed</div>
-                </div>
-                <div className="bg-red-50 p-3 rounded">
-                  <div className="text-2xl font-bold text-red-600">{emergencyPatients.length}</div>
-                  <div className="text-sm text-gray-600">Emergency</div>
+              {/* Status Statistics - One Row */}
+              <div className="mt-6">
+                <h4 className="text-md font-medium text-gray-700 mb-3">Queue Status</h4>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-2xl font-bold text-blue-600">{waitingPatients.length}</div>
+                        <div className="text-sm text-gray-600">Waiting</div>
+                      </div>
+                      <div className="bg-blue-100 p-2 rounded-lg">
+                        <ClockIcon className="h-5 w-5 text-blue-600" />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-2xl font-bold text-yellow-600">{inProgressPatients.length}</div>
+                        <div className="text-sm text-gray-600">In Progress</div>
+                      </div>
+                      <div className="bg-yellow-100 p-2 rounded-lg">
+                        <Stethoscope className="h-5 w-5 text-yellow-600" />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-2xl font-bold text-green-600">{completedPatients.length}</div>
+                        <div className="text-sm text-gray-600">Completed</div>
+                      </div>
+                      <div className="bg-green-100 p-2 rounded-lg">
+                        <CheckIcon className="h-5 w-5 text-green-600" />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-2xl font-bold text-purple-600">
+                          {queueStatus?.current_number || '0'}
+                        </div>
+                        <div className="text-sm text-gray-600">Current #</div>
+                      </div>
+                      <div className="bg-purple-100 p-2 rounded-lg">
+                        <UserCheck className="h-5 w-5 text-purple-600" />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
               
-              {/* Payment Statistics */}
-              <div className="mt-4 grid grid-cols-4 gap-4 text-center">
-                <div className="bg-green-50 p-3 rounded">
-                  <div className="text-2xl font-bold text-green-600">
-                    {queue.filter(p => p.payment_status === 'paid').length}
+              {/* Payment Statistics - One Row */}
+              <div className="mt-6">
+                <h4 className="text-md font-medium text-gray-700 mb-3">Payment Status</h4>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-2xl font-bold text-green-600">
+                          {queue.filter(p => p.payment_status === 'paid').length}
+                        </div>
+                        <div className="text-sm text-gray-600">Paid</div>
+                      </div>
+                      <div className="bg-green-100 p-2 rounded-lg">
+                        <CheckIcon className="h-5 w-5 text-green-600" />
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-sm text-gray-600">Paid</div>
-                </div>
-                <div className="bg-red-50 p-3 rounded">
-                  <div className="text-2xl font-bold text-red-600">
-                    {queue.filter(p => p.payment_status === 'unpaid').length}
+                  <div className="bg-red-50 p-4 rounded-lg border border-red-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-2xl font-bold text-red-600">
+                          {queue.filter(p => p.payment_status === 'unpaid').length}
+                        </div>
+                        <div className="text-sm text-gray-600">Unpaid</div>
+                      </div>
+                      <div className="bg-red-100 p-2 rounded-lg">
+                        <ClockIcon className="h-5 w-5 text-red-600" />
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-sm text-gray-600">Unpaid</div>
-                </div>
-                <div className="bg-yellow-50 p-3 rounded">
-                  <div className="text-2xl font-bold text-yellow-600">
-                    {queue.filter(p => p.payment_status === 'partially_paid').length}
+                  <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-2xl font-bold text-yellow-600">
+                          {queue.filter(p => p.payment_status === 'partially_paid').length}
+                        </div>
+                        <div className="text-sm text-gray-600">Partial</div>
+                      </div>
+                      <div className="bg-yellow-100 p-2 rounded-lg">
+                        <SettingsIcon className="h-5 w-5 text-yellow-600" />
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-sm text-gray-600">Partial</div>
-                </div>
-                <div className="bg-gray-50 p-3 rounded">
-                  <div className="text-2xl font-bold text-gray-600">
-                    {queue.filter(p => p.payment_status === 'refunded').length}
+                  <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-2xl font-bold text-gray-600">
+                          {queue.filter(p => p.payment_status === 'refunded').length}
+                        </div>
+                        <div className="text-sm text-gray-600">Refunded</div>
+                      </div>
+                      <div className="bg-gray-100 p-2 rounded-lg">
+                        <RefreshCwIcon className="h-5 w-5 text-gray-600" />
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-sm text-gray-600">Refunded</div>
                 </div>
               </div>
             </>
@@ -338,10 +485,287 @@ const ManageQueue = () => {
         </div>
       </Card>
 
+      {/* Enhanced Queue Status Display */}
+      <Card>
+        <div className="p-6">
+          <h3 className="text-lg font-semibold mb-4">Live Queue Status</h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Current Number Being Served */}
+            <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-xl shadow-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-blue-100 text-sm font-medium">Currently Serving</p>
+                  <p className="text-3xl font-bold">
+                    {(() => {
+                      const currentPatient = queue.find(p => p.status === 'in-progress');
+                      return currentPatient ? currentPatient.queue_number : (queueStatus?.current_number || '0');
+                    })()}
+                  </p>
+                </div>
+                <div className="bg-white bg-opacity-20 p-3 rounded-lg">
+                  <UserIcon className="h-8 w-8" />
+                </div>
+              </div>
+            </div>
+
+            {/* Queue Activity Status */}
+            <div className={`p-6 rounded-xl shadow-lg ${
+              queueStatus?.is_active 
+                ? 'bg-gradient-to-br from-green-500 to-green-600 text-white' 
+                : 'bg-gradient-to-br from-gray-400 to-gray-500 text-white'
+            }`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className={`text-sm font-medium ${queueStatus?.is_active ? 'text-green-100' : 'text-gray-100'}`}>
+                    Queue Status
+                  </p>
+                  <p className="text-2xl font-bold">
+                    {queueStatus?.is_active ? 'ACTIVE' : 'INACTIVE'}
+                  </p>
+                </div>
+                <div className="bg-white bg-opacity-20 p-3 rounded-lg">
+                  {queueStatus?.is_active ? (
+                    <PlayIcon className="h-8 w-8" />
+                  ) : (
+                    <PauseIcon className="h-8 w-8" />
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Remaining Paid Patients */}
+            <div className="bg-gradient-to-br from-green-500 to-green-600 text-white p-6 rounded-xl shadow-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-green-100 text-sm font-medium">Remaining Paid Patients</p>
+                  <p className="text-3xl font-bold">
+                    {queue.filter(p => p.payment_status === 'paid' && ['scheduled', 'confirmed'].includes(p.status)).length}
+                  </p>
+                </div>
+                <div className="bg-white bg-opacity-20 p-3 rounded-lg">
+                  <UserIcon className="h-8 w-8" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Queue Operating Hours */}
+          {queueStatus && (
+            <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600">Operating Hours:</span>
+                <span className="font-semibold text-gray-800">
+                  {queueStatus.available_from} - {queueStatus.available_to}
+                </span>
+                <span className="text-gray-600">Date:</span>
+                <span className="font-semibold text-gray-800">{queueStatus.queue_date}</span>
+              </div>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {/* Enhanced Next Patient Section - Only show when queue is active */}
+      {queueStatus?.is_active && (
+        <Card className="shadow-lg border-t-4 border-t-blue-500">
+          <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 rounded-t-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-white/20 rounded-full">
+                  <UserIcon className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold">Next Patient</h3>
+                  <p className="text-blue-100 text-sm">{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleGetNextPatient}
+                className="bg-white/10 text-white border-white/30 hover:bg-white/20 backdrop-blur-sm"
+              >
+                <RefreshCwIcon className="w-4 h-4 mr-2" />
+                Refresh
+              </Button>
+            </div>
+          </div>
+          
+          <div className="p-6">
+            {nextPatient ? (
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl shadow-sm">
+                {/* Patient Header */}
+                <div className="px-6 py-4 border-b border-blue-200">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div className="relative">
+                        <div className="h-16 w-16 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center shadow-lg">
+                          <UserIcon className="h-8 w-8 text-white" />
+                        </div>
+                        <div className="absolute -bottom-1 -right-1 h-6 w-6 bg-green-500 rounded-full flex items-center justify-center shadow-sm">
+                          <span className="text-xs font-bold text-white">#{nextPatient.queue_number}</span>
+                        </div>
+                      </div>
+                      <div>
+                        <h4 className="text-xl font-bold text-gray-900">{nextPatient.name}</h4>
+                        <div className="flex items-center space-x-4 mt-1">
+                          <div className="flex items-center text-gray-600">
+                            <PhoneIcon className="h-4 w-4 mr-1" />
+                            <span className="text-sm">{nextPatient.phone}</span>
+                          </div>
+                          {nextPatient.email && (
+                            <div className="flex items-center text-gray-600">
+                              <span className="text-sm">{nextPatient.email}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <span className="inline-flex px-3 py-1 text-sm font-semibold rounded-full bg-green-100 text-green-800 shadow-sm">
+                          💳 Paid
+                        </span>
+                        <span className={`inline-flex px-3 py-1 rounded-full text-sm font-medium shadow-sm ${
+                          nextPatient.status === 'in-progress' 
+                            ? 'bg-amber-100 text-amber-800' 
+                            : nextPatient.status === 'confirmed'
+                            ? 'bg-blue-100 text-blue-800'
+                            : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {nextPatient.status === 'in-progress' ? '🔄 In Consultation' : 
+                           nextPatient.status === 'confirmed' ? '⏳ Ready to Start' : 
+                           `📋 ${nextPatient.status}`}
+                        </span>
+                      </div>
+                      {nextPatient.estimatedWaitTime && (
+                        <p className="text-sm text-gray-600">
+                          ⏱️ Est. wait: {nextPatient.estimatedWaitTime} min
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Patient Details */}
+                <div className="px-6 py-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-3">
+                      <div className="bg-white rounded-lg p-3 shadow-sm border border-blue-100">
+                        <h5 className="font-semibold text-gray-700 text-sm mb-1">Reason for Visit</h5>
+                        <p className="text-gray-900">{nextPatient.reason_for_visit || 'General consultation'}</p>
+                      </div>
+                      {nextPatient.symptoms && (
+                        <div className="bg-white rounded-lg p-3 shadow-sm border border-orange-100">
+                          <h5 className="font-semibold text-gray-700 text-sm mb-1">Symptoms</h5>
+                          <p className="text-gray-900">{nextPatient.symptoms}</p>
+                        </div>
+                      )}
+                    </div>
+                    <div className="space-y-3">
+                      <div className="bg-white rounded-lg p-3 shadow-sm border border-purple-100">
+                        <h5 className="font-semibold text-gray-700 text-sm mb-1">Priority Level</h5>
+                        <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
+                          nextPatient.priority === 'urgent' ? 'bg-red-100 text-red-800' :
+                          nextPatient.priority === 'high' ? 'bg-orange-100 text-orange-800' :
+                          nextPatient.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-green-100 text-green-800'
+                        }`}>
+                          {nextPatient.priority || 'normal'}
+                        </span>
+                      </div>
+                      <div className="bg-white rounded-lg p-3 shadow-sm border border-indigo-100">
+                        <h5 className="font-semibold text-gray-700 text-sm mb-1">Appointment Type</h5>
+                        <p className="text-gray-900">
+                          {nextPatient.is_emergency ? '🚨 Emergency' : '📅 Regular'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="px-6 py-4 bg-white/50 rounded-b-xl border-t border-blue-200">
+                  <div className="flex items-center justify-between">
+                    <div className="flex space-x-3">
+                      {nextPatient.status === 'in-progress' ? (
+                        <Button
+                          variant="primary"
+                          onClick={() => handleCompleteConsultation(nextPatient.id)}
+                          className="flex items-center space-x-2 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 shadow-lg"
+                        >
+                          <CheckIcon className="w-5 h-5" />
+                          <span>Complete Consultation</span>
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="primary"
+                          onClick={() => handleCallNextPatient(nextPatient.id)}
+                          className="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg"
+                        >
+                          <Stethoscope className="w-5 h-5" />
+                          <span>Start Consultation</span>
+                        </Button>
+                      )}
+                    </div>
+                    
+                    <div className="text-sm text-gray-500">
+                      <div className="flex items-center space-x-2">
+                        <span>🕒</span>
+                        <span>Queue position: #{nextPatient.queue_number}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <div className="max-w-sm mx-auto">
+                  <div className="mb-6">
+                    <div className="h-20 w-20 mx-auto bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center shadow-inner">
+                      <UserIcon className="h-10 w-10 text-gray-400" />
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <h4 className="text-xl font-semibold text-gray-900">Queue Complete! 🎉</h4>
+                    <p className="text-gray-600">
+                      Excellent work! All paid patients have been served.
+                    </p>
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 mt-4">
+                      <p className="text-sm text-green-800">
+                        ✅ You can now take a break or check for new appointments
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={handleGetNextPatient}
+                    className="mt-6 flex items-center space-x-2 mx-auto"
+                  >
+                    <RefreshCwIcon className="w-4 h-4" />
+                    <span>Check for New Patients</span>
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
+
       {/* Patient Queue */}
       <Card>
         <div className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Today's Patients</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold">Today's Patients</h3>
+            {queueStatus?.is_active && (
+              <div className="flex items-center space-x-2 text-sm">
+                <span className="text-green-600 font-medium">Queue Active</span>
+                <span className="text-gray-500">-</span>
+                <span className="text-blue-600">Showing paid patients only</span>
+              </div>
+            )}
+          </div>
           
           {queue.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
@@ -377,7 +801,7 @@ const ManageQueue = () => {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {queue.map((patient) => (
-                    <tr key={patient.id} className={patient.is_emergency ? 'bg-red-50' : ''}>
+                    <tr key={patient.id}>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="flex-shrink-0 h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
@@ -395,19 +819,14 @@ const ManageQueue = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          {patient.is_emergency && (
-                            <AlertTriangleIcon className="h-4 w-4 text-red-500 mr-2" />
-                          )}
                           <span className="text-sm font-medium">
-                            {patient.is_emergency ? `E${patient.queue_number}` : patient.queue_number}
+                            {patient.queue_number}
                           </span>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          patient.is_emergency ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'
-                        }`}>
-                          {patient.is_emergency ? 'Emergency' : 'Regular'}
+                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                          Regular
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -442,8 +861,8 @@ const ManageQueue = () => {
                               onClick={() => handleCallNextPatient(patient.id)}
                               className="flex items-center space-x-1"
                             >
-                              <PhoneIcon className="w-4 h-4" />
-                              <span>Call</span>
+                              <UserCheck className="w-4 h-4" />
+                              <span>Consult</span>
                             </Button>
                           )}
                           {patient.status === 'in-progress' && (
