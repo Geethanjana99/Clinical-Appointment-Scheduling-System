@@ -334,7 +334,86 @@ class ApiService {
 
   // Patient methods
   async getPatients(): Promise<ApiResponse<any[]>> {
+
+    return this.makeRequest<any[]>('/patients');
+  }
+  // Admin methods - fetch users by role
+  async getUsersByRole(role: string): Promise<ApiResponse<any[]>> {
+    return this.makeRequest<any[]>(`/admin/users?role=${role}`);
+  }
+  // Get patient names for billing/invoice purposes
+  async getPatientNames(): Promise<ApiResponse<any[]>> {
+    return this.makeRequest<any[]>('/billing/patient-names');
+  }
+
+  async getDoctorNames (): Promise<ApiResponse<any[]>> {
+    return this.makeRequest<any[]>('/doctors/names');
+  }
+
+  // Create a new insurance claim
+  async createInsuranceClaim(claimData: any): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>('/insurance-claims', {
+      method: 'POST',
+      body: JSON.stringify(claimData),
+    });
+  }
+
+  // Get all insurance claims
+  async getInsuranceClaims(): Promise<ApiResponse<any[]>> {
+    return this.makeRequest<any[]>('/insurance-claims');
+  }
+
+  // Get insurance claim by ID
+  async getInsuranceClaimById(id: string): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>(`/insurance-claims/${id}`);
+  }
+
+  // Update insurance claim status
+  async updateInsuranceClaimStatus(id: string, status: string): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>(`/insurance-claims/${id}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  // Create a new invoice
+  async createInvoice(invoiceData: any): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>('/billing/invoices', {
+      method: 'POST',
+      body: JSON.stringify(invoiceData),
+    });
+  }
+
+  // Get all invoices with optional filters
+  async getInvoices(filters?: {
+    status?: string;
+    patient_name?: string;
+    start_date?: string;
+    end_date?: string;
+    limit?: number;
+  }): Promise<ApiResponse<any[]>> {
+    const params = new URLSearchParams();
+    if (filters) {
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          params.append(key, value.toString());
+        }
+      });
+    }
+    const queryString = params.toString();
+    const endpoint = queryString ? `/billing/invoices?${queryString}` : '/billing/invoices';
+    return this.makeRequest<any[]>(endpoint);
+  }
+
+  // Update invoice status
+  async updateInvoiceStatus(invoiceId: string, status: 'pending' | 'paid' | 'overdue' | 'cancelled'): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>(`/billing/invoices/${invoiceId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    });
+
     return this.makeRequestWithRetry<any[]>('/patients');
+
   }
 
   async getPatient(id: string): Promise<ApiResponse<any>> {
