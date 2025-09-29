@@ -14,22 +14,47 @@ export interface LoginRequest {
 }
 
 export interface RegisterRequest {
+  // Common user fields (goes to users table)
   name: string;
   email: string;
   password: string;
   role: 'patient' | 'doctor' | 'admin' | 'billing';
   phone?: string;
-  profileData?: {
-    gender?: string;
+  avatar_url?: string;
+  
+  // Patient-specific fields (goes to patients table if role is 'patient')
+  patientData?: {
     date_of_birth?: string;
+    gender?: 'male' | 'female' | 'other';
     address?: string;
     emergency_contact_name?: string;
     emergency_contact_phone?: string;
+    medical_history?: string;
+    allergies?: string;
+    current_medications?: string;
+    insurance_provider?: string;
+    insurance_policy_number?: string;
+    blood_type?: string;
+    height?: number;
+    weight?: number;
+    occupation?: string;
+    marital_status?: 'single' | 'married' | 'divorced' | 'widowed';
     preferred_language?: string;
-    specialization?: string;
-    license_number?: string;
-    experience_years?: number;
-    department?: string;
+  };
+  
+  // Doctor-specific fields (goes to doctors table if role is 'doctor')
+  doctorData?: {
+    specialty: string;
+    license_number: string;
+    years_of_experience?: number;
+    education?: string;
+    certifications?: string;
+    consultation_fee?: number;
+    languages_spoken?: string[];
+    office_address?: string;
+    bio?: string;
+    working_hours?: any;
+    commission_rate?: number;
   };
 }
 
@@ -45,7 +70,50 @@ export interface User {
   last_login?: string;
   created_at?: string;
   updated_at?: string;
-  profile?: any;
+  
+  // Patient profile data (if role is 'patient')
+  patientProfile?: {
+    patient_id?: string;
+    date_of_birth?: string;
+    gender?: 'male' | 'female' | 'other';
+    address?: string;
+    emergency_contact_name?: string;
+    emergency_contact_phone?: string;
+    medical_history?: string;
+    allergies?: string;
+    current_medications?: string;
+    insurance_provider?: string;
+    insurance_policy_number?: string;
+    blood_type?: string;
+    height?: number;
+    weight?: number;
+    occupation?: string;
+    marital_status?: 'single' | 'married' | 'divorced' | 'widowed';
+    preferred_language?: string;
+    status?: 'active' | 'inactive' | 'suspended';
+  };
+  
+  // Doctor profile data (if role is 'doctor')
+  doctorProfile?: {
+    doctor_id?: string;
+    specialty?: string;
+    license_number?: string;
+    years_of_experience?: number;
+    education?: string;
+    certifications?: string;
+    consultation_fee?: number;
+    languages_spoken?: string[];
+    office_address?: string;
+    bio?: string;
+    rating?: number;
+    total_reviews?: number;
+    working_hours?: any;
+    availability_status?: 'available' | 'busy' | 'offline';
+    commission_rate?: number;
+    status?: 'active' | 'inactive' | 'suspended' | 'pending_approval';
+    total_appointments?: number;
+    total_earnings?: number;
+  };
 }
 
 export interface AuthResponse {
@@ -65,7 +133,26 @@ class ApiService {
 
   private constructor() {
     // Load token from localStorage on initialization
-    this.token = localStorage.getItem('token');
+    try {
+      const storedToken = localStorage.getItem('token');
+      if (storedToken) {
+        // Basic validation - JWT tokens should have 3 parts separated by dots
+        const tokenParts = storedToken.split('.');
+        if (tokenParts.length === 3) {
+          this.token = storedToken;
+        } else {
+          console.warn('Invalid token format found in localStorage, clearing it');
+          localStorage.removeItem('token');
+          this.token = null;
+        }
+      } else {
+        this.token = null;
+      }
+    } catch (error) {
+      console.error('Error loading token from localStorage:', error);
+      localStorage.removeItem('token');
+      this.token = null;
+    }
   }
 
   static getInstance(): ApiService {
@@ -86,6 +173,38 @@ class ApiService {
 
   getToken(): string | null {
     return this.token;
+  }
+
+  private async makeRequestWithRetry<T>(
+    endpoint: string,
+    options: RequestInit = {},
+    isRetry: boolean = false
+  ): Promise<ApiResponse<T>> {
+    try {
+      return await this.makeRequest<T>(endpoint, options);
+    } catch (error) {
+      // If it's a 401 error and we haven't already retried, try refreshing the token
+      if (!isRetry && error instanceof Error && error.message.includes('401') && endpoint !== '/auth/refresh-token') {
+        const refreshToken = localStorage.getItem('refreshToken');
+        if (refreshToken) {
+          try {
+            console.log('🔄 Attempting automatic token refresh...');
+            const refreshResponse = await this.refreshToken();
+            if (refreshResponse.success && refreshResponse.data) {
+              console.log('✅ Token refreshed, retrying original request...');
+              // Retry the original request with the new token
+              return await this.makeRequest<T>(endpoint, options);
+            }
+          } catch (refreshError) {
+            console.log('❌ Token refresh failed:', refreshError);
+            // Clear tokens and let the error propagate
+            this.setToken(null);
+            localStorage.removeItem('refreshToken');
+          }
+        }
+      }
+      throw error;
+    }
   }
 
   private async makeRequest<T>(
@@ -115,12 +234,24 @@ class ApiService {
       const data = await response.json();
 
       if (!response.ok) {
+        // Handle authentication errors
+        if (response.status === 401) {
+          if (this.token && (data.message === 'Token is not valid' || data.message === 'Token has expired' || data.message === 'Server error during authentication')) {
+            console.warn('Authentication failed with token, clearing it');
+            this.setToken(null);
+            localStorage.removeItem('refreshToken');
+          }
+        }
         throw new Error(data.message || `HTTP error! status: ${response.status}`);
       }
 
       return data;
     } catch (error) {
-      console.error('API request failed:', error);
+      console.error('API request failed:', {
+        url,
+        error: error instanceof Error ? error.message : error,
+        token: this.token ? 'present' : 'absent'
+      });
       throw error;
     }
   }
@@ -149,15 +280,25 @@ class ApiService {
   }
 
   async logout(): Promise<void> {
+    const currentToken = this.getToken();
+    
     try {
-      await this.makeRequest('/auth/logout', {
-        method: 'POST',
-      });
+      // Only make API call if we have a token
+      if (currentToken) {
+        await this.makeRequest('/auth/logout', {
+          method: 'POST',
+        });
+        console.log('✅ Backend logout notification sent');
+      } else {
+        console.log('ℹ️ No token present, skipping backend logout call');
+      }
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error('❌ Logout API error (continuing anyway):', error);
     } finally {
+      // Always clear local tokens regardless of API call result
       this.setToken(null);
       localStorage.removeItem('refreshToken');
+      console.log('🧹 Local tokens cleared');
     }
   }
 
@@ -181,11 +322,11 @@ class ApiService {
   }
 
   async getProfile(): Promise<ApiResponse<User>> {
-    return this.makeRequest<User>('/auth/profile');
+    return this.makeRequestWithRetry<User>('/auth/profile');
   }
 
   async updateProfile(profileData: Partial<User>): Promise<ApiResponse<User>> {
-    return this.makeRequest<User>('/auth/profile', {
+    return this.makeRequestWithRetry<User>('/auth/profile', {
       method: 'PUT',
       body: JSON.stringify(profileData),
     });
@@ -193,6 +334,7 @@ class ApiService {
 
   // Patient methods
   async getPatients(): Promise<ApiResponse<any[]>> {
+
     return this.makeRequest<any[]>('/patients');
   }
   // Admin methods - fetch users by role
@@ -269,24 +411,27 @@ class ApiService {
       method: 'PATCH',
       body: JSON.stringify({ status }),
     });
+
+    return this.makeRequestWithRetry<any[]>('/patients');
+
   }
 
   async getPatient(id: string): Promise<ApiResponse<any>> {
-    return this.makeRequest<any>(`/patients/${id}`);
+    return this.makeRequestWithRetry<any>(`/patients/${id}`);
   }
 
   // Doctor methods
   async getDoctors(): Promise<ApiResponse<any[]>> {
-    return this.makeRequest<any[]>('/doctors');
+    return this.makeRequestWithRetry<any[]>('/doctors');
   }
 
   async getDoctor(id: string): Promise<ApiResponse<any>> {
-    return this.makeRequest<any>(`/doctors/${id}`);
+    return this.makeRequestWithRetry<any>(`/doctors/${id}`);
   }
 
   // Doctor Dashboard methods
   async getDoctorDashboard(): Promise<ApiResponse<any>> {
-    return this.makeRequest<any>('/doctors/dashboard');
+    return this.makeRequestWithRetry<any>('/doctors/dashboard');
   }
 
   async getDoctorAppointments(params?: { 
@@ -305,11 +450,36 @@ class ApiService {
       });
     }
     const queryString = queryParams.toString();
-    return this.makeRequest<any>(`/doctors/appointments${queryString ? `?${queryString}` : ''}`);
+    const endpoint = `/doctors/appointments${queryString ? `?${queryString}` : ''}`;
+    
+    console.log('🔄 API: getDoctorAppointments called with:', {
+      params,
+      queryString,
+      fullEndpoint: endpoint
+    });
+    
+    const result = await this.makeRequest<any>(endpoint);
+    
+    console.log('✅ API: getDoctorAppointments response:', {
+      success: result.success,
+      dataType: typeof result.data,
+      dataLength: Array.isArray(result.data) ? result.data.length : 'not array',
+      hasAppointments: result.data?.appointments ? result.data.appointments.length : 'no appointments key'
+    });
+    
+    return result;
+  }
+
+  async getTodayAppointments(): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>('/doctors/appointments/today');
   }
 
   async getDoctorStatistics(): Promise<ApiResponse<any>> {
     return this.makeRequest<any>('/doctors/statistics');
+  }
+
+  async getDoctorPatients(): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>('/doctors/patients');
   }
 
   async getDoctorEarnings(): Promise<ApiResponse<any>> {
@@ -352,7 +522,7 @@ class ApiService {
       }
     });
     
-    const url = `/patients/doctors/search${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    const url = `/doctors/search${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
     return this.makeRequest<any[]>(url);
   }
 
@@ -366,6 +536,22 @@ class ApiService {
     priority?: string;
   }): Promise<ApiResponse<any>> {
     return this.makeRequest<any>('/appointments', {
+      method: 'POST',
+      body: JSON.stringify(appointmentData),
+    });
+  }
+
+  async bookQueueAppointment(appointmentData: {
+    doctorId: string;
+    appointmentDate: string;
+    appointmentType?: string;
+    reasonForVisit: string;
+    symptoms?: string;
+    priority?: string;
+    paymentMethod?: string;
+    paymentStatus?: string;
+  }): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>('/patients/appointments/queue', {
       method: 'POST',
       body: JSON.stringify(appointmentData),
     });
@@ -419,9 +605,200 @@ class ApiService {
   async getDoctorProfile(): Promise<ApiResponse<any>> {
     return this.makeRequest<any>('/doctors/profile');
   }
+
   async getAvailableSlots(doctorId: string, date: string): Promise<ApiResponse<{date: string, slots: string[]}>> {
     const params = new URLSearchParams({ doctorId, date });
     return this.makeRequest<{date: string, slots: string[]}>(`/appointments/available-slots?${params.toString()}`);
+  }
+
+  // Doctor Queue Management
+  async getDoctorAvailability(): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>('/doctors/availability');
+  }
+
+  async updateWorkingHours(workingHours: any): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>('/doctors/availability/working-hours', {
+      method: 'PUT',
+      body: JSON.stringify({ working_hours: workingHours }),
+    });
+  }
+
+  async updateAvailabilityStatus(status: 'available' | 'busy' | 'offline'): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>('/doctors/availability/status', {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  async getQueueStatus(): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>('/doctors/queue/status');
+  }
+
+  // New enhanced queue management methods
+  async startQueue(date?: string): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>('/doctors/queue/start', {
+      method: 'POST',
+      body: JSON.stringify({ date }),
+    });
+  }
+
+  async stopQueue(date?: string): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>('/doctors/queue/stop', {
+      method: 'POST',
+      body: JSON.stringify({ date }),
+    });
+  }
+
+  async getQueue(date?: string): Promise<ApiResponse<any>> {
+    const params = new URLSearchParams();
+    if (date) params.append('date', date);
+    return this.makeRequest<any>(`/doctors/queue?${params.toString()}`);
+  }
+
+  async getNextPaidPatient(date?: string): Promise<ApiResponse<any>> {
+    const params = new URLSearchParams();
+    if (date) params.append('date', date);
+    return this.makeRequest<any>(`/doctors/queue/next-patient?${params.toString()}`);
+  }
+
+  // Legacy method - kept for compatibility but updated endpoint
+  async toggleQueue(isActive: boolean): Promise<ApiResponse<any>> {
+    // Use the new start/stop methods based on isActive flag
+    return isActive ? this.startQueue() : this.stopQueue();
+  }
+
+  async callNextPatient(appointmentId: string): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>(`/doctors/queue/start/${appointmentId}`, {
+      method: 'POST',
+    });
+  }
+
+  async completeConsultation(appointmentId: string, consultationData?: { notes?: string, prescription?: string, diagnosis?: string }): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>(`/doctors/queue/complete/${appointmentId}`, {
+      method: 'POST',
+      body: JSON.stringify({
+        notes: consultationData?.notes || 'Consultation completed',
+        prescription: consultationData?.prescription || 'No prescription provided',
+        diagnosis: consultationData?.diagnosis || 'Diagnosis to be updated'
+      }),
+    });
+  }
+
+  async updatePaymentStatus(appointmentId: string, paymentStatus: string): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>(`/doctors/appointments/${appointmentId}/payment-status`, {
+      method: 'PUT',
+      body: JSON.stringify({ paymentStatus }),
+    });
+  }
+
+  // Patient Queue Management
+  async getPatientQueuePosition(doctorId?: string, date?: string): Promise<ApiResponse<any>> {
+    const params = new URLSearchParams();
+    if (doctorId) params.append('doctorId', doctorId);
+    if (date) params.append('date', date);
+    return this.makeRequest<any>(`/patients/queue/position?${params.toString()}`);
+  }
+
+  async getPatientNotification(doctorId: string, date?: string): Promise<ApiResponse<any>> {
+    const params = new URLSearchParams();
+    params.append('doctorId', doctorId);
+    if (date) params.append('date', date);
+    return this.makeRequest<any>(`/patients/queue/notification?${params.toString()}`);
+  }
+
+  async getDoctorQueueInfo(doctorId: string): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>(`/patients/queue/status?doctorId=${doctorId}`);
+  }
+
+  // Admin-specific appointment booking
+  async bookQueueAppointmentForPatient(appointmentData: {
+    patientId: string;
+    doctorId: string;
+    appointmentDate: string;
+    appointmentType?: string;
+    reasonForVisit: string;
+    symptoms?: string;
+    priority?: string;
+  }): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>('/admin/appointments/queue', {
+      method: 'POST',
+      body: JSON.stringify(appointmentData),
+    });
+  }
+
+  // Patient Health Data Submission
+  async submitHealthData(healthData: {
+    pregnancies?: number;
+    glucose: number;
+    bmi: number;
+    age: number;
+    insulin?: number;
+    notes?: string;
+  }): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>('/patient/health-predictions', {
+      method: 'POST',
+      body: JSON.stringify(healthData),
+    });
+  }
+
+  async getHealthSubmissions(params?: {
+    page?: number;
+    limit?: number;
+    sortBy?: string;
+    sortOrder?: 'ASC' | 'DESC';
+  }): Promise<ApiResponse<any>> {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
+    if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder);
+    
+    const url = `/patient/health-predictions${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return this.makeRequest<any>(url);
+  }
+
+  async getHealthSubmissionById(id: string): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>(`/patient/health-predictions/${id}`);
+  }
+
+  async getHealthDashboard(): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>('/patient/health-predictions/dashboard');
+  }
+
+  // Admin Health Prediction Management
+  async getPatientSubmissions(params?: {
+    page?: number;
+    limit?: number;
+    status?: 'pending' | 'processing' | 'processed' | 'failed' | 'all';
+  }): Promise<ApiResponse<any>> {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.status) queryParams.append('status', params.status);
+    
+    const url = `/admin/health-predictions${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return this.makeRequest<any>(url);
+  }
+
+  async getPatientSubmissionById(id: string): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>(`/admin/health-predictions/${id}`);
+  }
+
+  async processPatientSubmission(id: string): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>(`/admin/health-predictions/${id}/process`, {
+      method: 'POST',
+    });
+  }
+
+  async batchProcessSubmissions(submissionIds: string[]): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>('/admin/health-predictions/batch-process', {
+      method: 'POST',
+      body: JSON.stringify({ submissionIds }),
+    });
+  }
+
+  async getAdminHealthDashboard(): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>('/admin/health-predictions/dashboard');
   }
 }
 

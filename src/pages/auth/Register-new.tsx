@@ -11,8 +11,11 @@ const Register = () => {
     register,
     isAuthenticated,
     user,
+    isLoading: authLoading,
+    error: authError,
     clearError,
-    initializeAuth
+    initializeAuth,
+    logout
   } = useAuthStore();
 
   // Basic form fields

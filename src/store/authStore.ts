@@ -25,7 +25,7 @@ interface AuthState {
   isLoading: boolean;
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string, role: UserRole, additionalData?: any) => Promise<void>;
+  register: (name: string, email: string, password: string, role: UserRole, additionalData?: { phone?: string; patientData?: any; doctorData?: any }) => Promise<void>;
   logout: () => void;
   clearError: () => void;
   initializeAuth: () => Promise<void>;
@@ -42,21 +42,38 @@ export const useAuthStore = create<AuthState>()(
 
       initializeAuth: async () => {
         const token = apiService.getToken();
-        if (!token) return;
+        console.log('🔄 Initializing auth, token exists:', !!token);
+        
+        if (!token) {
+          // No token found, user is not authenticated
+          console.log('❌ No token found, setting unauthenticated state');
+          set({
+            user: null,
+            isAuthenticated: false,
+            isLoading: false,
+            error: null
+          });
+          return;
+        }
 
         set({ isLoading: true });
         try {
+          console.log('🔍 Fetching user profile with token...');
           const response = await apiService.getProfile();
-          if (response.success && response.data) {
+          
+          if (response.success && response.data && response.data.user) {
+            console.log('✅ Profile fetch successful, user:', response.data.user.email);
             set({
-              user: response.data,
+              user: response.data.user,
               isAuthenticated: true,
               isLoading: false,
               error: null
             });
           } else {
-            // Invalid token, clear it
+            // Invalid token or malformed response, clear it
+            console.log('❌ Profile fetch failed, response:', response);
             apiService.setToken(null);
+            localStorage.removeItem('refreshToken');
             set({
               user: null,
               isAuthenticated: false,
@@ -65,8 +82,35 @@ export const useAuthStore = create<AuthState>()(
             });
           }
         } catch (error) {
-          console.error('Auth initialization failed:', error);
+          console.log('❌ Auth initialization failed:', error instanceof Error ? error.message : error);
+          
+          // If it's a 401 error, try refresh token before giving up
+          if (error instanceof Error && error.message.includes('401')) {
+            try {
+              console.log('🔄 Attempting token refresh...');
+              const refreshResponse = await apiService.refreshToken();
+              if (refreshResponse.success && refreshResponse.data) {
+                console.log('✅ Token refresh successful, retrying profile fetch...');
+                const retryResponse = await apiService.getProfile();
+                if (retryResponse.success && retryResponse.data && retryResponse.data.user) {
+                  console.log('✅ Profile fetch successful after refresh');
+                  set({
+                    user: retryResponse.data.user,
+                    isAuthenticated: true,
+                    isLoading: false,
+                    error: null
+                  });
+                  return;
+                }
+              }
+            } catch (refreshError) {
+              console.log('❌ Token refresh failed:', refreshError);
+            }
+          }
+          
+          // Clear invalid tokens
           apiService.setToken(null);
+          localStorage.removeItem('refreshToken');
           set({
             user: null,
             isAuthenticated: false,
@@ -116,7 +160,8 @@ export const useAuthStore = create<AuthState>()(
             password,
             role,
             phone: additionalData.phone,
-            profileData: additionalData.profileData
+            patientData: additionalData.patientData,
+            doctorData: additionalData.doctorData
           };          const response = await apiService.register(registerData);
           
           if (response.success) {
@@ -145,14 +190,33 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: () => {
-        apiService.logout();
+        console.log('🚪 Starting logout process...');
+        
+        // 1. Immediately clear the token to prevent API calls
+        apiService.setToken(null);
+        localStorage.removeItem('token');
         localStorage.removeItem('refreshToken');
+        
+        // 2. Clear authentication state immediately
         set({
           user: null,
           isAuthenticated: false,
           isLoading: false,
           error: null
         });
+        
+        console.log('✅ Auth state and tokens cleared immediately');
+        
+        // 3. Attempt to notify backend (fire and forget)
+        try {
+          apiService.logout().catch((error) => {
+            console.warn('⚠️ Backend logout notification failed (ignored):', error);
+          });
+        } catch (error) {
+          console.warn('⚠️ Logout API call setup failed (ignored):', error);
+        }
+        
+        console.log('🎯 Logout process completed');
       }
     }),
     {

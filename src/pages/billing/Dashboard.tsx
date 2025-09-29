@@ -7,6 +7,7 @@ import GenerateInvoiceModal from '../../components/modals/GenerateInvoiceModal';
 import ViewInvoiceModal from '../../components/modals/ViewInvoiceModal';
 import { DollarSignIcon, FileTextIcon, ChevronRightIcon, TrendingUpIcon, CalendarIcon, UserIcon } from 'lucide-react';
 import { apiService } from '../../services/api';
+import { useAuthStore } from '../../store/authStore';
 
 interface Invoice {
   id: string;
@@ -29,14 +30,37 @@ const BillingDashboard = () => {
   const [allInvoices, setAllInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { isAuthenticated } = useAuthStore();
 
   // Fetch recent invoices from backend
   useEffect(() => {
-    fetchRecentInvoices();
-    fetchAllInvoices();
-  }, []);
+    const hasValidToken = apiService.getToken();
+    
+    if (isAuthenticated && hasValidToken) {
+      console.log('✅ Billing Dashboard: Fetching invoices - authenticated with valid token');
+      fetchRecentInvoices();
+      fetchAllInvoices();
+    } else {
+      console.log('⚠️ Billing Dashboard: Skipping data fetch', { 
+        isAuthenticated, 
+        hasValidToken: !!hasValidToken 
+      });
+      setLoading(false);
+    }
+  }, [isAuthenticated]);
 
   const fetchRecentInvoices = async () => {
+    const hasValidToken = apiService.getToken();
+    
+    if (!isAuthenticated || !hasValidToken) {
+      console.log('⚠️ Billing Dashboard: Cannot fetch invoices - authentication failed', {
+        isAuthenticated,
+        hasValidToken: !!hasValidToken
+      });
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -58,6 +82,13 @@ const BillingDashboard = () => {
   };
 
   const fetchAllInvoices = async () => {
+    const hasValidToken = apiService.getToken();
+    
+    if (!isAuthenticated || !hasValidToken) {
+      console.log('⚠️ Billing Dashboard: Cannot fetch all invoices - authentication failed');
+      return;
+    }
+
     try {
       // Fetch all invoices for dashboard statistics
       const response = await apiService.getInvoices();

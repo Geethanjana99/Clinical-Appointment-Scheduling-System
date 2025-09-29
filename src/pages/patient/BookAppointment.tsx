@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
+import PaymentModal from '../../components/modals/PaymentModal';
 import { CalendarIcon, UserIcon, ClockIcon, CheckCircleIcon, StarIcon, SearchIcon, FilterIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiService } from '../../services/api';
@@ -13,7 +14,6 @@ interface Doctor {
   rating: number;
   total_reviews: number;
   consultation_fee: number;
-  availability_status: string;
   avatar_url?: string;
   years_of_experience: number;
   bio?: string;
@@ -39,20 +39,98 @@ const BookAppointment = () => {
   // Booking state
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
   const [selectedDate, setSelectedDate] = useState('');
-  const [selectedTime, setSelectedTime] = useState('');
   const [reason, setReason] = useState('');
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Available slots state
-  const [availableSlots, setAvailableSlots] = useState<string[]>([]);
-  const [loadingSlots, setLoadingSlots] = useState(false);
-  const [slotsError, setSlotsError] = useState<string | null>(null);
-  const [step, setStep] = useState(1); // 1: Select Doctor, 2: Select Date/Time, 3: Confirm
+  // Available slots state - removed for queue system
+  // const [availableSlots, setAvailableSlots] = useState<string[]>([]);
+  // const [loadingSlots, setLoadingSlots] = useState(false);
+  // const [slotsError, setSlotsError] = useState<string | null>(null);
+  
+  const [step, setStep] = useState(1); // 1: Select Doctor, 2: Select Date/Time, 3: Confirm, 4: Payment
+  
+  // Payment state
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState('');
+  const [paymentStatus, setPaymentStatus] = useState('unpaid');
   
   // Success state
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [bookedAppointment, setBookedAppointment] = useState<any>(null);
+
+  // Helper function to format working hours
+  const formatWorkingHours = (workingHours: any) => {
+    if (!workingHours || typeof workingHours !== 'object') {
+      return 'Hours not specified';
+    }
+
+    const daysOfWeek = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const todayName = daysOfWeek[new Date().getDay()];
+    
+    // Show today's hours if available
+    if (workingHours[todayName]) {
+      const todayHours = workingHours[todayName];
+      // Handle different formats of working hours
+      if (typeof todayHours === 'object' && todayHours) {
+        if (todayHours.start && todayHours.end) {
+          return `Today: ${todayHours.start} - ${todayHours.end}`;
+        } else if (todayHours.startTime && todayHours.endTime) {
+          return `Today: ${todayHours.startTime} - ${todayHours.endTime}`;
+        }
+      }
+      // Handle if working hours is already a string
+      else if (typeof todayHours === 'string') {
+        return `Today: ${todayHours}`;
+      }
+    }
+    
+    // Otherwise show the first available day's hours
+    for (const day of daysOfWeek) {
+      if (workingHours[day]) {
+        const dayHours = workingHours[day];
+        if (typeof dayHours === 'object' && dayHours) {
+          if (dayHours.start && dayHours.end) {
+            return `${day.charAt(0).toUpperCase() + day.slice(1)}: ${dayHours.start} - ${dayHours.end}`;
+          } else if (dayHours.startTime && dayHours.endTime) {
+            return `${day.charAt(0).toUpperCase() + day.slice(1)}: ${dayHours.startTime} - ${dayHours.endTime}`;
+          }
+        }
+        else if (typeof dayHours === 'string') {
+          return `${day.charAt(0).toUpperCase() + day.slice(1)}: ${dayHours}`;
+        }
+      }
+    }
+    
+    return 'Hours not available';
+  };
+
+  // Helper function to get today's availability for selected date
+  const getTodayAvailability = (workingHours: any, selectedDate: string) => {
+    if (!workingHours || !selectedDate) return 'Hours not specified';
+    
+    const date = new Date(selectedDate);
+    const daysOfWeek = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const dayName = daysOfWeek[date.getDay()];
+    
+    const dayHours = workingHours[dayName];
+    if (!dayHours) return 'Not available on this day';
+    
+    // Handle different formats of working hours
+    if (typeof dayHours === 'object' && dayHours) {
+      if (dayHours.start && dayHours.end) {
+        return `${dayHours.start} - ${dayHours.end}`;
+      } else if (dayHours.startTime && dayHours.endTime) {
+        return `${dayHours.startTime} - ${dayHours.endTime}`;
+      }
+    }
+    // Handle if working hours is already a string
+    else if (typeof dayHours === 'string') {
+      return dayHours;
+    }
+    
+    return 'Available (hours not specified)';
+  };
 
   // Fetch doctors from backend
   useEffect(() => {
@@ -77,20 +155,12 @@ const BookAppointment = () => {
     setFilteredDoctors(filtered);
   }, [doctors, searchTerm, selectedSpecialty]);
 
-  // Fetch available slots when doctor or date changes
-  useEffect(() => {
-    if (selectedDoctor && selectedDate) {
-      fetchAvailableSlots(selectedDoctor.id, selectedDate);
-    } else {
-      setAvailableSlots([]);
-      setSelectedTime('');
-    }
-  }, [selectedDoctor, selectedDate]);
+  // No need for slots fetching in queue system
 
   const fetchDoctors = async () => {
     try {
       setLoading(true);
-      const response = await apiService.searchDoctors({});
+      const response = await apiService.searchDoctors({ limit: 50 });
       
       if (response.success && response.data) {
         setDoctors(response.data);
@@ -110,42 +180,18 @@ const BookAppointment = () => {
     }
   };
 
-  // Fetch available time slots for selected doctor and date
-  const fetchAvailableSlots = async (doctorId: string, date: string) => {
-    if (!doctorId || !date) {
-      setAvailableSlots([]);
-      return;
-    }
-
-    try {
-      setLoadingSlots(true);
-      setSlotsError(null);
-      setSelectedTime(''); // Reset selected time when fetching new slots
-      
-      const response = await apiService.getAvailableSlots(doctorId, date);      if (response.success && response.data) {
-        setAvailableSlots(response.data.slots || []);
-      } else {
-        setAvailableSlots([]);
-        setSlotsError('No available slots found for this date');
-      }
-    } catch (err) {
-      console.error('Error fetching available slots:', err);
-      setAvailableSlots([]);
-      setSlotsError('Failed to load available slots');
-    } finally {
-      setLoadingSlots(false);
-    }
-  };
-
-  // Get tomorrow's date as minimum date
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const minDate = tomorrow.toISOString().split('T')[0];
+  // Check doctor schedule availability based on working hours
+  // No slots fetching needed for queue system
+  
+  // Get today's date as minimum date (allow same-day bookings)
+  const today = new Date();
+  const minDate = today.toISOString().split('T')[0];
 
   // Get max date (3 months from now)
   const maxDate = new Date();
   maxDate.setMonth(maxDate.getMonth() + 3);
   const maxDateString = maxDate.toISOString().split('T')[0];
+  
   const handleDoctorSelect = (doctor: Doctor) => {
     setSelectedDoctor(doctor);
     setStep(2);
@@ -156,51 +202,79 @@ const BookAppointment = () => {
     }
   };
 
-  const handleDateTimeSelect = () => {
-    if (!selectedDate || !selectedTime) {
-      toast.error('Please select both date and time');
+  const handleDateSelect = () => {
+    if (!selectedDate) {
+      toast.error('Please select a date');
       return;
     }
     setStep(3);
   };
-  const handleBookAppointment = async () => {
-    if (!selectedDoctor || !selectedDate || !selectedTime || !reason.trim()) {
+  const handleConfirmAppointment = () => {
+    if (!selectedDoctor || !selectedDate || !reason.trim()) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+    // Show payment modal
+    setShowPaymentModal(true);
+  };
+
+  const handlePaymentConfirm = (method: string, status: string) => {
+    setPaymentMethod(method);
+    setPaymentStatus(status);
+    setShowPaymentModal(false);
+    
+    // Proceed with booking after payment selection
+    bookAppointmentWithPayment(method, status);
+  };
+
+  const bookAppointmentWithPayment = async (method: string, status: string) => {
+    if (!selectedDoctor || !selectedDate || !reason.trim()) {
       toast.error('Please fill in all required fields');
       return;
     }
 
     setIsSubmitting(true);
 
-    try {      const appointmentData = {
+    try {      
+      const appointmentData = {
         doctorId: selectedDoctor.id,
         appointmentDate: selectedDate,
-        appointmentTime: selectedTime,
         appointmentType: 'consultation',
         reasonForVisit: reason,
         symptoms: notes,
-        priority: 'medium'
-      };      const response = await apiService.bookAppointment(appointmentData);
+        priority: 'medium',
+        paymentMethod: method,
+        paymentStatus: status
+      };      
+
+      const response = await apiService.bookQueueAppointment(appointmentData);
       
       if (response.success) {
         // Store appointment data with doctor info before resetting
         const appointmentWithDoctorInfo = {
           ...response.data.appointment,
           doctorName: selectedDoctor.name,
-          doctorSpecialty: selectedDoctor.specialty
+          doctorSpecialty: selectedDoctor.specialty,
+          queueNumber: response.data.queueNumber,
+          paymentMethod: method,
+          paymentStatus: status
         };
         
         setBookedAppointment(appointmentWithDoctorInfo);
         setBookingSuccess(true);
         
-        // Show success toast message
-        toast.success(`🎉 Booking Successful! Appointment confirmed with ${selectedDoctor.name}`, {
-          duration: 4000
+        // Show success toast message with payment info
+        const paymentMessage = status === 'paid' 
+          ? `Payment of $${selectedDoctor.consultation_fee} processed successfully!`
+          : 'You can pay at the counter when you visit.';
+          
+        toast.success(`${response.data.message} ${paymentMessage}`, {
+          duration: 5000
         });
         
         // Reset form
         setSelectedDoctor(null);
         setSelectedDate('');
-        setSelectedTime('');
         setReason('');
         setNotes('');
         setStep(1);
@@ -209,7 +283,7 @@ const BookAppointment = () => {
         setTimeout(() => {
           setBookingSuccess(false);
           setBookedAppointment(null);
-        }, 8000);
+        }, 10000);
       } else {
         toast.error(response.message || 'Failed to book appointment');
       }
@@ -219,6 +293,11 @@ const BookAppointment = () => {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // Keep the old function for backward compatibility, but redirect to new flow
+  const handleBookAppointment = () => {
+    handleConfirmAppointment();
   };
 
   const renderStars = (rating: number) => {
@@ -248,15 +327,49 @@ const BookAppointment = () => {
               <CheckCircleIcon className="h-8 w-8 text-green-600 mr-3" />
               <div className="flex-1">
                 <h3 className="text-lg font-semibold text-green-800 mb-2">
-                  🎉 Booking Successful!
-                </h3>                <div className="text-green-700 space-y-1">
+                  🎉 Queue Booking Successful!
+                </h3>
+                <div className="text-green-700 space-y-1">
                   <p><strong>Appointment ID:</strong> {bookedAppointment.appointment_id}</p>
                   <p><strong>Doctor:</strong> {bookedAppointment.doctorName} ({bookedAppointment.doctorSpecialty})</p>
                   <p><strong>Date:</strong> {new Date(bookedAppointment.appointment_date).toLocaleDateString()}</p>
-                  <p><strong>Time:</strong> {bookedAppointment.appointment_time}</p>
+                  <p><strong>Queue Number:</strong> 
+                    <span className="ml-2 font-bold text-blue-600">
+                      {bookedAppointment.queueNumber}
+                    </span>
+                  </p>
                   <p><strong>Status:</strong> {bookedAppointment.status}</p>
-                </div><div className="mt-3 text-sm text-green-600">
-                  <p>You will receive a confirmation shortly. Please arrive 15 minutes before your appointment.</p>
+                  {bookedAppointment.paymentStatus && (
+                    <p><strong>Payment:</strong> 
+                      <span className={`ml-2 font-medium ${
+                        bookedAppointment.paymentStatus === 'paid' ? 'text-green-600' :
+                        bookedAppointment.paymentStatus === 'partially_paid' ? 'text-yellow-600' :
+                        'text-red-600'
+                      }`}>
+                        {bookedAppointment.paymentStatus === 'paid' ? '✅ Paid' : 
+                         bookedAppointment.paymentStatus === 'partially_paid' ? '⚠️ Partially Paid' : 
+                         '❌ Pay at Counter'}
+                      </span>
+                      {bookedAppointment.paymentStatus === 'paid' && bookedAppointment.consultationFee && (
+                        <span className="text-gray-600"> - ${bookedAppointment.consultationFee}</span>
+                      )}
+                    </p>
+                  )}
+                </div>
+                <div className="mt-3 text-sm text-green-600">
+                  <p>
+                    You're in the queue. Please arrive on the scheduled date and wait for your number to be called.
+                  </p>
+                  {bookedAppointment.paymentStatus === 'unpaid' && (
+                    <p className="mt-2 text-orange-600">
+                      💰 <strong>Payment Required:</strong> Please bring ${bookedAppointment.consultationFee || 'consultation fee'} to pay at the counter when you visit.
+                    </p>
+                  )}
+                  {bookedAppointment.paymentStatus === 'paid' && (
+                    <p className="mt-2 text-green-600">
+                      ✅ <strong>Payment Confirmed:</strong> Your payment of ${bookedAppointment.consultationFee} has been processed successfully.
+                    </p>
+                  )}
                 </div>
                 <div className="mt-4">
                   <Button
@@ -287,9 +400,9 @@ const BookAppointment = () => {
             </div>
             <span className="ml-2 font-medium">Select Doctor</span>
           </div>
-          <div className="flex-1 h-1 mx-4 bg-gray-200">
+          <div className="flex-1 h-1 mx-2 bg-gray-200">
             <div className={`h-1 transition-all duration-300 ${
-              step >= 2 ? 'bg-blue-600 w-1/2' : 'bg-gray-200 w-0'
+              step >= 2 ? 'bg-blue-600 w-full' : 'bg-gray-200 w-0'
             }`}></div>
           </div>
           <div className={`flex items-center ${step >= 2 ? 'text-blue-600' : 'text-gray-400'}`}>
@@ -300,7 +413,7 @@ const BookAppointment = () => {
             </div>
             <span className="ml-2 font-medium">Date & Time</span>
           </div>
-          <div className="flex-1 h-1 mx-4 bg-gray-200">
+          <div className="flex-1 h-1 mx-2 bg-gray-200">
             <div className={`h-1 transition-all duration-300 ${
               step >= 3 ? 'bg-blue-600 w-full' : 'bg-gray-200 w-0'
             }`}></div>
@@ -312,6 +425,19 @@ const BookAppointment = () => {
               3
             </div>
             <span className="ml-2 font-medium">Confirm</span>
+          </div>
+          <div className="flex-1 h-1 mx-2 bg-gray-200">
+            <div className={`h-1 transition-all duration-300 ${
+              step >= 4 ? 'bg-blue-600 w-full' : 'bg-gray-200 w-0'
+            }`}></div>
+          </div>
+          <div className={`flex items-center ${step >= 4 ? 'text-blue-600' : 'text-gray-400'}`}>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+              step >= 4 ? 'bg-blue-600 text-white' : 'bg-gray-200'
+            }`}>
+              4
+            </div>
+            <span className="ml-2 font-medium">Payment</span>
           </div>
         </div>
       </Card>      {/* Step 1: Select Doctor */}
@@ -408,22 +534,18 @@ const BookAppointment = () => {
                         <span className="ml-1 text-sm text-gray-600">({doctor.rating})</span>
                       </div>
                       <div className="mt-2 space-y-1">
-                        <div className="flex items-center text-sm text-gray-600">
-                          <ClockIcon className="w-4 h-4 mr-1" />
-                          <span className={`px-2 py-1 rounded text-xs ${
-                          doctor.availability_status === 'available' 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}>
-                          {doctor.availability_status}
-                        </span>
-                        </div>
                         <div className="text-sm text-gray-600">
                           {doctor.years_of_experience} years
                         </div>
                         <div className="text-sm font-medium text-green-600">
                           Rs. {doctor.consultation_fee}
                         </div>
+                        {doctor.working_hours && (
+                          <div className="text-sm text-gray-600 flex items-center">
+                            <ClockIcon className="w-4 h-4 mr-1" />
+                            {formatWorkingHours(doctor.working_hours)}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>                  <div className="mt-4 flex justify-end">
@@ -461,9 +583,21 @@ const BookAppointment = () => {
                   alt={selectedDoctor.name}
                   className="w-12 h-12 rounded-full"
                 />
-                <div>
+                <div className="flex-1">
                   <h3 className="font-medium text-gray-900">{selectedDoctor.name}</h3>
                   <p className="text-blue-600 text-sm">{selectedDoctor.specialty}</p>
+                  {selectedDoctor.working_hours && selectedDate && (
+                    <div className="text-sm text-gray-600 flex items-center mt-1">
+                      <ClockIcon className="w-4 h-4 mr-1" />
+                      Available: {getTodayAvailability(selectedDoctor.working_hours, selectedDate)}
+                    </div>
+                  )}
+                  {selectedDoctor.working_hours && !selectedDate && (
+                    <div className="text-sm text-gray-600 flex items-center mt-1">
+                      <ClockIcon className="w-4 h-4 mr-1" />
+                      {formatWorkingHours(selectedDoctor.working_hours)}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -481,46 +615,20 @@ const BookAppointment = () => {
                   value={selectedDate}
                   onChange={(e) => {
                     setSelectedDate(e.target.value);
-                    fetchAvailableSlots(selectedDoctor.id, e.target.value); // Fetch slots when date changes
                   }}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
                 />
-              </div>              {/* Time Selection */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Select Time
-                </label>
-                <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
-                  {loadingSlots ? (
-                    <div className="flex justify-center items-center col-span-2 py-4">
-                      <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent"></div>
-                      <span className="ml-2 text-gray-600">Loading slots...</span>
-                    </div>
-                  ) : slotsError ? (
-                    <div className="text-red-600 text-center py-4 col-span-2">
-                      {slotsError}
-                    </div>
-                  ) : availableSlots.length === 0 ? (
-                    <div className="text-gray-500 text-center py-4 col-span-2">
-                      Please select a doctor and date first
-                    </div>
-                  ) : (
-                    availableSlots.map((time) => (
-                      <button
-                        key={time}
-                        onClick={() => setSelectedTime(time)}
-                        className={`p-2 text-sm border rounded-md transition-colors ${
-                          selectedTime === time
-                            ? 'bg-blue-600 text-white border-blue-600'
-                            : 'border-gray-300 hover:border-blue-300 hover:bg-blue-50'
-                        }`}
-                      >
-                        {time}
-                      </button>
-                    ))
-                  )}
-                </div>
               </div>
+
+              {/* Doctor Availability Display */}
+              {selectedDate && (
+                <div className="mt-4">
+                  <p className="text-sm text-gray-600 mb-2">
+                    Select your preferred appointment date. You will join the queue for that day.
+                  </p>
+                </div>
+              )}              
+
             </div>{/* Reason for Visit */}
             <div className="mt-6">
               <label htmlFor="visit-reason" className="block text-sm font-medium text-gray-700 mb-2">
@@ -538,7 +646,6 @@ const BookAppointment = () => {
                 <option value="new-symptoms">New Symptoms</option>
                 <option value="medication-review">Medication Review</option>
                 <option value="test-results">Test Results Discussion</option>
-                <option value="emergency">Emergency</option>
                 <option value="other">Other</option>
               </select>
             </div>
@@ -552,8 +659,8 @@ const BookAppointment = () => {
               </Button>
               <Button
                 variant="primary"
-                onClick={handleDateTimeSelect}
-                disabled={!selectedDate || !selectedTime || !reason}
+                onClick={handleDateSelect}
+                disabled={!selectedDate || !reason}
               >
                 Continue
               </Button>
@@ -602,8 +709,8 @@ const BookAppointment = () => {
                     </div>
                     <div className="flex items-center text-sm">
                       <ClockIcon className="w-5 h-5 text-gray-400 mr-3" />
-                      <span className="text-gray-600">Time:</span>
-                      <span className="ml-2 font-medium">{selectedTime}</span>
+                      <span className="text-gray-600">Type:</span>
+                      <span className="ml-2 font-medium">Regular Appointment</span>
                     </div>
                     <div className="flex items-center text-sm">
                       <UserIcon className="w-5 h-5 text-gray-400 mr-3" />
@@ -670,8 +777,52 @@ const BookAppointment = () => {
           </div>
         </Card>
       )}
+      
+      {/* Payment Modal */}
+      {selectedDoctor && (
+        <PaymentModal
+          isOpen={showPaymentModal}
+          onClose={() => setShowPaymentModal(false)}
+          onPaymentConfirm={handlePaymentConfirm}
+          appointmentDetails={{
+            doctorName: selectedDoctor.name,
+            doctorSpecialty: selectedDoctor.specialty,
+            appointmentDate: selectedDate,
+            consultationFee: selectedDoctor.consultation_fee
+          }}
+        />
+      )}
     </div>
   );
 };
 
 export default BookAppointment;
+
+/*
+ * Working Hours Format Support:
+ * The system now supports multiple formats for doctor working hours:
+ * 
+ * Format 1 (start/end):
+ * {
+ *   monday: { start: "09:00", end: "17:00" },
+ *   tuesday: { start: "09:00", end: "17:00" }
+ * }
+ * 
+ * Format 2 (startTime/endTime):
+ * {
+ *   monday: { startTime: "09:00", endTime: "17:00" },
+ *   tuesday: { startTime: "09:00", endTime: "17:00" }
+ * }
+ * 
+ * Format 3 (string):
+ * {
+ *   monday: "09:00 - 17:00",
+ *   tuesday: "09:00 - 17:00"
+ * }
+ * 
+ * Availability Logic:
+ * - Uses doctor's working_hours from the doctor profile instead of API calls
+ * - Checks availability_status field to determine if doctor is accepting appointments
+ * - Validates against past dates
+ * - Provides queue-based appointment booking
+ */

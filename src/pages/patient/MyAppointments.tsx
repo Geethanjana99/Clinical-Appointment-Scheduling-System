@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
-import { CalendarIcon, ClockIcon, UserIcon, MapPinIcon, PhoneIcon, FilterIcon, SearchIcon, Loader2 } from 'lucide-react';
+import AppointmentCard from '../../components/ui/AppointmentCard';
+import AppointmentDetailModal from '../../components/ui/AppointmentDetailModal';
+import { CalendarIcon, FilterIcon, SearchIcon, Loader2 } from 'lucide-react';
 import { apiService } from '../../services/api';
+import { toast } from 'sonner';
 
 interface Appointment {
   id: number;
@@ -16,14 +19,18 @@ interface Appointment {
   specialty: string;
   doctor_phone?: string;
   location?: string;
+  queue_number?: number | string;
+  queue_position?: number;
 }
 
 const MyAppointments = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [error, setError] = useState<string | null>(null);  const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [cancellingId, setCancellingId] = useState<number | null>(null);
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   
   // Fetch appointments from API
   useEffect(() => {
@@ -47,14 +54,29 @@ const MyAppointments = () => {
     };
 
     fetchAppointments();
-  }, []);
-
-  // Handle appointment cancellation
+  }, []);  // Handle appointment cancellation
   const handleCancelAppointment = async (appointmentId: number) => {
+    // Show confirmation dialog
+    const confirmCancel = window.confirm(
+      'Are you sure you want to cancel this appointment? This action cannot be undone.'
+    );
+    
+    if (!confirmCancel) {
+      return;
+    }
+
+    // Get cancellation reason from user
+    const reason = window.prompt(
+      'Please provide a reason for cancellation (optional):'
+    );
+
+    setCancellingId(appointmentId);
+
     try {
-      const response = await apiService.cancelAppointment(appointmentId.toString(), 'Cancelled by patient');
+      const response = await apiService.cancelAppointment(appointmentId.toString(), reason || undefined);
+      
       if (response.success) {
-        // Update local state
+        // Remove appointment from local state (since it's cancelled/deleted)
         setAppointments(prev => 
           prev.map(apt => 
             apt.id === appointmentId 
@@ -62,18 +84,33 @@ const MyAppointments = () => {
               : apt
           )
         );
+        
+        // Show success notification
+        toast.success('Appointment cancelled successfully', {
+          description: 'You will receive a confirmation email shortly.'
+        });
       } else {
-        alert(`Failed to cancel appointment: ${response.message}`);
+        toast.error('Failed to cancel appointment', {
+          description: response.message || 'Please try again or contact support.'
+        });
       }
     } catch (err) {
       console.error('Error cancelling appointment:', err);
-      alert('An error occurred while cancelling the appointment');
+      toast.error('An error occurred while cancelling the appointment', {
+        description: 'Please try again or contact support.'
+      });
+    } finally {
+      setCancellingId(null);
     }
+  };  // Handle appointment rescheduling
+  const handleViewDetails = (appointment: Appointment) => {
+    setSelectedAppointment(appointment);
+    setIsDetailModalOpen(true);
   };
-  // Handle appointment rescheduling (placeholder - would need a modal for date/time selection)
-  const handleRescheduleAppointment = async (_appointmentId: number) => {
-    // For now, just show an alert - in a real app, this would open a modal
-    alert('Reschedule functionality coming soon! Please contact the clinic directly.');
+
+  const handleCloseDetailModal = () => {
+    setIsDetailModalOpen(false);
+    setSelectedAppointment(null);
   };
     // Filter appointments based on search term and status
   const filteredAppointments = appointments.filter(appointment => {
@@ -84,29 +121,6 @@ const MyAppointments = () => {
     
     return matchesSearch && matchesStatus;
   });
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'confirmed': return 'bg-green-100 text-green-800';
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'completed': return 'bg-blue-100 text-blue-800';
-      case 'cancelled': return 'bg-red-100 text-red-800';
-      case 'scheduled': return 'bg-purple-100 text-purple-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const isUpcoming = (date: string) => {
-    return new Date(date) > new Date();
-  };
-
-  const canCancel = (status: string, date: string) => {
-    return (status === 'confirmed' || status === 'pending' || status === 'scheduled') && isUpcoming(date);
-  };
-
-  const canReschedule = (status: string, date: string) => {
-    return (status === 'confirmed' || status === 'pending' || status === 'scheduled') && isUpcoming(date);
-  };
 
   // Loading state
   if (loading) {
@@ -227,97 +241,14 @@ const MyAppointments = () => {
           </Card>
         ) : (
           filteredAppointments.map((appointment) => (
-            <Card key={appointment.id} className="hover:shadow-md transition-shadow">
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                <div className="flex-1">
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-                        <UserIcon className="w-5 h-5 mr-2 text-gray-400" />
-                        {appointment.doctor_name || 'Doctor Name Not Available'}
-                      </h3>
-                      <p className="text-sm text-gray-600">{appointment.specialty || 'Specialization Not Available'}</p>
-                    </div>
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(appointment.status)}`}>
-                      {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
-                    </span>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-gray-600">
-                    <div className="flex items-center">
-                      <CalendarIcon className="w-4 h-4 mr-2 text-gray-400" />
-                      <span>{new Date(appointment.appointment_date).toLocaleDateString('en-US', { 
-                        weekday: 'long', 
-                        year: 'numeric', 
-                        month: 'long', 
-                        day: 'numeric' 
-                      })}</span>
-                    </div>
-                    <div className="flex items-center">
-                      <ClockIcon className="w-4 h-4 mr-2 text-gray-400" />
-                      <span>{appointment.appointment_time}</span>
-                    </div>
-                    {appointment.location && (
-                      <div className="flex items-center">
-                        <MapPinIcon className="w-4 h-4 mr-2 text-gray-400" />
-                        <span>{appointment.location}</span>
-                      </div>
-                    )}
-                    {appointment.doctor_phone && (
-                      <div className="flex items-center">
-                        <PhoneIcon className="w-4 h-4 mr-2 text-gray-400" />
-                        <span>{appointment.doctor_phone}</span>
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="mt-3">
-                    <p className="text-sm"><strong>Type:</strong> {appointment.appointment_type || 'Not specified'}</p>
-                    {appointment.notes && (
-                      <p className="text-sm text-gray-600 mt-1"><strong>Notes:</strong> {appointment.notes}</p>
-                    )}
-                  </div>
-                </div>
-                
-                {/* Action Buttons */}
-                <div className="flex flex-col sm:flex-row gap-2 lg:flex-col lg:w-40">
-                  {appointment.status === 'pending' && (
-                    <Button variant="outline" size="sm" className="text-green-600 hover:text-green-700">
-                      Confirm
-                    </Button>
-                  )}
-                  {canReschedule(appointment.status, appointment.appointment_date) && (
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => handleRescheduleAppointment(appointment.id)}
-                    >
-                      Reschedule
-                    </Button>
-                  )}
-                  {canCancel(appointment.status, appointment.appointment_date) && (
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="text-red-600 hover:text-red-700"
-                      onClick={() => handleCancelAppointment(appointment.id)}
-                    >
-                      Cancel
-                    </Button>
-                  )}
-                  {appointment.status === 'completed' && (
-                    <Button variant="outline" size="sm">
-                      View Report
-                    </Button>
-                  )}
-                  {isUpcoming(appointment.appointment_date) && (appointment.status === 'confirmed' || appointment.status === 'scheduled') && (
-                    <Button variant="primary" size="sm">
-                      View Details
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </Card>
+            <AppointmentCard
+              key={appointment.id}
+              appointment={appointment}
+              variant="full"
+              onViewDetails={handleViewDetails}
+              onCancel={() => handleCancelAppointment(appointment.id)}
+              isLoading={cancellingId === appointment.id}
+            />
           ))
         )}
       </div>
@@ -358,8 +289,18 @@ const MyAppointments = () => {
               <div className="text-sm text-gray-600">Total</div>
             </div>
           </div>
-        </Card>
-      )}
+        </Card>      )}
+      
+      {/* Appointment Detail Modal */}
+      <AppointmentDetailModal
+        isOpen={isDetailModalOpen}
+        onClose={handleCloseDetailModal}
+        appointment={selectedAppointment}
+        onCancel={(appointment) => {
+          handleCloseDetailModal();
+          handleCancelAppointment(appointment.id);
+        }}
+      />
     </div>
   );
 };
