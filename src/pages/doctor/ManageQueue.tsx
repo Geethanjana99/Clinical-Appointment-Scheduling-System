@@ -369,53 +369,115 @@ const ManageQueue = () => {
           
           {queueStatus && (
             <>
-              {/* Status Statistics */}
-              <div className="mt-4 grid grid-cols-4 gap-4 text-center">
-                <div className="bg-blue-50 p-3 rounded">
-                  <div className="text-2xl font-bold text-blue-600">{waitingPatients.length}</div>
-                  <div className="text-sm text-gray-600">Waiting</div>
-                </div>
-                <div className="bg-yellow-50 p-3 rounded">
-                  <div className="text-2xl font-bold text-yellow-600">{inProgressPatients.length}</div>
-                  <div className="text-sm text-gray-600">In Progress</div>
-                </div>
-                <div className="bg-green-50 p-3 rounded">
-                  <div className="text-2xl font-bold text-green-600">{completedPatients.length}</div>
-                  <div className="text-sm text-gray-600">Completed</div>
-                </div>
-                <div className="bg-purple-50 p-3 rounded">
-                  <div className="text-2xl font-bold text-purple-600">
-                    {queueStatus?.current_number || '0'}
+              {/* Status Statistics - One Row */}
+              <div className="mt-6">
+                <h4 className="text-md font-medium text-gray-700 mb-3">Queue Status</h4>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-2xl font-bold text-blue-600">{waitingPatients.length}</div>
+                        <div className="text-sm text-gray-600">Waiting</div>
+                      </div>
+                      <div className="bg-blue-100 p-2 rounded-lg">
+                        <ClockIcon className="h-5 w-5 text-blue-600" />
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-sm text-gray-600">Current #</div>
+                  <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-2xl font-bold text-yellow-600">{inProgressPatients.length}</div>
+                        <div className="text-sm text-gray-600">In Progress</div>
+                      </div>
+                      <div className="bg-yellow-100 p-2 rounded-lg">
+                        <Stethoscope className="h-5 w-5 text-yellow-600" />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-2xl font-bold text-green-600">{completedPatients.length}</div>
+                        <div className="text-sm text-gray-600">Completed</div>
+                      </div>
+                      <div className="bg-green-100 p-2 rounded-lg">
+                        <CheckIcon className="h-5 w-5 text-green-600" />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-2xl font-bold text-purple-600">
+                          {queueStatus?.current_number || '0'}
+                        </div>
+                        <div className="text-sm text-gray-600">Current #</div>
+                      </div>
+                      <div className="bg-purple-100 p-2 rounded-lg">
+                        <UserCheck className="h-5 w-5 text-purple-600" />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
               
-              {/* Payment Statistics */}
-              <div className="mt-4 grid grid-cols-4 gap-4 text-center">
-                <div className="bg-green-50 p-3 rounded">
-                  <div className="text-2xl font-bold text-green-600">
-                    {queue.filter(p => p.payment_status === 'paid').length}
+              {/* Payment Statistics - One Row */}
+              <div className="mt-6">
+                <h4 className="text-md font-medium text-gray-700 mb-3">Payment Status</h4>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-2xl font-bold text-green-600">
+                          {queue.filter(p => p.payment_status === 'paid').length}
+                        </div>
+                        <div className="text-sm text-gray-600">Paid</div>
+                      </div>
+                      <div className="bg-green-100 p-2 rounded-lg">
+                        <CheckIcon className="h-5 w-5 text-green-600" />
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-sm text-gray-600">Paid</div>
-                </div>
-                <div className="bg-red-50 p-3 rounded">
-                  <div className="text-2xl font-bold text-red-600">
-                    {queue.filter(p => p.payment_status === 'unpaid').length}
+                  <div className="bg-red-50 p-4 rounded-lg border border-red-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-2xl font-bold text-red-600">
+                          {queue.filter(p => p.payment_status === 'unpaid').length}
+                        </div>
+                        <div className="text-sm text-gray-600">Unpaid</div>
+                      </div>
+                      <div className="bg-red-100 p-2 rounded-lg">
+                        <ClockIcon className="h-5 w-5 text-red-600" />
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-sm text-gray-600">Unpaid</div>
-                </div>
-                <div className="bg-yellow-50 p-3 rounded">
-                  <div className="text-2xl font-bold text-yellow-600">
-                    {queue.filter(p => p.payment_status === 'partially_paid').length}
+                  <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-2xl font-bold text-yellow-600">
+                          {queue.filter(p => p.payment_status === 'partially_paid').length}
+                        </div>
+                        <div className="text-sm text-gray-600">Partial</div>
+                      </div>
+                      <div className="bg-yellow-100 p-2 rounded-lg">
+                        <SettingsIcon className="h-5 w-5 text-yellow-600" />
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-sm text-gray-600">Partial</div>
-                </div>
-                <div className="bg-gray-50 p-3 rounded">
-                  <div className="text-2xl font-bold text-gray-600">
-                    {queue.filter(p => p.payment_status === 'refunded').length}
+                  <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-2xl font-bold text-gray-600">
+                          {queue.filter(p => p.payment_status === 'refunded').length}
+                        </div>
+                        <div className="text-sm text-gray-600">Refunded</div>
+                      </div>
+                      <div className="bg-gray-100 p-2 rounded-lg">
+                        <RefreshCwIcon className="h-5 w-5 text-gray-600" />
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-sm text-gray-600">Refunded</div>
                 </div>
               </div>
             </>
