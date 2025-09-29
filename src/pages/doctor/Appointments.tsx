@@ -15,14 +15,13 @@ interface Appointment {
   patient_phone?: string;
   appointment_date: string;
   appointment_time: string;
-  appointment_type: 'consultation' | 'follow-up' | 'emergency';
+  appointment_type: 'consultation' | 'follow-up';
   status: 'scheduled' | 'confirmed' | 'completed' | 'cancelled' | 'pending';
   reason_for_visit: string;
   symptoms?: string;
   priority?: string;
   consultation_fee?: number;
   queue_number?: number;
-  is_emergency?: boolean;
   duration?: number; // in minutes
   notes?: string;
   created_at?: string;
@@ -375,11 +374,6 @@ const DoctorAppointments = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         <div className="flex items-center">
-                          {appointment.is_emergency && (
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 mr-2">
-                              Emergency
-                            </span>
-                          )}
                           {appointment.priority || 'Normal'}
                         </div>
                       </td>

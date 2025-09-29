@@ -41,7 +41,6 @@ const BookAppointment = () => {
   const [selectedDate, setSelectedDate] = useState('');
   const [reason, setReason] = useState('');
   const [notes, setNotes] = useState('');
-  const [isEmergency, setIsEmergency] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Available slots state - removed for queue system
@@ -184,10 +183,9 @@ const BookAppointment = () => {
   // Check doctor schedule availability based on working hours
   // No slots fetching needed for queue system
   
-  // Get tomorrow's date as minimum date
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const minDate = tomorrow.toISOString().split('T')[0];
+  // Get today's date as minimum date (allow same-day bookings)
+  const today = new Date();
+  const minDate = today.toISOString().split('T')[0];
 
   // Get max date (3 months from now)
   const maxDate = new Date();
@@ -245,7 +243,6 @@ const BookAppointment = () => {
         reasonForVisit: reason,
         symptoms: notes,
         priority: 'medium',
-        isEmergency: isEmergency,
         paymentMethod: method,
         paymentStatus: status
       };      
@@ -259,7 +256,6 @@ const BookAppointment = () => {
           doctorName: selectedDoctor.name,
           doctorSpecialty: selectedDoctor.specialty,
           queueNumber: response.data.queueNumber,
-          isEmergency: response.data.isEmergency,
           paymentMethod: method,
           paymentStatus: status
         };
@@ -281,9 +277,6 @@ const BookAppointment = () => {
         setSelectedDate('');
         setReason('');
         setNotes('');
-        setIsEmergency(false);
-        setPaymentMethod('');
-        setPaymentStatus('unpaid');
         setStep(1);
         
         // Reset success state after a delay
@@ -341,10 +334,9 @@ const BookAppointment = () => {
                   <p><strong>Doctor:</strong> {bookedAppointment.doctorName} ({bookedAppointment.doctorSpecialty})</p>
                   <p><strong>Date:</strong> {new Date(bookedAppointment.appointment_date).toLocaleDateString()}</p>
                   <p><strong>Queue Number:</strong> 
-                    <span className={`ml-2 font-bold ${bookedAppointment.isEmergency ? 'text-red-600' : 'text-blue-600'}`}>
+                    <span className="ml-2 font-bold text-blue-600">
                       {bookedAppointment.queueNumber}
                     </span>
-                    {bookedAppointment.isEmergency && <span className="text-red-500 ml-1">(Emergency)</span>}
                   </p>
                   <p><strong>Status:</strong> {bookedAppointment.status}</p>
                   {bookedAppointment.paymentStatus && (
@@ -366,10 +358,7 @@ const BookAppointment = () => {
                 </div>
                 <div className="mt-3 text-sm text-green-600">
                   <p>
-                    {bookedAppointment.isEmergency 
-                      ? "You're in the emergency queue and will be seen with priority. Please arrive as soon as possible."
-                      : "You're in the queue. Please arrive on the scheduled date and wait for your number to be called."
-                    }
+                    You're in the queue. Please arrive on the scheduled date and wait for your number to be called.
                   </p>
                   {bookedAppointment.paymentStatus === 'unpaid' && (
                     <p className="mt-2 text-orange-600">
@@ -640,44 +629,6 @@ const BookAppointment = () => {
                 </div>
               )}              
 
-              {/* Emergency Appointment Option */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Appointment Type
-                </label>
-                <div className="space-y-2">
-                  <label className="flex items-center">
-                    <input
-                      type="radio"
-                      name="appointmentType"
-                      checked={!isEmergency}
-                      onChange={() => setIsEmergency(false)}
-                      className="mr-2"
-                    />
-                    <span>Regular Appointment</span>
-                    <span className="ml-2 text-sm text-gray-500">(Join regular queue)</span>
-                  </label>
-                  <label className="flex items-center">
-                    <input
-                      type="radio"
-                      name="appointmentType"
-                      checked={isEmergency}
-                      onChange={() => setIsEmergency(true)}
-                      className="mr-2"
-                    />
-                    <span className="text-red-600 font-medium">Emergency Appointment</span>
-                    <span className="ml-2 text-sm text-red-500">(Priority queue)</span>
-                  </label>
-                </div>
-                {isEmergency && (
-                  <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-md">
-                    <p className="text-sm text-red-600">
-                      <strong>Emergency appointments</strong> are for urgent medical conditions that require immediate attention.
-                      You will be placed in the priority queue.
-                    </p>
-                  </div>
-                )}
-              </div>
             </div>{/* Reason for Visit */}
             <div className="mt-6">
               <label htmlFor="visit-reason" className="block text-sm font-medium text-gray-700 mb-2">
@@ -695,7 +646,6 @@ const BookAppointment = () => {
                 <option value="new-symptoms">New Symptoms</option>
                 <option value="medication-review">Medication Review</option>
                 <option value="test-results">Test Results Discussion</option>
-                <option value="emergency">Emergency</option>
                 <option value="other">Other</option>
               </select>
             </div>
@@ -760,22 +710,13 @@ const BookAppointment = () => {
                     <div className="flex items-center text-sm">
                       <ClockIcon className="w-5 h-5 text-gray-400 mr-3" />
                       <span className="text-gray-600">Type:</span>
-                      <span className={`ml-2 font-medium ${isEmergency ? 'text-red-600' : ''}`}>
-                        {isEmergency ? 'Emergency Appointment' : 'Regular Appointment'}
-                      </span>
+                      <span className="ml-2 font-medium">Regular Appointment</span>
                     </div>
                     <div className="flex items-center text-sm">
                       <UserIcon className="w-5 h-5 text-gray-400 mr-3" />
                       <span className="text-gray-600">Reason:</span>
                       <span className="ml-2 font-medium capitalize">{reason.replace('-', ' ')}</span>
                     </div>
-                    {isEmergency && (
-                      <div className="bg-red-50 border border-red-200 rounded-md p-3 mt-3">
-                        <p className="text-sm text-red-600">
-                          ⚡ You will be placed in the emergency queue and seen with priority.
-                        </p>
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>
@@ -847,8 +788,7 @@ const BookAppointment = () => {
             doctorName: selectedDoctor.name,
             doctorSpecialty: selectedDoctor.specialty,
             appointmentDate: selectedDate,
-            consultationFee: selectedDoctor.consultation_fee,
-            isEmergency: isEmergency
+            consultationFee: selectedDoctor.consultation_fee
           }}
         />
       )}

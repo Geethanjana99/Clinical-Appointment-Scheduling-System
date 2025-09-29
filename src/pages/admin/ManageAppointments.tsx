@@ -190,8 +190,7 @@ const ManageAppointments = () => {
         appointmentType: appointmentData.appointmentType || 'consultation',
         reasonForVisit: appointmentData.reasonForVisit,
         symptoms: appointmentData.symptoms,
-        priority: appointmentData.priority || 'medium',
-        isEmergency: appointmentData.priority === 'urgent'
+        priority: appointmentData.priority || 'medium'
       };
 
       const response = await apiService.bookQueueAppointmentForPatient(queueAppointmentData);

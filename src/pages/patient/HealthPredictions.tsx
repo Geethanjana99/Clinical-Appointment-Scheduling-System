@@ -116,7 +116,19 @@ const HealthPredictions = () => {
       ]);
 
       if (submissionsRes.success) {
-        setSubmissions(submissionsRes.data.submissions || []);
+        const submissions = submissionsRes.data.submissions || [];
+        // Ensure each submission has required fields with defaults
+        const validatedSubmissions = submissions.map((submission: any) => ({
+          ...submission,
+          age: submission.age || 0,
+          bmi: submission.bmi || null,
+          glucose: submission.glucose || 0,
+          pregnancies: submission.pregnancies || 0,
+          insulin: submission.insulin || 0,
+          status: submission.status || 'submitted',
+          notes: submission.notes || null
+        }));
+        setSubmissions(validatedSubmissions);
       }
 
       if (dashboardRes.success) {
@@ -332,7 +344,7 @@ const HealthPredictions = () => {
             </div>
           </Card>
         ) : (
-          submissions.map((submission) => (
+          submissions.filter(submission => submission && submission.id).map((submission) => (
             <Card key={submission.id}>
               <div className="flex items-start space-x-4">
                 <div className="flex-shrink-0 mt-1">
@@ -345,9 +357,9 @@ const HealthPredictions = () => {
                       Health Data Submission
                     </h3>
                     <Badge variant={getStatusColor(submission.status)}>
-                      {submission.status.replace('_', ' ').toUpperCase()}
+                      {(submission.status || '').replace('_', ' ').toUpperCase()}
                     </Badge>
-                    {submission.doctorReview && (
+                    {submission.doctorReview && submission.doctorReview.severityAssessment && (
                       <Badge variant={getSeverityColor(submission.doctorReview.severityAssessment)}>
                         {submission.doctorReview.severityAssessment.toUpperCase()} SEVERITY
                       </Badge>
@@ -364,23 +376,23 @@ const HealthPredictions = () => {
                       <div className="bg-gray-50 rounded-lg p-3 space-y-2 text-sm">
                         <div className="flex justify-between">
                           <span className="text-gray-600">Age:</span>
-                          <span className="font-medium">{submission.age} years</span>
+                          <span className="font-medium">{submission.age || 'N/A'} years</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-600">BMI:</span>
-                          <span className="font-medium">{submission.bmi.toFixed(1)}</span>
+                          <span className="font-medium">{submission.bmi ? submission.bmi.toFixed(1) : 'N/A'}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-600">Glucose:</span>
-                          <span className="font-medium">{submission.glucose} mg/dL</span>
+                          <span className="font-medium">{submission.glucose || 'N/A'} mg/dL</span>
                         </div>
-                        {submission.pregnancies > 0 && (
+                        {(submission.pregnancies || 0) > 0 && (
                           <div className="flex justify-between">
                             <span className="text-gray-600">Pregnancies:</span>
                             <span className="font-medium">{submission.pregnancies}</span>
                           </div>
                         )}
-                        {submission.insulin > 0 && (
+                        {(submission.insulin || 0) > 0 && (
                           <div className="flex justify-between">
                             <span className="text-gray-600">Insulin:</span>
                             <span className="font-medium">{submission.insulin}</span>
@@ -406,9 +418,9 @@ const HealthPredictions = () => {
                         <div className="bg-blue-50 rounded-lg p-3 space-y-3 text-sm">
                           <div>
                             <span className="text-gray-600 block">Doctor:</span>
-                            <span className="font-medium">{submission.doctorReview.doctorName}</span>
+                            <span className="font-medium">{submission.doctorReview.doctorName || 'N/A'}</span>
                             <span className="text-gray-500 text-xs block">
-                              {submission.doctorReview.doctorSpecialty}
+                              {submission.doctorReview.doctorSpecialty || 'N/A'}
                             </span>
                           </div>
 

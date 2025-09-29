@@ -448,7 +448,8 @@ class ApiService {
     reasonForVisit: string;
     symptoms?: string;
     priority?: string;
-    isEmergency?: boolean;
+    paymentMethod?: string;
+    paymentStatus?: string;
   }): Promise<ApiResponse<any>> {
     return this.makeRequest<any>('/patients/appointments/queue', {
       method: 'POST',
@@ -613,7 +614,6 @@ class ApiService {
     reasonForVisit: string;
     symptoms?: string;
     priority?: string;
-    isEmergency?: boolean;
   }): Promise<ApiResponse<any>> {
     return this.makeRequest<any>('/admin/appointments/queue', {
       method: 'POST',

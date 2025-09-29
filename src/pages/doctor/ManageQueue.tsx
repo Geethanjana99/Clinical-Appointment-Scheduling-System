@@ -101,26 +101,17 @@ const ManageQueue = () => {
     try {
       if (newStatus) {
         // Starting queue
-        console.log('🚀 Starting queue...');
         await startQueue();
-        
-        console.log('📊 Refreshing queue status and appointments...');
         await fetchQueueStatus();
         await fetchTodayAppointments();
         
         // Wait a moment for data to update
         setTimeout(async () => {
-          console.log('🔍 Getting next paid patient after queue start...');
-          console.log('Current queue status after start:', queueStatus);
-          console.log('Current appointments:', queue);
-          
           const next = await getNextPaidPatient();
-          console.log('📄 Next patient API result:', next);
           setNextPatient(next);
         }, 1000);
       } else {
         // Stopping queue
-        console.log('Stopping queue...');
         await stopQueue();
         // Refresh queue status and appointments
         await fetchQueueStatus();
@@ -128,37 +119,31 @@ const ManageQueue = () => {
         setNextPatient(null);
       }
     } catch (error) {
-      console.error('Error toggling queue:', error);
     }
   };
 
   const handleCallNextPatient = async (appointmentId: string) => {
     try {
-      console.log('Calling next patient with ID:', appointmentId);
       await callNextPatient(appointmentId);
       // Refresh data after action
       await fetchTodayAppointments();
       await handleGetNextPatient();
     } catch (error) {
-      console.error('Error calling next patient:', error);
     }
   };
 
   const handleCompleteConsultation = async (appointmentId: string) => {
     try {
-      console.log('Completing consultation for ID:', appointmentId);
       await completeConsultation(appointmentId);
       // Refresh data after action
       await fetchTodayAppointments();
       await handleGetNextPatient();
     } catch (error) {
-      console.error('Error completing consultation:', error);
     }
   };
 
   const handlePaymentStatusUpdate = async (appointmentId: string, newStatus: string) => {
     try {
-      console.log('Updating payment status for ID:', appointmentId, 'to:', newStatus);
       await updatePaymentStatus(appointmentId, newStatus);
       // Refresh data after payment update
       await fetchTodayAppointments();
@@ -166,32 +151,24 @@ const ManageQueue = () => {
         await handleGetNextPatient();
       }
     } catch (error) {
-      console.error('Error updating payment status:', error);
     }
   };
 
   const handleGetNextPatient = async () => {
     try {
-      console.log('🔍 Fetching next paid patient...');
-      
       // Check if user is authenticated and is a doctor
       if (!user || user.role !== 'doctor') {
-        console.log('❌ User not authenticated as doctor:', user);
         return;
       }
       
       const next = await getNextPaidPatient();
-      console.log('📄 Next patient API response:', next);
       
       if (next) {
-        console.log('✅ Next patient found:', next.name, 'Queue:', next.queue_number);
         setNextPatient(next);
       } else {
-        console.log('📭 No next patient available');
         setNextPatient(null);
       }
     } catch (error) {
-      console.error('❌ Error getting next patient:', error);
       setNextPatient(null);
     }
   };
@@ -407,49 +384,6 @@ const ManageQueue = () => {
               </div>
             </>
           )}
-        </div>
-      </Card>
-
-      {/* Debug Information Panel */}
-      <Card>
-        <div className="p-6 bg-gray-50">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">Debug Information</h3>
-          
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <strong>Queue Status:</strong> {queueStatus?.is_active ? '✅ Active' : '❌ Inactive'}
-            </div>
-            <div>
-              <strong>Next Patient:</strong> {nextPatient ? `✅ ${nextPatient.name}` : '❌ None'}
-            </div>
-            <div>
-              <strong>Total Appointments Today:</strong> {queue?.length || 0}
-            </div>
-            <div>
-              <strong>Paid Appointments:</strong> {queue?.filter(apt => apt.payment_status === 'paid').length || 0}
-            </div>
-          </div>
-          
-          <div className="mt-4 space-x-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                console.log('📊 Current queue data:', queue);
-                console.log('📊 Current queue status:', queueStatus);
-                fetchTodayAppointments();
-              }}
-            >
-              Refresh Appointments
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleGetNextPatient}
-            >
-              Check Next Patient
-            </Button>
-          </div>
         </div>
       </Card>
 
