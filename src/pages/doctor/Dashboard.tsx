@@ -3,19 +3,18 @@ import { Link } from 'react-router-dom';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import apiService from '../../services/api';
-import { useAuthStore } from '../../store/authStore';
 import { 
   CalendarIcon, 
   ClockIcon, 
   UserIcon, 
   ChevronRightIcon,
-  CheckIcon,
   ActivityIcon,
   TrendingUpIcon,
-  DollarSignIcon,
-  MapPinIcon,
   PhoneIcon,
-  StarIcon
+  StarIcon,
+  UsersIcon,
+  DollarSignIcon,
+  SettingsIcon
 } from 'lucide-react';
 
 interface DashboardData {
@@ -28,256 +27,82 @@ interface DashboardData {
     consultationFee: number;
     officeAddress: string;
     workingHours: any;
-    availability_status?: 'available' | 'busy' | 'offline';
   };
   todayAppointments: {
     total: number;
     completed: number;
     pending: number;
     inProgress: number;
-    appointments: Appointment[];
+    appointments: Array<{
+      id: string;
+      patientName: string;
+      patientPhone: string;
+      appointmentTime: string;
+      reason: string;
+      status: string;
+      queueNumber?: number;
+      isEmergency?: boolean;
+    }>;
   };
-  upcomingAppointments: Appointment[];
   stats: {
     totalPatients: number;
     totalAppointments: number;
-    monthlyEarnings: number;
     averageRating: number;
+    monthlyEarnings: number;
   };
-  recentActivity: any[];
 }
 
-interface Appointment {
-  id: string;
-  appointmentId: string;
-  patientName: string;
-  patientAge?: number;
-  patientPhone?: string;
-  appointmentTime: string;
-  appointmentDate: string;
-  reason: string;
-  status: 'scheduled' | 'confirmed' | 'in-progress' | 'completed' | 'cancelled' | 'no-show' | 'pending';
-  type: string;
-  duration: number;
-  consultationFee?: number;
-  queueNumber?: string;
-  isEmergency?: boolean;
-}
 const DoctorDashboard = () => {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const { user, isAuthenticated, isLoading: authLoading } = useAuthStore();
 
   useEffect(() => {
-    // Only fetch data if user is authenticated, not in loading state, and has a valid token
-    const hasValidToken = apiService.getToken();
-    
-    if (isAuthenticated && user && !authLoading && hasValidToken) {
-      console.log('✅ Dashboard: Fetching data - authenticated with valid token');
-      fetchDashboardData();
-    } else {
-      console.log('⚠️ Dashboard: Skipping data fetch', { 
-        isAuthenticated, 
-        hasUser: !!user, 
-        authLoading, 
-        hasValidToken: !!hasValidToken,
-        userRole: user?.role,
-        userInfo: user 
-      });
-      setLoading(false);
-    }
-  }, [isAuthenticated, user, authLoading]);
+    fetchDashboardData();
+  }, []);
 
   const fetchDashboardData = async () => {
-    // Triple-check authentication and token before making API call
-    const hasValidToken = apiService.getToken();
-    
-    if (!isAuthenticated || !user || !hasValidToken) {
-      console.log('⚠️ Dashboard: Cannot fetch data - authentication failed', {
-        isAuthenticated,
-        hasUser: !!user,
-        hasValidToken: !!hasValidToken
-      });
-      setLoading(false);
-      return;
-    }
-
     try {
       setLoading(true);
-      console.log('🔄 Dashboard: Making API request to getDoctorDashboard...');
-      
-      const result = await apiService.getDoctorDashboard();
-      
-      if (result.success) {
-        setDashboardData(result.data);
-        console.log('✅ Dashboard: Data fetched successfully');
-        console.log('📊 Dashboard: Appointments data received:', {
-          total: result.data?.todayAppointments?.total,
-          appointmentsArrayLength: result.data?.todayAppointments?.appointments?.length,
-          appointmentsArray: result.data?.todayAppointments?.appointments
-        });
-      } else {
-        throw new Error(result.message || 'Failed to fetch dashboard data');
+      const response = await apiService.getDoctorDashboard();
+      if (response.data) {
+        setDashboardData(response.data);
       }
-    } catch (err) {
-      console.error('❌ Dashboard: Error fetching dashboard data:', err);
-      console.error('❌ Dashboard: Error details:', {
-        message: err instanceof Error ? err.message : 'Unknown error',
-        status: (err as any)?.response?.status,
-        statusText: (err as any)?.response?.statusText,
-        data: (err as any)?.response?.data
-      });
-      setError(err instanceof Error ? err.message : 'An error occurred');
-      
-      // Fallback to mock queue data for demonstration
-      const mockQueueData = (): DashboardData => ({
-        doctor: {
-          id: '1',
-          name: 'Dr. Queue Demo',
-          specialty: 'General Medicine',
-          rating: 4.8,
-          totalReviews: 127,
-          consultationFee: 3500.00,
-          officeAddress: 'Medical Center, Queue Wing',
-          availability_status: 'available',
-          workingHours: {
-            monday: { start: '09:00', end: '17:00' },
-            tuesday: { start: '09:00', end: '17:00' },
-            wednesday: { start: '09:00', end: '17:00' },
-            thursday: { start: '09:00', end: '17:00' },
-            friday: { start: '09:00', end: '15:00' }
-          }
-        },
-        todayAppointments: {
-          total: 5,
-          completed: 1,
-          pending: 3,
-          inProgress: 1,
-          appointments: [
-            {
-              id: '1',
-              appointmentId: 'APT-Q001',
-              patientName: 'John Regular',
-              patientAge: 35,
-              patientPhone: '0723456789',
-              appointmentTime: '09:30',
-              appointmentDate: new Date().toISOString().split('T')[0],
-              reason: 'Regular health checkup',
-              status: 'completed' as const,
-              type: 'consultation',
-              duration: 30,
-              consultationFee: 3500.00,
-              queueNumber: '1',
-              isEmergency: false
-            },
-            {
-              id: '2',
-              appointmentId: 'APT-Q002',
-              patientName: 'Mary Emergency',
-              patientAge: 28,
-              patientPhone: '0723456790',
-              appointmentTime: '10:00',
-              appointmentDate: new Date().toISOString().split('T')[0],
-              reason: 'Severe chest pain',
-              status: 'in-progress' as const,
-              type: 'consultation',
-              duration: 45,
-              consultationFee: 3500.00,
-              queueNumber: 'E1',
-              isEmergency: true
-            },
-            {
-              id: '3',
-              appointmentId: 'APT-Q003',
-              patientName: 'Peter Queue',
-              patientAge: 42,
-              patientPhone: '0723456791',
-              appointmentTime: '10:30',
-              appointmentDate: new Date().toISOString().split('T')[0],
-              reason: 'Follow-up consultation',
-              status: 'pending' as const,
-              type: 'consultation',
-              duration: 30,
-              consultationFee: 3500.00,
-              queueNumber: '2',
-              isEmergency: false
-            },
-            {
-              id: '4',
-              appointmentId: 'APT-Q004',
-              patientName: 'Sarah Patient',
-              patientAge: 31,
-              patientPhone: '0723456792',
-              appointmentTime: '11:00',
-              appointmentDate: new Date().toISOString().split('T')[0],
-              reason: 'Vaccination',
-              status: 'pending' as const,
-              type: 'consultation',
-              duration: 15,
-              consultationFee: 3500.00,
-              queueNumber: '3',
-              isEmergency: false
-            },
-            {
-              id: '5',
-              appointmentId: 'APT-Q005',
-              patientName: 'Tom Emergency',
-              patientAge: 45,
-              patientPhone: '0723456793',
-              appointmentTime: '11:15',
-              appointmentDate: new Date().toISOString().split('T')[0],
-              reason: 'High fever emergency',
-              status: 'pending' as const,
-              type: 'consultation',
-              duration: 30,
-              consultationFee: 3500.00,
-              queueNumber: 'E2',
-              isEmergency: true
-            }
-          ]
-        },
-        upcomingAppointments: [],
-        stats: {
-          totalPatients: 250,
-          totalAppointments: 50,
-          monthlyEarnings: 175000.00,
-          averageRating: 4.8
-        },
-        recentActivity: []
-      });
-      
-      setDashboardData(mockQueueData());
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const formatTime = (time: string) => {
-    if (!time || typeof time !== 'string') {
-      return 'Invalid Time';
+  const formatTime = (timeString: string) => {
+    if (!timeString) return '';
+    try {
+      const date = new Date(`1970-01-01T${timeString}`);
+      return date.toLocaleTimeString([], { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: true 
+      });
+    } catch (error) {
+      return timeString;
     }
-    
-    const [hours, minutes] = time.split(':');
-    if (!hours || !minutes) {
-      return 'Invalid Time';
-    }
-    
-    const hour = parseInt(hours);
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-    return `${displayHour}:${minutes} ${ampm}`;
   };
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed': return 'bg-green-100 text-green-800';
-      case 'in-progress': return 'bg-blue-100 text-blue-800';
-      case 'confirmed': return 'bg-yellow-100 text-yellow-800';
-      case 'cancelled': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+    switch (status?.toLowerCase()) {
+      case 'confirmed':
+        return 'bg-blue-100 text-blue-800';
+      case 'in-progress':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'completed':
+        return 'bg-green-100 text-green-800';
+      case 'cancelled':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   };
+
   const handleAppointmentAction = async (appointmentId: string, action: 'start' | 'complete' | 'cancel') => {
     try {
       const result = await apiService.handleAppointmentAction(appointmentId, action);
@@ -300,375 +125,277 @@ const DoctorDashboard = () => {
     );
   }
 
-  if (error) {
-    return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-        <p className="text-red-600">Error loading dashboard: {error}</p>
-        <button 
-          onClick={fetchDashboardData}
-          className="mt-2 text-red-600 underline hover:text-red-800"
-        >
-          Try again
-        </button>
-      </div>
-    );
-  }
-
   if (!dashboardData) {
     return <div>No data available</div>;
   }
 
-  const testAPICall = async () => {
-    console.log('🔧 Manual API test started...');
-    console.log('🔧 Current auth state:', {
-      isAuthenticated,
-      user: user,
-      token: apiService.getToken()?.substring(0, 20) + '...'
-    });
-    await fetchDashboardData();
-  };
-
   return (
     <div className="space-y-6">
-      {/* Debug Section - Remove this after testing */}
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-        <p className="text-yellow-800 text-sm mb-2">
-          🔧 Debug Info - Auth: {isAuthenticated ? '✅' : '❌'} | User: {user?.name || 'None'} | Token: {apiService.getToken() ? '✅' : '❌'}
-        </p>
-        <button 
-          onClick={testAPICall}
-          className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700"
-        >
-          🔧 Test API Call Manually
-        </button>
-      </div>
-      
-      {/* Header Section */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-lg p-6 text-white">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="h-16 w-16 bg-white/20 rounded-full flex items-center justify-center">
-              <UserIcon className="h-8 w-8 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold">{dashboardData.doctor?.name || 'Doctor'}</h1>
-              <p className="text-blue-100">{dashboardData.doctor?.specialty || 'General Medicine'}</p>
-              <div className="flex items-center mt-1">
-                <StarIcon className="h-4 w-4 text-yellow-300 fill-current" />
-                <span className="ml-1 text-sm">{dashboardData.doctor?.rating || 0} ({dashboardData.doctor?.totalReviews || 0} reviews)</span>
-              </div>
-            </div>
-          </div>
-          <div className="text-right">
-            <div className="flex items-center text-white/90 mb-1">
-              <MapPinIcon className="h-4 w-4 mr-1" />
-              <span className="text-sm">{dashboardData.doctor?.officeAddress || 'Office Address'}</span>
-            </div>
-            <div className="flex items-center text-white/90">
-              <DollarSignIcon className="h-4 w-4 mr-1" />
-              <span className="text-sm">Consultation: ${dashboardData.doctor?.consultationFee || 0}</span>
-            </div>
-          </div>
-        </div>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-gray-900">Doctor Dashboard</h1>
+        <Link to="/doctor/manage-queue">
+          <Button variant="primary">
+            <ClockIcon className="w-4 h-4 mr-2" />
+            Manage Queue
+          </Button>
+        </Link>
       </div>
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card className="p-6">
-          <div className="flex items-center">
-            <div className="p-3 bg-blue-100 rounded-lg">
-              <CalendarIcon className="h-6 w-6 text-blue-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Today's Appointments</p>
-              <p className="text-2xl font-bold text-gray-900">{dashboardData.todayAppointments?.total || 0}</p>
-            </div>
-          </div>
-        </Card>
-        
-        <Card className="p-6">
-          <div className="flex items-center">
-            <div className="p-3 bg-green-100 rounded-lg">
-              <CheckIcon className="h-6 w-6 text-green-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Completed</p>
-              <p className="text-2xl font-bold text-gray-900">{dashboardData.todayAppointments?.completed || 0}</p>
+      {/* Stats Row */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <div className="p-4">
+            <div className="flex items-center">
+              <div className="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                <UsersIcon className="h-6 w-6 text-blue-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Total Patients</p>
+                <p className="text-2xl font-bold text-gray-900">{dashboardData.stats?.totalPatients || 0}</p>
+              </div>
             </div>
           </div>
         </Card>
         
-        <Card className="p-6">
-          <div className="flex items-center">
-            <div className="p-3 bg-yellow-100 rounded-lg">
-              <ClockIcon className="h-6 w-6 text-yellow-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Pending</p>
-              <p className="text-2xl font-bold text-gray-900">{dashboardData.todayAppointments?.pending || 0}</p>
+        <Card>
+          <div className="p-4">
+            <div className="flex items-center">
+              <div className="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center">
+                <CalendarIcon className="h-6 w-6 text-green-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Appointments</p>
+                <p className="text-2xl font-bold text-gray-900">{dashboardData.stats?.totalAppointments || 0}</p>
+              </div>
             </div>
           </div>
         </Card>
         
-        <Card className="p-6">
-          <div className="flex items-center">
-            <div className="p-3 bg-purple-100 rounded-lg">
-              <TrendingUpIcon className="h-6 w-6 text-purple-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Monthly Revenue</p>
-              <p className="text-2xl font-bold text-gray-900">${dashboardData.stats?.monthlyEarnings?.toLocaleString() || '0'}</p>
+        <Card>
+          <div className="p-4">
+            <div className="flex items-center">
+              <div className="h-12 w-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                <StarIcon className="h-6 w-6 text-yellow-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Rating</p>
+                <p className="text-2xl font-bold text-gray-900">{dashboardData.stats?.averageRating || 0}</p>
+              </div>
             </div>
           </div>
         </Card>
-      </div>      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Today's Appointments */}
-        <div className="lg:col-span-2">
-          <Card>
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h2 className="text-lg font-semibold text-gray-900">Today's Queue</h2>
-                  <p className="text-sm text-gray-500">
-                    {new Date().toLocaleDateString('en-US', { 
-                      weekday: 'long', 
-                      year: 'numeric', 
-                      month: 'long', 
-                      day: 'numeric' 
-                    })} - Queue-based appointments
-                  </p>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-gray-500">
-                    {dashboardData.todayAppointments?.total || 0} patients in queue
-                  </span>
-                  <Link 
-                    to="/doctor/appointments" 
-                    className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center"
-                  >
-                    View All <ChevronRightIcon className="w-4 h-4 ml-1" />
-                  </Link>
+        
+        <Card>
+          <div className="p-4">
+            <div className="flex items-center">
+              <div className="h-12 w-12 bg-emerald-100 rounded-lg flex items-center justify-center">
+                <DollarSignIcon className="h-6 w-6 text-emerald-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Earnings</p>
+                <p className="text-2xl font-bold text-gray-900">${(dashboardData.stats?.monthlyEarnings || 0).toLocaleString()}</p>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Quick Actions - Full Width */}
+      <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">Quick Actions</h2>
+              <p className="text-sm text-gray-600 mt-1">Manage your practice efficiently</p>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+            <Link to="/doctor/patients">
+              <div className="bg-white rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer border border-blue-100">
+                <div className="flex flex-col items-center text-center">
+                  <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center mb-2">
+                    <UserIcon className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <p className="text-sm font-medium text-gray-900">View Patients</p>
+                  <p className="text-xs text-gray-500">Manage records</p>
                 </div>
               </div>
-              
-              {(() => {
-                console.log('🔍 Dashboard: Checking appointments display condition:', {
-                  hasAppointments: dashboardData.todayAppointments?.appointments?.length > 0,
-                  appointmentsLength: dashboardData.todayAppointments?.appointments?.length,
-                  appointmentsArray: dashboardData.todayAppointments?.appointments
-                });
-                return dashboardData.todayAppointments?.appointments?.length > 0;
-              })() ? (
-                <div className="space-y-4">
-                  {dashboardData.todayAppointments.appointments
-                    .filter(appointment => appointment && appointment.id) // Filter out invalid appointments
-                    .map((appointment) => (
-                    <div key={appointment.id} className="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                          <div className="flex-shrink-0">
-                            <div className="h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center">
-                              <UserIcon className="h-6 w-6 text-blue-600" />
-                            </div>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center space-x-2">
-                              <p className="text-sm font-medium text-gray-900 truncate">
-                                {appointment.patientName || 'Unknown Patient'}
-                              </p>
-                              {appointment.queueNumber && (
-                                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                                  appointment.isEmergency 
-                                    ? 'bg-red-100 text-red-800' 
-                                    : 'bg-blue-100 text-blue-800'
-                                }`}>
-                                  {appointment.isEmergency ? '🚨' : '#'} {appointment.queueNumber}
-                                </span>
-                              )}
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(appointment.status)}`}>
-                                {appointment.status ? appointment.status.replace('-', ' ') : 'unknown'}
-                              </span>
-                            </div>
-                            <div className="flex items-center space-x-4 mt-1">
-                              <div className="flex items-center text-sm text-gray-500">
-                                <ClockIcon className="h-4 w-4 mr-1" />
-                                {appointment.appointmentTime ? formatTime(appointment.appointmentTime) : 'Time not set'}
-                              </div>
-                              <div className="flex items-center text-sm text-gray-500">
-                                <PhoneIcon className="h-4 w-4 mr-1" />
-                                {appointment.patientPhone || 'Phone not available'}
-                              </div>
-                            </div>
-                            <p className="text-sm text-gray-600 mt-1 truncate">
-                              {appointment.reason || 'No reason provided'}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Link to={`/doctor/patients/${appointment.id}`}>
-                            <Button variant="outline" size="sm">
-                              View Patient
-                            </Button>
-                          </Link>
-                          {appointment.status === 'confirmed' && (
-                            <Button 
-                              variant="primary" 
-                              size="sm"
-                              onClick={() => handleAppointmentAction(appointment.id, 'start')}
-                            >
-                              Start
-                            </Button>
-                          )}
-                          {appointment.status === 'in-progress' && (
-                            <Button 
-                              variant="secondary" 
-                              size="sm"
-                              onClick={() => handleAppointmentAction(appointment.id, 'complete')}
-                            >
-                              Complete
-                            </Button>
-                          )}
+            </Link>
+            
+            <Link to="/doctor/appointments">
+              <div className="bg-white rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer border border-blue-100">
+                <div className="flex flex-col items-center text-center">
+                  <div className="h-10 w-10 bg-purple-100 rounded-lg flex items-center justify-center mb-2">
+                    <CalendarIcon className="h-5 w-5 text-purple-600" />
+                  </div>
+                  <p className="text-sm font-medium text-gray-900">Appointments</p>
+                  <p className="text-xs text-gray-500">View schedule</p>
+                </div>
+              </div>
+            </Link>
+            
+            <Link to="/doctor/ai-predictions">
+              <div className="bg-white rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer border border-blue-100">
+                <div className="flex flex-col items-center text-center">
+                  <div className="h-10 w-10 bg-green-100 rounded-lg flex items-center justify-center mb-2">
+                    <ActivityIcon className="h-5 w-5 text-green-600" />
+                  </div>
+                  <p className="text-sm font-medium text-gray-900">AI Predictions</p>
+                  <p className="text-xs text-gray-500">Health predictions</p>
+                </div>
+              </div>
+            </Link>
+            
+            <Link to="/doctor/earnings">
+              <div className="bg-white rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer border border-blue-100">
+                <div className="flex flex-col items-center text-center">
+                  <div className="h-10 w-10 bg-yellow-100 rounded-lg flex items-center justify-center mb-2">
+                    <TrendingUpIcon className="h-5 w-5 text-yellow-600" />
+                  </div>
+                  <p className="text-sm font-medium text-gray-900">View Earnings</p>
+                  <p className="text-xs text-gray-500">Track income</p>
+                </div>
+              </div>
+            </Link>
+            
+            <Link to="/doctor/manage-queue">
+              <div className="bg-white rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer border border-blue-100">
+                <div className="flex flex-col items-center text-center">
+                  <div className="h-10 w-10 bg-indigo-100 rounded-lg flex items-center justify-center mb-2">
+                    <ClockIcon className="h-5 w-5 text-indigo-600" />
+                  </div>
+                  <p className="text-sm font-medium text-gray-900">Queue</p>
+                  <p className="text-xs text-gray-500">Manage queue</p>
+                </div>
+              </div>
+            </Link>
+            
+            <Link to="/doctor/profile">
+              <div className="bg-white rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer border border-blue-100">
+                <div className="flex flex-col items-center text-center">
+                  <div className="h-10 w-10 bg-gray-100 rounded-lg flex items-center justify-center mb-2">
+                    <SettingsIcon className="h-5 w-5 text-gray-600" />
+                  </div>
+                  <p className="text-sm font-medium text-gray-900">Profile</p>
+                  <p className="text-xs text-gray-500">Settings</p>
+                </div>
+              </div>
+            </Link>
+          </div>
+        </div>
+      </Card>
+
+      {/* Main Content - Patient Queue */}
+      <Card>
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">Today's Patient Queue</h2>
+              <p className="text-sm text-gray-600 mt-1">Manage your appointments for today</p>
+            </div>
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-gray-500">
+                {dashboardData.todayAppointments?.total || 0} patients in queue
+              </span>
+              <Link 
+                to="/doctor/appointments" 
+                className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center"
+              >
+                View All <ChevronRightIcon className="w-4 h-4 ml-1" />
+              </Link>
+            </div>
+          </div>
+          
+          {dashboardData.todayAppointments?.appointments?.length > 0 ? (
+            <div className="space-y-4">
+              {dashboardData.todayAppointments.appointments
+                .filter(appointment => appointment && appointment.id)
+                .map((appointment) => (
+                <div key={appointment.id} className="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div className="flex-shrink-0">
+                        <div className="h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center">
+                          <UserIcon className="h-6 w-6 text-blue-600" />
                         </div>
                       </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-2">
+                          <p className="text-sm font-medium text-gray-900 truncate">
+                            {appointment.patientName || 'Unknown Patient'}
+                          </p>
+                          {appointment.queueNumber && (
+                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                              appointment.isEmergency 
+                                ? 'bg-red-100 text-red-800' 
+                                : 'bg-blue-100 text-blue-800'
+                            }`}>
+                              {appointment.isEmergency ? '🚨' : '#'} {appointment.queueNumber}
+                            </span>
+                          )}
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(appointment.status)}`}>
+                            {appointment.status ? appointment.status.replace('-', ' ') : 'unknown'}
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-4 mt-1">
+                          <div className="flex items-center text-sm text-gray-500">
+                            <ClockIcon className="h-4 w-4 mr-1" />
+                            {appointment.appointmentTime ? formatTime(appointment.appointmentTime) : 'Time not set'}
+                          </div>
+                          <div className="flex items-center text-sm text-gray-500">
+                            <PhoneIcon className="h-4 w-4 mr-1" />
+                            {appointment.patientPhone || 'Phone not available'}
+                          </div>
+                        </div>
+                        <p className="text-sm text-gray-600 mt-1 truncate">
+                          {appointment.reason || 'No reason provided'}
+                        </p>
+                      </div>
                     </div>
-                  ))}
+                    <div className="flex items-center space-x-2">
+                      <Link to={`/doctor/patients/${appointment.id}`}>
+                        <Button variant="outline" size="sm">
+                          View Patient
+                        </Button>
+                      </Link>
+                      {appointment.status === 'confirmed' && (
+                        <Button 
+                          variant="primary" 
+                          size="sm"
+                          onClick={() => handleAppointmentAction(appointment.id, 'start')}
+                        >
+                          Start
+                        </Button>
+                      )}
+                      {appointment.status === 'in-progress' && (
+                        <Button 
+                          variant="secondary" 
+                          size="sm"
+                          onClick={() => handleAppointmentAction(appointment.id, 'complete')}
+                        >
+                          Complete
+                        </Button>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              ) : (
-                <div className="text-center py-12">
-                  <CalendarIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Patients in Queue</h3>
-                  <p className="text-gray-500 mb-6">
-                    No patients have joined the queue for today yet.
-                    <br />
-                    Patients can book queue-based appointments and will be assigned numbers.
-                  </p>
-                </div>
-              )}
+              ))}
             </div>
-          </Card>
+          ) : (
+            <div className="text-center py-12">
+              <CalendarIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Patients in Queue</h3>
+              <p className="text-gray-500 mb-6">
+                No patients have joined the queue for today yet.
+                <br />
+                Patients can book queue-based appointments and will be assigned numbers.
+              </p>
+            </div>
+          )}
         </div>
-
-        {/* Sidebar */}
-        <div className="space-y-6">
-          {/* Quick Actions */}
-          <Card>
-            <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
-              <div className="space-y-3">
-                <Link to="/doctor/patients">
-                  <Button variant="outline" className="w-full justify-start">
-                    <UserIcon className="w-4 h-4 mr-2" />
-                    View Patients
-                  </Button>
-                </Link>
-                <Link to="/doctor/reports">
-                  <Button variant="outline" className="w-full justify-start">
-                    <ActivityIcon className="w-4 h-4 mr-2" />
-                    Medical Reports
-                  </Button>
-                </Link>
-                <Link to="/doctor/earnings">
-                  <Button variant="outline" className="w-full justify-start">
-                    <TrendingUpIcon className="w-4 h-4 mr-2" />
-                    View Earnings
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          </Card>
-
-
-
-          {/* Today's Overview */}
-          <Card>
-            <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Today's Overview</h3>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
-                      <span className="text-blue-600 font-semibold text-sm">
-                        {dashboardData.todayAppointments?.inProgress || 0}
-                      </span>
-                    </div>
-                    <span className="ml-3 text-sm font-medium">In Progress</span>
-                  </div>
-                  <Button variant="outline" size="sm">
-                    View
-                  </Button>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <div className="h-8 w-8 bg-yellow-100 rounded-full flex items-center justify-center">
-                      <span className="text-yellow-600 font-semibold text-sm">
-                        {dashboardData.todayAppointments?.pending || 0}
-                      </span>
-                    </div>
-                    <span className="ml-3 text-sm font-medium">Waiting</span>
-                  </div>
-                  <Button variant="outline" size="sm">
-                    View
-                  </Button>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
-                      <span className="text-green-600 font-semibold text-sm">
-                        {dashboardData.todayAppointments?.completed || 0}
-                      </span>
-                    </div>
-                    <span className="ml-3 text-sm font-medium">Completed</span>
-                  </div>
-                  <Button variant="outline" size="sm">
-                    View
-                  </Button>
-                </div>
-                
-                <div className="pt-4 border-t border-gray-200">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">Today's Revenue</span>
-                    <span className="font-semibold text-gray-900">
-                      ${((dashboardData.todayAppointments?.completed || 0) * (dashboardData.doctor?.consultationFee || 0)).toLocaleString()}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </Card>
-
-          {/* Monthly Statistics */}
-          <Card>
-            <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">This Month</h3>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Total Patients</span>
-                  <span className="text-sm font-semibold">{dashboardData.stats?.totalPatients || 0}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Appointments</span>
-                  <span className="text-sm font-semibold">{dashboardData.stats?.totalAppointments || 0}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Average Rating</span>
-                  <div className="flex items-center">
-                    <StarIcon className="h-4 w-4 text-yellow-400 fill-current" />
-                    <span className="text-sm font-semibold ml-1">{dashboardData.stats?.averageRating || 0}</span>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between pt-2 border-t border-gray-200">
-                  <span className="text-sm text-gray-600">Total Earnings</span>
-                  <span className="text-sm font-semibold text-green-600">
-                    ${dashboardData.stats?.monthlyEarnings?.toLocaleString() || '0'}
-                  </span>
-                </div>
-              </div>            </div>
-          </Card>
-        </div>
-      </div>
+      </Card>
     </div>
   );
 };

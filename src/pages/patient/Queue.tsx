@@ -276,9 +276,6 @@ const PatientQueue = () => {
                         notification?.status === 'your_turn' ? 'in-progress' :
                         appointment.status as any
                       } />
-                      {appointment.status === 'completed' && (
-                        <span className="text-green-600 font-medium text-sm">✓ Completed</span>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -326,7 +323,8 @@ const PatientQueue = () => {
                       <div>
                         <div className="text-sm font-medium text-gray-700">Estimated Wait</div>
                         <div className="text-2xl font-bold text-green-600">
-                          {appointment.estimated_wait_time !== undefined && appointment.estimated_wait_time !== null
+                          {appointment.status === 'completed' ? 'Completed' :
+                           appointment.estimated_wait_time !== undefined && appointment.estimated_wait_time !== null
                             ? formatWaitTime(appointment.estimated_wait_time)
                             : 'Calculating...'}
                         </div>
