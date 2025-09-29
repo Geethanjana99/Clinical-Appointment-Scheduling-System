@@ -390,41 +390,6 @@ const ManageQueue = () => {
         </div>
       </Card>
 
-      {/* Queue Status Details */}
-      {queueStatus && (
-        <Card>
-          <div className="p-6">
-            <h3 className="text-lg font-semibold mb-4">Queue Status Information</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <div className="text-sm font-medium text-gray-700">Current Number</div>
-                <div className="text-2xl font-bold text-blue-600">
-                  {queueStatus.current_number || '0'}
-                </div>
-              </div>
-              <div className="bg-green-50 p-4 rounded-lg">
-                <div className="text-sm font-medium text-gray-700">Queue Active</div>
-                <div className="text-2xl font-bold text-green-600">
-                  {queueStatus.is_active ? 'YES' : 'NO'}
-                </div>
-              </div>
-              <div className="bg-purple-50 p-4 rounded-lg">
-                <div className="text-sm font-medium text-gray-700">Available Hours</div>
-                <div className="text-lg font-semibold text-purple-600">
-                  {queueStatus.available_from} - {queueStatus.available_to}
-                </div>
-              </div>
-              <div className="bg-orange-50 p-4 rounded-lg">
-                <div className="text-sm font-medium text-gray-700">Emergency Count</div>
-                <div className="text-2xl font-bold text-orange-600">
-                  {queueStatus.emergency_used || 0}/{queueStatus.max_emergency_slots || 5}
-                </div>
-              </div>
-            </div>
-          </div>
-        </Card>
-      )}
-
       {/* Enhanced Queue Status Display */}
       <Card>
         <div className="p-6">
@@ -469,15 +434,17 @@ const ManageQueue = () => {
               </div>
             </div>
 
-            {/* Emergency Number */}
-            <div className="bg-gradient-to-br from-orange-500 to-orange-600 text-white p-6 rounded-xl shadow-lg">
+            {/* Remaining Paid Patients */}
+            <div className="bg-gradient-to-br from-green-500 to-green-600 text-white p-6 rounded-xl shadow-lg">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-orange-100 text-sm font-medium">Emergency Serving</p>
-                  <p className="text-3xl font-bold">{queueStatus?.current_emergency_number || 'E0'}</p>
+                  <p className="text-green-100 text-sm font-medium">Remaining Paid Patients</p>
+                  <p className="text-3xl font-bold">
+                    {queue.filter(p => p.payment_status === 'paid' && ['scheduled', 'confirmed'].includes(p.status)).length}
+                  </p>
                 </div>
                 <div className="bg-white bg-opacity-20 p-3 rounded-lg">
-                  <PhoneIcon className="h-8 w-8" />
+                  <UserIcon className="h-8 w-8" />
                 </div>
               </div>
             </div>
