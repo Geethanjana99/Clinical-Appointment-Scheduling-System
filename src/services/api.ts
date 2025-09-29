@@ -573,9 +573,14 @@ class ApiService {
     });
   }
 
-  async completeConsultation(appointmentId: string): Promise<ApiResponse<any>> {
+  async completeConsultation(appointmentId: string, consultationData?: { notes?: string, prescription?: string, diagnosis?: string }): Promise<ApiResponse<any>> {
     return this.makeRequest<any>(`/doctors/queue/complete/${appointmentId}`, {
       method: 'POST',
+      body: JSON.stringify({
+        notes: consultationData?.notes || 'Consultation completed',
+        prescription: consultationData?.prescription || 'No prescription provided',
+        diagnosis: consultationData?.diagnosis || 'Diagnosis to be updated'
+      }),
     });
   }
 

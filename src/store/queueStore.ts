@@ -301,7 +301,11 @@ export const useQueueStore = create<QueueState>((set, get) => ({
 
   completeConsultation: async (appointmentId: string) => {
     try {
-      const response = await apiService.completeConsultation(appointmentId);
+      const response = await apiService.completeConsultation(appointmentId, {
+        notes: 'Consultation completed via queue management',
+        prescription: 'Prescription provided during consultation',
+        diagnosis: 'Diagnosis completed'
+      });
       
       if (response.success) {
         set(state => ({
