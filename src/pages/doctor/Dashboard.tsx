@@ -81,7 +81,9 @@ const DoctorDashboard = () => {
         isAuthenticated, 
         hasUser: !!user, 
         authLoading, 
-        hasValidToken: !!hasValidToken 
+        hasValidToken: !!hasValidToken,
+        userRole: user?.role,
+        userInfo: user 
       });
       setLoading(false);
     }
@@ -110,11 +112,22 @@ const DoctorDashboard = () => {
       if (result.success) {
         setDashboardData(result.data);
         console.log('✅ Dashboard: Data fetched successfully');
+        console.log('📊 Dashboard: Appointments data received:', {
+          total: result.data?.todayAppointments?.total,
+          appointmentsArrayLength: result.data?.todayAppointments?.appointments?.length,
+          appointmentsArray: result.data?.todayAppointments?.appointments
+        });
       } else {
         throw new Error(result.message || 'Failed to fetch dashboard data');
       }
     } catch (err) {
       console.error('❌ Dashboard: Error fetching dashboard data:', err);
+      console.error('❌ Dashboard: Error details:', {
+        message: err instanceof Error ? err.message : 'Unknown error',
+        status: (err as any)?.response?.status,
+        statusText: (err as any)?.response?.statusText,
+        data: (err as any)?.response?.data
+      });
       setError(err instanceof Error ? err.message : 'An error occurred');
       
       // Fallback to mock queue data for demonstration
@@ -305,8 +318,31 @@ const DoctorDashboard = () => {
     return <div>No data available</div>;
   }
 
+  const testAPICall = async () => {
+    console.log('🔧 Manual API test started...');
+    console.log('🔧 Current auth state:', {
+      isAuthenticated,
+      user: user,
+      token: apiService.getToken()?.substring(0, 20) + '...'
+    });
+    await fetchDashboardData();
+  };
+
   return (
     <div className="space-y-6">
+      {/* Debug Section - Remove this after testing */}
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+        <p className="text-yellow-800 text-sm mb-2">
+          🔧 Debug Info - Auth: {isAuthenticated ? '✅' : '❌'} | User: {user?.name || 'None'} | Token: {apiService.getToken() ? '✅' : '❌'}
+        </p>
+        <button 
+          onClick={testAPICall}
+          className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700"
+        >
+          🔧 Test API Call Manually
+        </button>
+      </div>
+      
       {/* Header Section */}
       <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-lg p-6 text-white">
         <div className="flex items-center justify-between">
@@ -416,7 +452,14 @@ const DoctorDashboard = () => {
                 </div>
               </div>
               
-              {dashboardData.todayAppointments?.appointments?.length > 0 ? (
+              {(() => {
+                console.log('🔍 Dashboard: Checking appointments display condition:', {
+                  hasAppointments: dashboardData.todayAppointments?.appointments?.length > 0,
+                  appointmentsLength: dashboardData.todayAppointments?.appointments?.length,
+                  appointmentsArray: dashboardData.todayAppointments?.appointments
+                });
+                return dashboardData.todayAppointments?.appointments?.length > 0;
+              })() ? (
                 <div className="space-y-4">
                   {dashboardData.todayAppointments.appointments
                     .filter(appointment => appointment && appointment.id) // Filter out invalid appointments

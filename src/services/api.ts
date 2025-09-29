@@ -371,7 +371,24 @@ class ApiService {
       });
     }
     const queryString = queryParams.toString();
-    return this.makeRequest<any>(`/doctors/appointments${queryString ? `?${queryString}` : ''}`);
+    const endpoint = `/doctors/appointments${queryString ? `?${queryString}` : ''}`;
+    
+    console.log('🔄 API: getDoctorAppointments called with:', {
+      params,
+      queryString,
+      fullEndpoint: endpoint
+    });
+    
+    const result = await this.makeRequest<any>(endpoint);
+    
+    console.log('✅ API: getDoctorAppointments response:', {
+      success: result.success,
+      dataType: typeof result.data,
+      dataLength: Array.isArray(result.data) ? result.data.length : 'not array',
+      hasAppointments: result.data?.appointments ? result.data.appointments.length : 'no appointments key'
+    });
+    
+    return result;
   }
 
   async getTodayAppointments(): Promise<ApiResponse<any>> {
