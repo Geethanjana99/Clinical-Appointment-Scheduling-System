@@ -117,16 +117,17 @@ const HealthPredictions = () => {
 
       if (submissionsRes.success) {
         const submissions = submissionsRes.data.submissions || [];
-        // Ensure each submission has required fields with defaults
+        // Flatten healthData and ensure each submission has required fields with defaults
         const validatedSubmissions = submissions.map((submission: any) => ({
           ...submission,
-          age: submission.age || 0,
-          bmi: submission.bmi || null,
-          glucose: submission.glucose || 0,
-          pregnancies: submission.pregnancies || 0,
-          insulin: submission.insulin || 0,
+          // Flatten healthData fields to root level for easier access
+          age: submission.healthData?.age || submission.age || 0,
+          bmi: submission.healthData?.bmi || submission.bmi || null,
+          glucose: submission.healthData?.glucose || submission.glucose || 0,
+          pregnancies: submission.healthData?.pregnancies || submission.pregnancies || 0,
+          insulin: submission.healthData?.insulin || submission.insulin || 0,
           status: submission.status || 'submitted',
-          notes: submission.notes || null
+          notes: submission.patientNotes || submission.notes || null
         }));
         setSubmissions(validatedSubmissions);
       }
@@ -376,15 +377,15 @@ const HealthPredictions = () => {
                       <div className="bg-gray-50 rounded-lg p-3 space-y-2 text-sm">
                         <div className="flex justify-between">
                           <span className="text-gray-600">Age:</span>
-                          <span className="font-medium">{submission.age || 'N/A'} years</span>
+                          <span className="font-medium">{submission.age && submission.age > 0 ? submission.age : 'N/A'} years</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-600">BMI:</span>
-                          <span className="font-medium">{submission.bmi ? submission.bmi.toFixed(1) : 'N/A'}</span>
+                          <span className="font-medium">{submission.bmi && !isNaN(submission.bmi) ? Number(submission.bmi).toFixed(1) : 'N/A'}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-600">Glucose:</span>
-                          <span className="font-medium">{submission.glucose || 'N/A'} mg/dL</span>
+                          <span className="font-medium">{submission.glucose && submission.glucose > 0 ? submission.glucose : 'N/A'} mg/dL</span>
                         </div>
                         {(submission.pregnancies || 0) > 0 && (
                           <div className="flex justify-between">
