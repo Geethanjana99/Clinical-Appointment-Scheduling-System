@@ -59,7 +59,19 @@ const AdminDashboard: React.FC = () => {
         status: 'active'
       });
 
-      const response = await fetch(`${API_BASE_URL}/mock/patients?${queryParams}`);
+      const token = apiService.getToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/admin/patients?${queryParams}`, {
+        method: 'GET',
+        headers
+      });
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);

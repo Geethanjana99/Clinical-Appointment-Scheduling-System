@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Modal from '../../components/ui/Modal';
+import { apiService } from '../../services/api';
 import { UserIcon, SearchIcon, PlusIcon, EditIcon, TrashIcon } from 'lucide-react';
 
 interface Patient {
@@ -80,7 +81,7 @@ const ManagePatients = () => {
     try {
       console.log('💾 DATA STORAGE FLOW:');
       console.log('1. Frontend: Data collected in React state (formData)');
-      console.log('2. API Call: Sending to backend endpoint /api/mock/patients');
+      console.log('2. API Call: Sending to backend endpoint /api/admin/patients');
       console.log('3. Backend: Node.js server receives data');
       console.log('4. Storage: Data stored in mock API memory (persistent during session)');
       
@@ -166,26 +167,38 @@ const ManagePatients = () => {
         status: statusFilter
       });
 
-      // Always try mock endpoint first for reliability
+      // Try the real admin patients endpoint with authentication
       let response;
       try {
-        console.log('📋 Trying mock patients endpoint...');
-        response = await fetch(`http://localhost:5000/api/mock/patients?${queryParams}`);
+        console.log('📋 Trying admin patients endpoint...');
+        const token = apiService.getToken();
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        };
+        
+        if (token) {
+          headers.Authorization = `Bearer ${token}`;
+        }
+
+        response = await fetch(`http://localhost:5000/api/admin/patients?${queryParams}`, {
+          method: 'GET',
+          headers
+        });
         
         if (!response.ok) {
-          throw new Error(`Mock API error! status: ${response.status}`);
+          throw new Error(`Admin API error! status: ${response.status}`);
         }
         
         const result = await response.json();
         
         if (result.success) {
           setPatients(result.data.patients || []);
-          console.log('✅ Patients fetched successfully from mock API:', result.data.patients.length);
+          console.log('✅ Patients fetched successfully from admin API:', result.data.patients.length);
         } else {
-          throw new Error(result.message || 'Failed to fetch patients from mock API');
+          throw new Error(result.message || 'Failed to fetch patients from admin API');
         }
-      } catch (mockError) {
-        console.error('❌ Mock API failed, using fallback data:', mockError);
+      } catch (adminError) {
+        console.error('❌ Admin API failed, using fallback data:', adminError);
         
         // Fallback to hardcoded data if even mock API fails
         setPatients([

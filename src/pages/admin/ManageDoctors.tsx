@@ -3,16 +3,29 @@ import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Modal from '../../components/ui/Modal';
+import { apiService } from '../../services/api';
 import { UserPlus, Edit, Trash2, AlertCircle } from 'lucide-react';
 
 interface Doctor {
   id: string;
+  doctor_id?: string;
   name: string;
   email: string;
-  specialty: string;
   phone: string;
-  status: 'active' | 'inactive';
-  availability?: string[]; // Optional for compatibility
+  specialty: string;
+  license_number?: string;
+  years_of_experience?: number;
+  education?: string;
+  certifications?: string;
+  consultation_fee?: number;
+  available_days?: string;
+  available_hours?: string;
+  status: string;
+  approval_status?: string;
+  average_rating?: number;
+  total_reviews?: number;
+  created_at?: string;
+  availability?: string[]; // Keep for backward compatibility
 }
 
 const ManageDoctors = () => {
@@ -39,15 +52,27 @@ const ManageDoctors = () => {
     setError(null);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/mock/doctors`);
+      const token = apiService.getToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/admin/doctors/all`, {
+        method: 'GET',
+        headers
+      });
 
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
       const result = await response.json();
 
       if (result.success) {
-        setDoctors(result.data || []);
-        setDataSource(result.source || 'mock_api');
+        setDoctors(result.data.doctors || []);
+        setDataSource('admin_api');
       } else {
         throw new Error(result.message || 'Failed to fetch doctors');
       }
@@ -149,7 +174,7 @@ const ManageDoctors = () => {
       specialty: doctor.specialty,
       phone: doctor.phone,
       availability: doctor.availability || [],
-      status: doctor.status,
+      status: (doctor.status === 'active' || doctor.status === 'inactive') ? doctor.status : 'active',
     });
     setIsModalOpen(true);
   };
