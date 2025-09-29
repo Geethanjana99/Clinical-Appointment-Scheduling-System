@@ -23,10 +23,11 @@ interface QueuePosition {
 }
 
 interface PatientNotification {
-  status: 'be_ready' | 'prepare' | 'waiting' | 'payment_required' | 'queue_not_active' | 'completed' | 'current_or_missed';
+  status: 'be_ready' | 'prepare' | 'waiting' | 'payment_required' | 'queue_not_active' | 'completed' | 'current_or_missed' | 'your_turn';
   message: string;
   position?: number;
   isNext?: boolean;
+  isCurrent?: boolean;
   appointment: {
     queueNumber: string;
     doctorName: string;
@@ -148,13 +149,13 @@ const PatientQueue = () => {
 
   const formatWaitTime = (minutes: number | undefined | null) => {
     if (minutes === undefined || minutes === null || isNaN(minutes) || minutes < 0) {
-      return 'Unknown';
+      return 'Calculating...';
     }
-    if (minutes === 0) return 'Now';
+    if (minutes === 0) return 'Your turn!';
     if (minutes < 60) return `${minutes}min`;
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
-    return `${hours}h ${mins}min`;
+    return mins > 0 ? `${hours}h ${mins}min` : `${hours}h`;
   };
 
   if (isLoading) {
@@ -217,9 +218,11 @@ const PatientQueue = () => {
               <div className="p-6">
                 {/* Enhanced notification banner */}
                 {notification && (
-                  <div className={`mb-4 p-3 rounded-lg border-l-4 ${
-                    notification.status === 'be_ready' 
-                      ? 'bg-red-50 border-red-400 text-red-800'
+                  <div className={`mb-4 p-4 rounded-lg border-l-4 ${
+                    notification.status === 'your_turn'
+                      ? 'bg-red-50 border-red-500 text-red-900 animate-pulse'
+                    : notification.status === 'be_ready' 
+                      ? 'bg-orange-50 border-orange-500 text-orange-900'
                     : notification.status === 'prepare'
                       ? 'bg-yellow-50 border-yellow-400 text-yellow-800'
                     : notification.status === 'payment_required'
@@ -231,13 +234,21 @@ const PatientQueue = () => {
                     : 'bg-blue-50 border-blue-400 text-blue-800'
                   }`}>
                     <div className="flex items-center space-x-2">
+                      {notification.status === 'your_turn' && (
+                        <div className="animate-bounce font-bold text-xl">🚨</div>
+                      )}
                       {notification.status === 'be_ready' && (
                         <div className="animate-pulse font-bold text-lg">🔔</div>
                       )}
-                      <p className="font-medium">{notification.message}</p>
+                      {notification.status === 'completed' && (
+                        <div className="font-bold text-lg">✅</div>
+                      )}
+                      <p className={`font-bold ${notification.status === 'your_turn' ? 'text-xl uppercase' : ''}`}>
+                        {notification.message}
+                      </p>
                     </div>
-                    {notification.position && (
-                      <p className="text-sm mt-1">
+                    {notification.position !== undefined && notification.position > 0 && (
+                      <p className="text-sm mt-1 opacity-80">
                         Position in queue: {notification.position} 
                         {notification.isNext && " (You're next!)"}
                       </p>
@@ -260,7 +271,14 @@ const PatientQueue = () => {
                   </div>
                   <div className="text-right">
                     <div className="flex items-center space-x-2">
-                      <StatusBadge status={appointment.status as any} />
+                      <StatusBadge status={
+                        appointment.status === 'completed' ? 'completed' :
+                        notification?.status === 'your_turn' ? 'in-progress' :
+                        appointment.status as any
+                      } />
+                      {appointment.status === 'completed' && (
+                        <span className="text-green-600 font-medium text-sm">✓ Completed</span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -290,7 +308,9 @@ const PatientQueue = () => {
                       <div>
                         <div className="text-sm font-medium text-gray-700">Position in Queue</div>
                         <div className="text-2xl font-bold text-yellow-600">
-                          {appointment.queue_position === undefined || appointment.queue_position === null || isNaN(appointment.queue_position) 
+                          {appointment.status === 'completed' ? 'Completed' :
+                           notification?.status === 'your_turn' ? 'Your Turn!' :
+                           appointment.queue_position === undefined || appointment.queue_position === null || isNaN(appointment.queue_position) 
                             ? 'Unknown' 
                             : appointment.queue_position <= 1 
                               ? 'Next' 
@@ -306,7 +326,9 @@ const PatientQueue = () => {
                       <div>
                         <div className="text-sm font-medium text-gray-700">Estimated Wait</div>
                         <div className="text-2xl font-bold text-green-600">
-                          {formatWaitTime(appointment.estimated_wait_time)}
+                          {appointment.estimated_wait_time !== undefined && appointment.estimated_wait_time !== null
+                            ? formatWaitTime(appointment.estimated_wait_time)
+                            : 'Calculating...'}
                         </div>
                       </div>
                       <ClockIcon className="w-6 h-6 text-green-600" />
@@ -348,14 +370,24 @@ const PatientQueue = () => {
                     <div>
                       <div className="text-sm font-medium text-gray-700">Queue Status</div>
                       <div className="text-sm text-gray-600">
-                        {appointment.queue_active ? (
+                        {appointment.status === 'completed' ? (
+                          <span className="text-green-600">✓ Consultation completed</span>
+                        ) : appointment.queue_active ? (
                           <span className="text-green-600">✓ Queue is active</span>
                         ) : (
                           <span className="text-red-600">⏸ Queue is paused</span>
                         )}
                       </div>
                     </div>
-                    {appointment.queue_position === 0 && appointment.queue_active && (
+                    {(notification?.status === 'your_turn' || notification?.status === 'be_ready') && appointment.status !== 'completed' && (
+                      <div className="text-right">
+                        <div className={`text-sm font-medium ${notification.status === 'your_turn' ? 'text-red-600 animate-pulse' : 'text-orange-600'}`}>
+                          {notification.status === 'your_turn' ? "IT'S YOUR TURN!" : "You're Next!"}
+                        </div>
+                        <div className="text-xs text-gray-500">Please be ready</div>
+                      </div>
+                    )}
+                    {appointment.queue_position === 0 && appointment.queue_active && appointment.status !== 'completed' && !notification && (
                       <div className="text-right">
                         <div className="text-sm font-medium text-green-600">You're Next!</div>
                         <div className="text-xs text-gray-500">Please be ready</div>
