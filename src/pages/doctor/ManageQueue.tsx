@@ -122,8 +122,9 @@ const ManageQueue = () => {
   const handleCallNextPatient = async (appointmentId: string) => {
     try {
       await callNextPatient(appointmentId);
-      // Refresh data after action
+      // Refresh data after action - this will update the patient status to 'in-progress'
       await fetchTodayAppointments();
+      // Refresh the next patient display to show updated status
       await handleGetNextPatient();
     } catch (error) {
     }
@@ -134,7 +135,13 @@ const ManageQueue = () => {
       await completeConsultation(appointmentId);
       // Refresh data after action
       await fetchTodayAppointments();
-      await handleGetNextPatient();
+      
+      // Automatically get the next patient after completing consultation
+      if (queueStatus?.is_active) {
+        setTimeout(async () => {
+          await handleGetNextPatient();
+        }, 500); // Small delay to ensure backend updates are complete
+      }
     } catch (error) {
     }
   };
@@ -158,14 +165,23 @@ const ManageQueue = () => {
         return;
       }
       
+      // Only get next patient if queue is active
+      if (!queueStatus?.is_active) {
+        setNextPatient(null);
+        return;
+      }
+      
       const next = await getNextPaidPatient();
       
       if (next) {
         setNextPatient(next);
+        console.log('Next patient loaded:', next.name, 'Queue #:', next.queue_number);
       } else {
         setNextPatient(null);
+        console.log('No more patients in queue');
       }
     } catch (error) {
+      console.error('Error getting next patient:', error);
       setNextPatient(null);
     }
   };
@@ -401,7 +417,12 @@ const ManageQueue = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-blue-100 text-sm font-medium">Currently Serving</p>
-                  <p className="text-3xl font-bold">{queueStatus?.current_number || '0'}</p>
+                  <p className="text-3xl font-bold">
+                    {(() => {
+                      const currentPatient = queue.find(p => p.status === 'in-progress');
+                      return currentPatient ? currentPatient.queue_number : (queueStatus?.current_number || '0');
+                    })()}
+                  </p>
                 </div>
                 <div className="bg-white bg-opacity-20 p-3 rounded-lg">
                   <UserIcon className="h-8 w-8" />
@@ -507,36 +528,51 @@ const ManageQueue = () => {
                   </div>
                 </div>
                 <div className="mt-4 flex space-x-2">
-                  <Button
-                    variant="primary"
-                    onClick={() => handleCallNextPatient(nextPatient.id)}
-                    className="flex items-center space-x-1"
-                  >
-                    <PhoneIcon className="w-4 h-4" />
-                    <span>Call Patient</span>
-                  </Button>
-                  {nextPatient.status === 'in-progress' && (
+                  {nextPatient.status === 'in-progress' ? (
                     <Button
-                      variant="outline"
+                      variant="primary"
                       onClick={() => handleCompleteConsultation(nextPatient.id)}
-                      className="flex items-center space-x-1"
+                      className="flex items-center space-x-1 bg-green-600 hover:bg-green-700"
                     >
                       <CheckIcon className="w-4 h-4" />
-                      <span>Complete Consultation</span>
+                      <span>Finish Consultation</span>
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="primary"
+                      onClick={() => handleCallNextPatient(nextPatient.id)}
+                      className="flex items-center space-x-1"
+                    >
+                      <PhoneIcon className="w-4 h-4" />
+                      <span>Start Consultation</span>
                     </Button>
                   )}
+                  
+                  <div className="flex items-center space-x-2 text-sm">
+                    <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
+                      nextPatient.status === 'in-progress' 
+                        ? 'bg-yellow-100 text-yellow-800' 
+                        : 'bg-blue-100 text-blue-800'
+                    }`}>
+                      {nextPatient.status === 'in-progress' ? 'In Consultation' : 'Waiting'}
+                    </span>
+                  </div>
                 </div>
               </div>
             ) : (
               <div className="text-center py-8 text-gray-500">
-                <p>No paid patients in queue</p>
+                <div className="mb-4">
+                  <UserIcon className="h-12 w-12 mx-auto text-gray-400 mb-3" />
+                  <p className="text-lg font-medium">No more patients in queue</p>
+                  <p className="text-sm">All paid patients have been served or there are no paid patients waiting.</p>
+                </div>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handleGetNextPatient}
                   className="mt-2"
                 >
-                  Check for Next Patient
+                  Refresh Queue
                 </Button>
               </div>
             )}
