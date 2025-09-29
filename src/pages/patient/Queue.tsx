@@ -98,7 +98,10 @@ const PatientQueue = () => {
           ...appointment,
           queue_position: appointment.queue_position !== undefined ? Number(appointment.queue_position) : 0,
           estimated_wait_time: appointment.estimated_wait_time !== undefined ? Number(appointment.estimated_wait_time) : 0,
-          queue_number: appointment.queue_number || appointment.queueNumber || 'N/A'
+          queue_number: appointment.queue_number || appointment.queueNumber || 'N/A',
+          payment_status: appointment.payment_status || appointment.paymentStatus || 'unpaid',
+          doctor_name: appointment.doctor_name || appointment.doctorName || 'Unknown Doctor',
+          specialty: appointment.specialty || appointment.specialization || 'Unknown Specialty'
         }));
         
         console.log('🔧 Fixed appointment data:', fixedData);
@@ -241,9 +244,11 @@ const PatientQueue = () => {
                     </div>
                     <div>
                       <h3 className="text-lg font-medium text-gray-900">
-                        Dr. {appointment.doctor_name}
+                        Dr. {notification?.appointment?.doctorName || appointment.doctor_name || 'Unknown'}
                       </h3>
-                      <p className="text-sm text-gray-500">{appointment.specialty}</p>
+                      <p className="text-sm text-gray-500">
+                        {notification?.appointment?.specialty || appointment.specialty || 'Unknown Specialty'}
+                      </p>
                     </div>
                   </div>
                   <div className="text-right">
