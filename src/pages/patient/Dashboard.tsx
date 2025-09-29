@@ -122,14 +122,14 @@ const PatientDashboard = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Book New Appointment */}
           <Link to="/patient/book-appointment" className="block">
-            <div className="group p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all duration-200 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50">
+            <div className="group p-4 rounded-xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-100 hover:border-blue-400 hover:shadow-lg hover:scale-105 transition-all duration-300 hover:bg-gradient-to-br hover:from-blue-100 hover:to-indigo-200">
               <div className="flex flex-col items-center text-center space-y-3">
-                <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-blue-100 to-blue-200 rounded-lg flex items-center justify-center group-hover:from-blue-200 group-hover:to-blue-300 transition-colors">
-                  <PlusIcon className="w-6 h-6 text-blue-600" />
+                <div className="flex-shrink-0 w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center group-hover:from-blue-600 group-hover:to-indigo-700 transition-all duration-300 shadow-md">
+                  <PlusIcon className="w-7 h-7 text-white" />
                 </div>
                 <div>
-                  <h3 className="font-medium text-gray-900 group-hover:text-blue-900">Book Appointment</h3>
-                  <p className="text-sm text-gray-500 group-hover:text-blue-700 mt-1">Schedule consultation</p>
+                  <h3 className="font-semibold text-blue-900 group-hover:text-blue-800">Book Appointment</h3>
+                  <p className="text-sm text-blue-700 group-hover:text-blue-600 mt-1">Schedule consultation</p>
                 </div>
               </div>
             </div>
@@ -137,14 +137,14 @@ const PatientDashboard = () => {
 
           {/* View My Appointments */}
           <Link to="/patient/my-appointments" className="block">
-            <div className="group p-4 rounded-lg border border-gray-200 hover:border-green-300 hover:shadow-md transition-all duration-200 hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50">
+            <div className="group p-4 rounded-xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-green-100 hover:border-emerald-400 hover:shadow-lg hover:scale-105 transition-all duration-300 hover:bg-gradient-to-br hover:from-emerald-100 hover:to-green-200">
               <div className="flex flex-col items-center text-center space-y-3">
-                <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-green-100 to-green-200 rounded-lg flex items-center justify-center group-hover:from-green-200 group-hover:to-green-300 transition-colors">
-                  <CalendarIcon className="w-6 h-6 text-green-600" />
+                <div className="flex-shrink-0 w-14 h-14 bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl flex items-center justify-center group-hover:from-emerald-600 group-hover:to-green-700 transition-all duration-300 shadow-md">
+                  <CalendarIcon className="w-7 h-7 text-white" />
                 </div>
                 <div>
-                  <h3 className="font-medium text-gray-900 group-hover:text-green-900">My Appointments</h3>
-                  <p className="text-sm text-gray-500 group-hover:text-green-700 mt-1">View history</p>
+                  <h3 className="font-semibold text-emerald-900 group-hover:text-emerald-800">My Appointments</h3>
+                  <p className="text-sm text-emerald-700 group-hover:text-emerald-600 mt-1">View history</p>
                 </div>
               </div>
             </div>
@@ -152,14 +152,14 @@ const PatientDashboard = () => {
 
           {/* Check Queue Status */}
           <Link to="/patient/queue" className="block">
-            <div className="group p-4 rounded-lg border border-gray-200 hover:border-yellow-300 hover:shadow-md transition-all duration-200 hover:bg-gradient-to-r hover:from-yellow-50 hover:to-amber-50">
+            <div className="group p-4 rounded-xl border-2 border-orange-200 bg-gradient-to-br from-orange-50 to-amber-100 hover:border-orange-400 hover:shadow-lg hover:scale-105 transition-all duration-300 hover:bg-gradient-to-br hover:from-orange-100 hover:to-amber-200">
               <div className="flex flex-col items-center text-center space-y-3">
-                <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-yellow-100 to-yellow-200 rounded-lg flex items-center justify-center group-hover:from-yellow-200 group-hover:to-yellow-300 transition-colors">
-                  <ClockIcon className="w-6 h-6 text-yellow-600" />
+                <div className="flex-shrink-0 w-14 h-14 bg-gradient-to-br from-orange-500 to-amber-600 rounded-xl flex items-center justify-center group-hover:from-orange-600 group-hover:to-amber-700 transition-all duration-300 shadow-md">
+                  <ClockIcon className="w-7 h-7 text-white" />
                 </div>
                 <div>
-                  <h3 className="font-medium text-gray-900 group-hover:text-yellow-900">Queue Status</h3>
-                  <p className="text-sm text-gray-500 group-hover:text-yellow-700 mt-1">Check wait time</p>
+                  <h3 className="font-semibold text-orange-900 group-hover:text-orange-800">Queue Status</h3>
+                  <p className="text-sm text-orange-700 group-hover:text-orange-600 mt-1">Check wait time</p>
                 </div>
               </div>
             </div>
@@ -167,14 +167,14 @@ const PatientDashboard = () => {
 
           {/* Medical Reports */}
           <Link to="/patient/medical-reports" className="block">
-            <div className="group p-4 rounded-lg border border-gray-200 hover:border-purple-300 hover:shadow-md transition-all duration-200 hover:bg-gradient-to-r hover:from-purple-50 hover:to-violet-50">
+            <div className="group p-4 rounded-xl border-2 border-violet-200 bg-gradient-to-br from-violet-50 to-purple-100 hover:border-violet-400 hover:shadow-lg hover:scale-105 transition-all duration-300 hover:bg-gradient-to-br hover:from-violet-100 hover:to-purple-200">
               <div className="flex flex-col items-center text-center space-y-3">
-                <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-purple-100 to-purple-200 rounded-lg flex items-center justify-center group-hover:from-purple-200 group-hover:to-purple-300 transition-colors">
-                  <FileTextIcon className="w-6 h-6 text-purple-600" />
+                <div className="flex-shrink-0 w-14 h-14 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl flex items-center justify-center group-hover:from-violet-600 group-hover:to-purple-700 transition-all duration-300 shadow-md">
+                  <FileTextIcon className="w-7 h-7 text-white" />
                 </div>
                 <div>
-                  <h3 className="font-medium text-gray-900 group-hover:text-purple-900">Medical Reports</h3>
-                  <p className="text-sm text-gray-500 group-hover:text-purple-700 mt-1">View documents</p>
+                  <h3 className="font-semibold text-violet-900 group-hover:text-violet-800">Medical Reports</h3>
+                  <p className="text-sm text-violet-700 group-hover:text-violet-600 mt-1">View documents</p>
                 </div>
               </div>
             </div>
