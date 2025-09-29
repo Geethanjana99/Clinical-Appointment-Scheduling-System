@@ -184,19 +184,36 @@ const AppointmentDetailModal: React.FC<AppointmentDetailModalProps> = ({
                 </div>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700">Queue Number</label>
+                <label className="text-sm font-medium text-gray-700">
+                  {appointment.status === 'completed' ? 'Status' : 'Queue Number'}
+                </label>
                 <div className="flex items-center mt-1">
-                  <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center mr-2">
-                    <span className="text-green-600 font-bold text-sm">Q</span>
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-green-600">
-                      {appointment.queue_number || 'N/A'}
-                    </p>
-                    {appointment.queue_position && (
-                      <p className="text-sm text-gray-600">Position: {appointment.queue_position}</p>
-                    )}
-                  </div>
+                  {appointment.status === 'completed' ? (
+                    <>
+                      <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center mr-2">
+                        <span className="text-green-600 font-bold text-sm">✓</span>
+                      </div>
+                      <div>
+                        <p className="text-2xl font-bold text-green-600">
+                          Appointment Complete
+                        </p>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center mr-2">
+                        <span className="text-green-600 font-bold text-sm">Q</span>
+                      </div>
+                      <div>
+                        <p className="text-2xl font-bold text-green-600">
+                          {appointment.queue_number || 'N/A'}
+                        </p>
+                        {appointment.queue_position && (
+                          <p className="text-sm text-gray-600">Position: {appointment.queue_position}</p>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
               {appointment.appointment_type && (

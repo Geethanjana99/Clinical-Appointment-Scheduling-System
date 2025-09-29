@@ -143,15 +143,31 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
                   <div className="h-12 w-px bg-gray-300"></div>
                   <div>
                     <div className="flex items-center text-gray-600">
-                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-2">
-                        <span className="text-blue-600 font-bold text-sm">Q</span>
-                      </div>
-                      <div>
-                        <span className="text-sm text-gray-500">Queue Number</span>
-                        <div className="font-bold text-lg text-blue-600">
-                          {appointment.queue_number || 'N/A'}
-                        </div>
-                      </div>
+                      {appointment.status === 'completed' ? (
+                        <>
+                          <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mr-2">
+                            <span className="text-green-600 font-bold text-sm">✓</span>
+                          </div>
+                          <div>
+                            <span className="text-sm text-gray-500">Status</span>
+                            <div className="font-bold text-lg text-green-600">
+                              Appointment Complete
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-2">
+                            <span className="text-blue-600 font-bold text-sm">Q</span>
+                          </div>
+                          <div>
+                            <span className="text-sm text-gray-500">Queue Number</span>
+                            <div className="font-bold text-lg text-blue-600">
+                              {appointment.queue_number || 'N/A'}
+                            </div>
+                          </div>
+                        </>
+                      )}
                     </div>
                     {appointment.appointment_type && (
                       <div className="text-sm text-gray-500 mt-1">
@@ -266,21 +282,40 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
                 {dateInfo.full}
               </div>
             </div>
-            <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-4">
+            <div className={`rounded-lg p-4 ${appointment.status === 'completed' ? 'bg-gradient-to-r from-green-50 to-emerald-50' : 'bg-gradient-to-r from-purple-50 to-pink-50'}`}>
               <div className="flex items-center mb-2">
-                <div className="w-5 h-5 bg-purple-600 rounded-full flex items-center justify-center mr-2">
-                  <span className="text-white text-xs font-bold">Q</span>
-                </div>
-                <span className="text-sm font-medium text-purple-800">Queue Number</span>
+                {appointment.status === 'completed' ? (
+                  <>
+                    <div className="w-5 h-5 bg-green-600 rounded-full flex items-center justify-center mr-2">
+                      <span className="text-white text-xs font-bold">✓</span>
+                    </div>
+                    <span className="text-sm font-medium text-green-800">Status</span>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-5 h-5 bg-purple-600 rounded-full flex items-center justify-center mr-2">
+                      <span className="text-white text-xs font-bold">Q</span>
+                    </div>
+                    <span className="text-sm font-medium text-purple-800">Queue Number</span>
+                  </>
+                )}
               </div>
               <div className="flex items-center">
-                <div className="text-2xl font-bold text-purple-600 mr-2">
-                  {appointment.queue_number || 'N/A'}
-                </div>
-                {appointment.queue_position && (
-                  <div className="text-sm text-gray-600">
-                    (Position: {appointment.queue_position})
+                {appointment.status === 'completed' ? (
+                  <div className="text-2xl font-bold text-green-600">
+                    Appointment Complete
                   </div>
+                ) : (
+                  <>
+                    <div className="text-2xl font-bold text-purple-600 mr-2">
+                      {appointment.queue_number || 'N/A'}
+                    </div>
+                    {appointment.queue_position && (
+                      <div className="text-sm text-gray-600">
+                        (Position: {appointment.queue_position})
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>
