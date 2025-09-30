@@ -42,7 +42,8 @@ const MyPatients = () => {
       const response = await apiService.getDoctorPatients();
       
       if (response.success && response.data) {
-        setPatients(response.data.patients || []);
+        const patientsData = response.data.patients || [];
+        setPatients(Array.isArray(patientsData) ? patientsData : []);
       } else {
         setError(response.message || 'Failed to fetch patients');
       }
@@ -105,9 +106,9 @@ const MyPatients = () => {
     navigate(`/doctor/patient/${patientId}`);
   };
 
-  const totalPatients = patients.length;
-  const activePatients = patients.filter(p => p.status === 'active').length;
-  const completedAppointments = patients.reduce((sum, p) => sum + p.completedAppointments, 0);
+  const totalPatients = Array.isArray(patients) ? patients.length : 0;
+  const activePatients = Array.isArray(patients) ? patients.filter(p => p.status === 'active').length : 0;
+  const completedAppointments = Array.isArray(patients) ? patients.reduce((sum, p) => sum + (p.completedAppointments || 0), 0) : 0;
 
   return (
     <div className="space-y-6">
@@ -239,60 +240,68 @@ const MyPatients = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {patients.map((patient) => (
-                <tr key={patient.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">{patient.name}</div>
-                      <div className="text-sm text-gray-500">
-                        {calculateAge(patient.dateOfBirth)} years, {patient.gender || 'Unknown'}
+              {Array.isArray(patients) && patients.length > 0 ? (
+                patients.map((patient) => (
+                  <tr key={patient.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div>
+                        <div className="text-sm font-medium text-gray-900">{patient.name}</div>
+                        <div className="text-sm text-gray-500">
+                          {calculateAge(patient.dateOfBirth)} years, {patient.gender || 'Unknown'}
+                        </div>
+                        <div className="text-xs text-gray-400">{patient.email}</div>
                       </div>
-                      <div className="text-xs text-gray-400">{patient.email}</div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {patient.medicalHistory ? patient.medicalHistory.substring(0, 50) + '...' : 'No history'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {formatDate(patient.lastVisit)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    <div className="flex items-center">
-                      <Calendar className="w-4 h-4 text-gray-400 mr-1" />
-                      {patient.totalAppointments} total
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {patient.bloodType && (
-                      <Badge className="bg-blue-100 text-blue-800">
-                        {patient.bloodType}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {patient.medicalHistory ? patient.medicalHistory.substring(0, 50) + '...' : 'No history'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {formatDate(patient.lastVisit)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <div className="flex items-center">
+                        <Calendar className="w-4 h-4 text-gray-400 mr-1" />
+                        {patient.totalAppointments} total
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {patient.bloodType && (
+                        <Badge className="bg-blue-100 text-blue-800">
+                          {patient.bloodType}
+                        </Badge>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center text-sm text-gray-900">
+                        <FileText className="w-4 h-4 text-gray-400 mr-1" />
+                        {patient.completedAppointments}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <Badge className={getStatusColor(patient.status)}>
+                        {patient.status}
                       </Badge>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center text-sm text-gray-900">
-                      <FileText className="w-4 h-4 text-gray-400 mr-1" />
-                      {patient.completedAppointments}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <Badge className={getStatusColor(patient.status)}>
-                      {patient.status}
-                    </Badge>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleViewPatient(patient.id)}
-                      className="flex items-center gap-1"
-                    >
-                      <Eye className="w-4 h-4" />
-                      View Details
-                    </Button>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleViewPatient(patient.id)}
+                        className="flex items-center gap-1"
+                      >
+                        <Eye className="w-4 h-4" />
+                        View Details
+                      </Button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
+                    {Array.isArray(patients) ? 'No patients found' : 'Loading patients...'}
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
