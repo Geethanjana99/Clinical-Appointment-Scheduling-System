@@ -3,7 +3,7 @@ import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Modal from '../../components/ui/Modal';
 import { apiService } from '../../services/api';
-import { UserIcon, SearchIcon, PlusIcon, EditIcon, TrashIcon } from 'lucide-react';
+import { UserIcon, SearchIcon, PlusIcon, EditIcon } from 'lucide-react';
 
 interface Patient {
   id: string;
@@ -262,75 +262,7 @@ const ManagePatients = () => {
     setShowEditModal(true);
   };
 
-  // Handle deleting a patient
-  const handleDeletePatient = async (patient: Patient) => {
-    if (!confirm(`Are you sure you want to delete patient ${patient.name}?`)) {
-      return;
-    }
 
-    try {
-      console.log('🗑️ Deleting patient:', patient.name);
-      
-      const token = localStorage.getItem('token');
-      let response;
-
-      try {
-        if (token) {
-          response = await fetch(`http://localhost:5000/api/admin/patients/${patient.id}`, {
-            method: 'DELETE',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            }
-          });
-        }
-        
-        if (!response || !response.ok) {
-          // Fall back to mock API
-          response = await fetch(`http://localhost:5000/api/mock/patients/${patient.id}`, {
-            method: 'DELETE',
-            headers: {
-              'Content-Type': 'application/json'
-            }
-          });
-        }
-      } catch (authError) {
-        console.log('🔄 Auth endpoint failed, using mock deletion...');
-        response = await fetch(`http://localhost:5000/api/mock/patients/${patient.id}`, {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        });
-      }
-
-      if (response && response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          // Remove from local state
-          setPatients(prevPatients => prevPatients.filter(p => p.id !== patient.id));
-          
-          setSuccess(`Patient "${patient.name}" deleted successfully!`);
-          setError(null);
-          // Clear success message after 3 seconds
-          setTimeout(() => setSuccess(null), 3000);
-        } else {
-          throw new Error(result.message || 'Failed to delete patient');
-        }
-      } else {
-        // Fallback: just remove from local state
-        setPatients(prevPatients => prevPatients.filter(p => p.id !== patient.id));
-        setSuccess(`Patient "${patient.name}" removed from display.`);
-        setError(null);
-        setTimeout(() => setSuccess(null), 3000);
-      }
-
-    } catch (error) {
-      console.error('❌ Error deleting patient:', error);
-      setError(error instanceof Error ? error.message : 'Failed to delete patient');
-      setSuccess(null);
-    }
-  };
 
   // Handle updating a patient
   const handleUpdatePatient = async (e: React.FormEvent) => {
@@ -562,9 +494,6 @@ const ManagePatients = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <Button variant="outline" size="sm" className="mr-2" onClick={() => handleEditPatient(patient)}>
                         <EditIcon className="w-4 h-4" />
-                      </Button>
-                      <Button variant="outline" size="sm" className="text-red-600 hover:text-red-900" onClick={() => handleDeletePatient(patient)}>
-                        <TrashIcon className="w-4 h-4" />
                       </Button>
                     </td>
                   </tr>

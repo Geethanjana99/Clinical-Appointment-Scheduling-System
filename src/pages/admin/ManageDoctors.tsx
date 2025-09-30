@@ -4,7 +4,7 @@ import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Modal from '../../components/ui/Modal';
 import { apiService } from '../../services/api';
-import { UserPlus, Edit, Trash2, AlertCircle } from 'lucide-react';
+import { UserPlus, Edit, AlertCircle } from 'lucide-react';
 
 interface Doctor {
   id: string;
@@ -138,27 +138,7 @@ const ManageDoctors = () => {
     }
   };
 
-  const deleteDoctor = async (id: string) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/mock/doctors/${id}`, {
-        method: 'DELETE',
-      });
-      const result = await response.json();
-      if (result.success) {
-        await fetchDoctors();
-        setError(null);
-        setSuccess('Doctor deleted successfully!');
-        // Clear success message after 3 seconds
-        setTimeout(() => setSuccess(null), 3000);
-        return result.data;
-      } else throw new Error(result.message);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to delete doctor';
-      setError(msg);
-      setSuccess(null);
-      throw new Error(msg);
-    }
-  };
+
 
   const handleAddDoctor = () => {
     setEditingDoctor(null);
@@ -179,11 +159,7 @@ const ManageDoctors = () => {
     setIsModalOpen(true);
   };
 
-  const handleDeleteDoctor = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this doctor?')) {
-      await deleteDoctor(id);
-    }
-  };
+
 
   const handleAvailabilityChange = (day: string) => {
     setFormData(prev => ({
@@ -324,9 +300,6 @@ const ManageDoctors = () => {
                         <div className="flex space-x-2">
                           <Button variant="outline" size="sm" onClick={() => handleEditDoctor(doctor)}>
                             <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button variant="outline" size="sm" onClick={() => handleDeleteDoctor(doctor.id)} className="text-red-600 hover:text-red-900">
-                            <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
                       </td>
