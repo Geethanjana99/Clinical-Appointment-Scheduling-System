@@ -1,83 +1,459 @@
 import { create } from 'zustand';
-type QueueStatus = 'waiting' | 'in-consultation' | 'completed';
+import { apiService } from '../services/api';
+
+type QueueStatus = 'scheduled' | 'confirmed' | 'in-progress' | 'completed' | 'cancelled' | 'no-show';
+
 interface QueueItem {
   id: string;
-  patientId: string;
-  patientName: string;
-  doctorId: string;
-  doctorName: string;
-  appointmentTime: string;
+  appointment_id: string;
+  patient_id: string;
+  name: string;
+  email: string;
+  phone: string;
+  queue_number: number;
   status: QueueStatus;
-  estimatedWaitTime?: number; // in minutes
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  payment_status: 'unpaid' | 'paid' | 'partially_paid' | 'refunded';
+  reason_for_visit?: string;
+  symptoms?: string;
+  estimatedWaitTime?: number;
 }
+
+interface QueueStatusInfo {
+  id?: string;
+  doctor_id: string;
+  queue_date?: string;
+  current_number: string;
+  current_emergency_number?: string;
+  regular_count: number;
+  emergency_used?: number;
+  max_emergency_slots?: number;
+  available_from: string;
+  available_to: string;
+  is_active: boolean;
+  created_at?: string | null;
+  updated_at?: string | null;
+  doctor_name?: string;
+  specialty?: string;
+  message?: string;
+}
+
+interface DoctorAvailability {
+  working_hours: any;
+  availability_status: 'available' | 'busy' | 'offline';
+}
+
 interface QueueState {
+  // Queue items
   queue: QueueItem[];
-  updateStatus: (appointmentId: string, status: QueueStatus) => void;
-  getQueueForDoctor: (doctorId: string) => QueueItem[];
-  getQueueForPatient: (patientId: string) => QueueItem[];
+  queueStatus: QueueStatusInfo | null;
+  doctorAvailability: DoctorAvailability | null;
+  
+  // Loading states
+  isLoading: boolean;
+  error: string | null;
+  
+  // Success modal state
+  showWorkingHoursSuccessModal: boolean;
+  
+  // Actions
+  fetchTodayAppointments: () => Promise<void>;
+  fetchQueueStatus: () => Promise<void>;
+  fetchDoctorAvailability: () => Promise<void>;
+  updateAvailabilityStatus: (status: 'available' | 'busy' | 'offline') => Promise<void>;
+  updateWorkingHours: (workingHours: any) => Promise<void>;
+  toggleQueue: (isActive: boolean) => Promise<void>;
+  callNextPatient: (appointmentId: string) => Promise<void>;
+  completeConsultation: (appointmentId: string) => Promise<void>;
+  
+  // New enhanced queue management actions
+  startQueue: () => Promise<void>;
+  stopQueue: () => Promise<void>;
+  getNextPaidPatient: () => Promise<QueueItem | null>;
+  updatePaymentStatus: (appointmentId: string, paymentStatus: string) => Promise<void>;
+  
+  // Modal actions
+  setShowWorkingHoursSuccessModal: (show: boolean) => void;
+  
+  // Selectors
+  getWaitingPatients: () => QueueItem[];
+  getInProgressPatients: () => QueueItem[];
+  getCompletedPatients: () => QueueItem[];
 }
-// Mock data
-const mockQueue: QueueItem[] = [{
-  id: 'appt-1',
-  patientId: 'patient-1',
-  patientName: 'John Smith',
-  doctorId: 'doctor-1',
-  doctorName: 'Dr. Sarah Johnson',
-  appointmentTime: '09:00 AM',
-  status: 'waiting',
-  estimatedWaitTime: 15
-}, {
-  id: 'appt-2',
-  patientId: 'patient-2',
-  patientName: 'Emily Davis',
-  doctorId: 'doctor-1',
-  doctorName: 'Dr. Sarah Johnson',
-  appointmentTime: '09:30 AM',
-  status: 'waiting',
-  estimatedWaitTime: 30
-}, {
-  id: 'appt-3',
-  patientId: 'patient-3',
-  patientName: 'Michael Brown',
-  doctorId: 'doctor-2',
-  doctorName: 'Dr. Robert Chen',
-  appointmentTime: '10:00 AM',
-  status: 'in-consultation',
-  estimatedWaitTime: 0
-}, {
-  id: 'appt-4',
-  patientId: 'patient-4',
-  patientName: 'Jessica Wilson',
-  doctorId: 'doctor-2',
-  doctorName: 'Dr. Robert Chen',
-  appointmentTime: '10:30 AM',
-  status: 'waiting',
-  estimatedWaitTime: 45
-}, {
-  id: 'appt-5',
-  patientId: 'patient-5',
-  patientName: 'David Miller',
-  doctorId: 'doctor-1',
-  doctorName: 'Dr. Sarah Johnson',
-  appointmentTime: '11:00 AM',
-  status: 'completed',
-  estimatedWaitTime: 0
-}];
+
 export const useQueueStore = create<QueueState>((set, get) => ({
-  queue: mockQueue,
-  updateStatus: (appointmentId, status) => {
-    set(state => ({
-      queue: state.queue.map(item => item.id === appointmentId ? {
-        ...item,
-        status,
-        estimatedWaitTime: status === 'waiting' ? 15 : 0
-      } : item)
-    }));
+  queue: [],
+  queueStatus: null,
+  doctorAvailability: null,
+  isLoading: false,
+  error: null,
+  showWorkingHoursSuccessModal: false,
+
+  fetchTodayAppointments: async () => {
+    try {
+      set({ isLoading: true, error: null });
+      
+      // Use the enhanced doctor appointments API that includes queue status in a single call
+      let queueResponse;
+      try {
+        // This API returns appointments WITH queue status for doctors
+        queueResponse = await apiService.getTodayAppointments();
+      } catch (error) {
+        console.warn('Enhanced appointments API failed, falling back to basic appointments:', error);
+        // Fallback to basic appointments
+        queueResponse = await apiService.getTodayAppointments();
+      }
+      
+      if (queueResponse.success && queueResponse.data) {
+        let appointments = [];
+        let queueStatus = null;
+        
+        // Handle enhanced doctor appointments API response format
+        if (Array.isArray(queueResponse.data)) {
+          // Enhanced doctor appointments API returns array of appointments with queue status
+          appointments = queueResponse.data.map((appointment: any) => ({
+            id: appointment.appointment_id || appointment.id,
+            appointment_id: appointment.appointment_id || appointment.id,
+            patient_id: appointment.patient_id,
+            name: appointment.name || 'Unknown Patient',
+            email: appointment.email || '',
+            phone: appointment.phone || '',
+            queue_number: appointment.queue_number,
+            status: appointment.status,
+            priority: appointment.priority || 'medium',
+            payment_status: appointment.payment_status || 'unpaid',
+            reason_for_visit: appointment.reason_for_visit,
+            symptoms: appointment.symptoms,
+            estimatedWaitTime: 15
+          }));
+          
+          // Extract queue status from the response - it should be included in each appointment
+          if (queueResponse.data.length > 0 && queueResponse.data[0].queueStatus) {
+            queueStatus = queueResponse.data[0].queueStatus;
+          }
+
+        }
+        // Handle legacy appointments response format  
+        else if (queueResponse.data.appointments) {
+          const queueData = queueResponse.data;
+          appointments = queueData.appointments?.map((appointment: any) => ({
+            id: appointment.id,
+            appointment_id: appointment.appointment_id,
+            patient_id: appointment.patient_id,
+            name: appointment.name || 'Unknown Patient',
+            email: appointment.email || '',
+            phone: appointment.phone || '',
+            queue_number: appointment.queue_number,
+            status: appointment.status,
+            priority: appointment.priority || 'medium',
+            payment_status: appointment.payment_status || 'unpaid',
+            reason_for_visit: appointment.reason_for_visit,
+            symptoms: appointment.symptoms,
+            estimatedWaitTime: 15
+          })) || [];
+          
+          queueStatus = queueData.queueStatus;
+        }
+        
+        set({ 
+          queue: appointments, 
+          isLoading: false,
+          error: null 
+        });
+        
+        // Update queue status if available from the enhanced API response
+        if (queueStatus) {
+          console.log('Queue status extracted from enhanced appointments API:', queueStatus);
+          set({ queueStatus });
+        }
+        // If no queue status found in appointments, get it from root level
+        if (!queueStatus && (queueResponse as any).queueStatus) {
+          queueStatus = (queueResponse as any).queueStatus;
+        }
+      } else {
+        set({ error: queueResponse.error || 'Failed to fetch appointments', isLoading: false });
+      }
+    } catch (error) {
+      set({ error: 'Failed to fetch appointments', isLoading: false });
+      console.error('Error fetching appointments:', error);
+    }
   },
-  getQueueForDoctor: doctorId => {
-    return get().queue.filter(item => item.doctorId === doctorId);
+
+  fetchQueueStatus: async () => {
+    try {
+      const response = await apiService.getQueueStatus();
+      
+      if (response.success && response.data) {
+        set({ queueStatus: response.data });
+      } else {
+        set({ error: response.error || 'Failed to fetch queue status' });
+      }
+    } catch (error) {
+      set({ error: 'Failed to fetch queue status' });
+      console.error('Error fetching queue status:', error);
+    }
   },
-  getQueueForPatient: patientId => {
-    return get().queue.filter(item => item.patientId === patientId);
-  }
+
+  fetchDoctorAvailability: async () => {
+    try {
+      const response = await apiService.getDoctorAvailability();
+      
+      if (response.success && response.data) {
+        set({ doctorAvailability: response.data });
+      } else {
+        set({ error: response.error || 'Failed to fetch doctor availability' });
+      }
+    } catch (error) {
+      set({ error: 'Failed to fetch doctor availability' });
+      console.error('Error fetching doctor availability:', error);
+    }
+  },
+
+  updateAvailabilityStatus: async (status: 'available' | 'busy' | 'offline') => {
+    try {
+      const response = await apiService.updateAvailabilityStatus(status);
+      
+      if (response.success) {
+        set(state => ({
+          doctorAvailability: state.doctorAvailability 
+            ? { ...state.doctorAvailability, availability_status: status }
+            : null
+        }));
+      } else {
+        set({ error: response.error || 'Failed to update availability status' });
+      }
+    } catch (error) {
+      set({ error: 'Failed to update availability status' });
+      console.error('Error updating availability status:', error);
+    }
+  },
+
+  updateWorkingHours: async (workingHours: any) => {
+    try {
+      const response = await apiService.updateWorkingHours(workingHours);
+      
+      if (response.success) {
+        set(state => ({
+          doctorAvailability: state.doctorAvailability 
+            ? { ...state.doctorAvailability, working_hours: workingHours }
+            : null,
+          showWorkingHoursSuccessModal: true
+        }));
+      } else {
+        set({ error: response.error || 'Failed to update working hours' });
+      }
+    } catch (error) {
+      set({ error: 'Failed to update working hours' });
+      console.error('Error updating working hours:', error);
+    }
+  },
+
+  toggleQueue: async (isActive: boolean) => {
+    try {
+      set({ isLoading: true, error: null });
+      
+      let response;
+      if (isActive) {
+        response = await apiService.startQueue();
+      } else {
+        response = await apiService.stopQueue();
+      }
+      
+      if (response.success) {
+        set(state => ({
+          queueStatus: state.queueStatus 
+            ? { ...state.queueStatus, is_active: isActive }
+            : null,
+          isLoading: false
+        }));
+        
+        // Refresh queue data to show filtered results when queue is active
+        get().fetchTodayAppointments();
+      } else {
+        set({ error: response.error || 'Failed to toggle queue', isLoading: false });
+      }
+    } catch (error) {
+      set({ error: 'Failed to toggle queue', isLoading: false });
+      console.error('Error toggling queue:', error);
+    }
+  },
+
+  callNextPatient: async (appointmentId: string) => {
+    try {
+      const response = await apiService.callNextPatient(appointmentId);
+      
+      if (response.success) {
+        set(state => ({
+          queue: state.queue.map(item => 
+            item.id === appointmentId 
+              ? { ...item, status: 'in-progress' as QueueStatus }
+              : item
+          )
+        }));
+      } else {
+        set({ error: response.error || 'Failed to call next patient' });
+      }
+    } catch (error) {
+      set({ error: 'Failed to call next patient' });
+      console.error('Error calling next patient:', error);
+    }
+  },
+
+  completeConsultation: async (appointmentId: string) => {
+    try {
+      const response = await apiService.completeConsultation(appointmentId, {
+        notes: 'Consultation completed via queue management',
+        prescription: 'Prescription provided during consultation',
+        diagnosis: 'Diagnosis completed'
+      });
+      
+      if (response.success) {
+        set(state => ({
+          queue: state.queue.map(item => 
+            item.id === appointmentId 
+              ? { ...item, status: 'completed' as QueueStatus }
+              : item
+          )
+        }));
+      } else {
+        set({ error: response.error || 'Failed to complete consultation' });
+      }
+    } catch (error) {
+      set({ error: 'Failed to complete consultation' });
+      console.error('Error completing consultation:', error);
+    }
+  },
+
+  // Enhanced queue management actions
+  startQueue: async () => {
+    try {
+      set({ isLoading: true, error: null });
+      const response = await apiService.startQueue();
+      
+      if (response.success) {
+        set(state => ({
+          queueStatus: state.queueStatus 
+            ? { ...state.queueStatus, is_active: true }
+            : null,
+          isLoading: false
+        }));
+        
+        // Refresh queue data to show only paid patients
+        get().fetchTodayAppointments();
+      } else {
+        set({ error: response.error || 'Failed to start queue', isLoading: false });
+      }
+    } catch (error) {
+      set({ error: 'Failed to start queue', isLoading: false });
+      console.error('Error starting queue:', error);
+    }
+  },
+
+  stopQueue: async () => {
+    try {
+      set({ isLoading: true, error: null });
+      const response = await apiService.stopQueue();
+      
+      if (response.success) {
+        set(state => ({
+          queueStatus: state.queueStatus 
+            ? { ...state.queueStatus, is_active: false }
+            : null,
+          isLoading: false
+        }));
+        
+        // Refresh queue data to show all patients
+        get().fetchTodayAppointments();
+      } else {
+        set({ error: response.error || 'Failed to stop queue', isLoading: false });
+      }
+    } catch (error) {
+      set({ error: 'Failed to stop queue', isLoading: false });
+      console.error('Error stopping queue:', error);
+    }
+  },
+
+  getNextPaidPatient: async () => {
+    try {
+      console.log('🔎 Calling API for next paid patient...');
+      const response = await apiService.getNextPaidPatient();
+      console.log('📡 API Response:', response);
+      
+      if (response.success && response.data?.patient) {
+        const patient = response.data.patient;
+        console.log('✅ Found paid patient:', patient.patient_name, 'Status:', patient.payment_status);
+        
+        return {
+          id: patient.id,
+          appointment_id: patient.appointment_id,
+          patient_id: patient.patient_id,
+          name: patient.patient_name,
+          email: patient.email,
+          phone: patient.patient_phone,
+          queue_number: patient.queue_number,
+          status: patient.status,
+          priority: patient.priority || 'medium',
+          payment_status: patient.payment_status,
+          reason_for_visit: patient.reason_for_visit,
+          symptoms: patient.symptoms,
+          estimatedWaitTime: 15
+        };
+      } else {
+        console.log('❌ No paid patient found. Response:', response);
+        return null;
+      }
+    } catch (error) {
+      console.error('❌ Error getting next paid patient:', error);
+      return null;
+    }
+  },
+
+  updatePaymentStatus: async (appointmentId: string, paymentStatus: string) => {
+    try {
+      set({ isLoading: true, error: null });
+      const response = await apiService.updatePaymentStatus(appointmentId, paymentStatus);
+      
+      if (response.success) {
+        set(state => ({
+          queue: state.queue.map(item =>
+            item.appointment_id === appointmentId
+              ? { ...item, payment_status: paymentStatus as any }
+              : item
+          ),
+          isLoading: false
+        }));
+        
+        // Refresh queue to reflect payment changes in filtered view
+        get().fetchTodayAppointments();
+      } else {
+        set({ error: response.error || 'Failed to update payment status', isLoading: false });
+      }
+    } catch (error) {
+      set({ error: 'Failed to update payment status', isLoading: false });
+      console.error('Error updating payment status:', error);
+    }
+  },
+
+  // Modal actions
+  setShowWorkingHoursSuccessModal: (show: boolean) => {
+    set({ showWorkingHoursSuccessModal: show });
+  },
+
+  // Selectors
+  getWaitingPatients: () => {
+    const { queue } = get();
+    return queue.filter(item => ['scheduled', 'confirmed'].includes(item.status));
+  },
+
+  getInProgressPatients: () => {
+    const { queue } = get();
+    return queue.filter(item => item.status === 'in-progress');
+  },
+
+  getCompletedPatients: () => {
+    const { queue } = get();
+    return queue.filter(item => item.status === 'completed');
+  },
+
+
 }));
