@@ -57,38 +57,24 @@ const Invoices = () => {
   };  const handleGenerateInvoice = async (invoiceData: any) => {
     console.log('Generated Invoice:', invoiceData);
     
-    // Show success message
-    alert(`Invoice ${invoiceData.invoiceNumber} generated successfully for ${invoiceData.patientName}!`);
-    
     // Refresh the invoices list to show the new invoice
     await fetchInvoices();
   };  const handleRecordPayment = async (invoice: Invoice) => {
-    // Show confirmation dialog
-    const confirmPayment = window.confirm(
-      `Are you sure you want to record payment for Invoice ${invoice.invoice_number}?\nAmount: ${formatCurrency(invoice.total_amount)}`
-    );
-    
-    if (confirmPayment) {
-      try {
-        // Call the backend API to update the payment status
-        console.log('Updating invoice status for ID:', invoice.id);
-        const response = await apiService.updateInvoiceStatus(invoice.id, 'paid');
-        
-        console.log('Update response:', response);
-        
-        if (response.success) {
-          alert(`Payment recorded successfully for Invoice ${invoice.invoice_number}!`);
-          // Refresh the invoices list to show updated status
-          await fetchInvoices();
-        } else {
-          console.error('API returned success: false', response);
-          alert(`Failed to record payment: ${response.message || 'Unknown error'}`);
-        }
-      } catch (error) {
-        console.error('Error recording payment:', error);
-        const errorMessage = error instanceof Error ? error.message : 'Please try again.';
-        alert(`Error recording payment: ${errorMessage}`);
+    try {
+      // Call the backend API to update the payment status
+      console.log('Updating invoice status for ID:', invoice.id);
+      const response = await apiService.updateInvoiceStatus(invoice.id, 'paid');
+      
+      console.log('Update response:', response);
+      
+      if (response.success) {
+        // Refresh the invoices list to show updated status
+        await fetchInvoices();
+      } else {
+        console.error('API returned success: false', response);
       }
+    } catch (error) {
+      console.error('Error recording payment:', error);
     }
   };
 
@@ -112,33 +98,22 @@ const Invoices = () => {
   };
 
   const handleRecordPaymentFromModal = async (invoice: any) => {
-    // Show confirmation dialog
-    const confirmPayment = window.confirm(
-      `Are you sure you want to record payment for Invoice ${invoice.invoiceNumber}?\nAmount: ${formatCurrency(invoice.totalAmount)}`
-    );
-    
-    if (confirmPayment) {
-      try {
-        // Call the backend API to update the payment status
-        console.log('Updating invoice status for ID:', invoice.id);
-        const response = await apiService.updateInvoiceStatus(invoice.id, 'paid');
-        
-        console.log('Update response:', response);
-        
-        if (response.success) {
-          alert(`Payment recorded successfully for Invoice ${invoice.invoiceNumber}!`);
-          // Refresh the invoices list to show updated status
-          await fetchInvoices();
-          setIsViewModalOpen(false); // Close the modal
-        } else {
-          console.error('API returned success: false', response);
-          alert(`Failed to record payment: ${response.message || 'Unknown error'}`);
-        }
-      } catch (error) {
-        console.error('Error recording payment:', error);
-        const errorMessage = error instanceof Error ? error.message : 'Please try again.';
-        alert(`Error recording payment: ${errorMessage}`);
+    try {
+      // Call the backend API to update the payment status
+      console.log('Updating invoice status for ID:', invoice.id);
+      const response = await apiService.updateInvoiceStatus(invoice.id, 'paid');
+      
+      console.log('Update response:', response);
+      
+      if (response.success) {
+        // Refresh the invoices list to show updated status
+        await fetchInvoices();
+        setIsViewModalOpen(false); // Close the modal
+      } else {
+        console.error('API returned success: false', response);
       }
+    } catch (error) {
+      console.error('Error recording payment:', error);
     }
   };
 

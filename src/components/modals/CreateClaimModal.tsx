@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Modal from '../ui/Modal';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import Button from '../ui/Button';
 import { X, FileText } from 'lucide-react';
+import { apiService } from '../../services/api';
+
 
 interface CreateClaimModalProps {
   isOpen: boolean;
@@ -18,8 +20,6 @@ const CreateClaimModal: React.FC<CreateClaimModalProps> = ({
 }) => {
   const [formData, setFormData] = useState({
     patientName: '',
-    patientId: '',
-    appointmentId: '',
     doctorName: '',
     serviceDate: '',
     amount: '',
@@ -28,15 +28,130 @@ const CreateClaimModal: React.FC<CreateClaimModalProps> = ({
     notes: ''
   });
 
-  const [errors, setErrors] = useState<{[key: string]: string}>({});
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [patients, setPatients] = useState<{ id: string; name: string }[]>([]);
+  const [doctors, setDoctors] = useState<{ id: string; name: string }[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchDoctors = async () => {
+      if (!isOpen) return; // Only fetch when modal is open
+
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await apiService.getDoctorNames();
+        console.log('Doctor names response:', response);
+
+        if (response.success && response.data && response.data.length > 0) {
+          const doctorList = response.data.map((doctor: any) => ({
+            id: doctor.id,
+            name: doctor.name || `${doctor.first_name} ${doctor.last_name}` || doctor.email
+          }));
+          setDoctors(doctorList);
+          setError(null);
+        } else {
+          console.warn('No doctors found or API response failed:', response);
+          // Fallback to sample data
+          const fallbackDoctors = [
+            { id: 'D-001', name: 'Dr. Alice Walker' },
+            { id: 'D-002', name: 'Dr. Bob Lee' },
+            { id: 'D-003', name: 'Dr. Carol Kim' },
+            { id: 'D-004', name: 'Dr. Daniel Smith' },
+            { id: 'D-005', name: 'Dr. Eva Brown' }
+          ];
+          setDoctors(fallbackDoctors);
+          setError('No doctors found in database - Using sample data');
+        }
+      } catch (err) {
+        console.error('Error fetching doctors:', err);
+        // Fallback to sample data
+        const fallbackDoctors = [
+          { id: 'D-001', name: 'Dr. Alice Walker' },
+          { id: 'D-002', name: 'Dr. Bob Lee' },
+          { id: 'D-003', name: 'Dr. Carol Kim' },
+          { id: 'D-004', name: 'Dr. Daniel Smith' },
+          { id: 'D-005', name: 'Dr. Eva Brown' }
+        ];
+        setDoctors(fallbackDoctors);
+        setError('Failed to fetch doctors from server - Using sample data');
+      } finally {
+        setLoading(false);
+      }
+    };
+    const fetchPatients = async () => {
+      if (!isOpen) return; // Only fetch when modal is open
+
+      setLoading(true);
+      setError(null); 
+      try {
+        const response = await apiService.getPatientNames();
+
+        if (response.success && response.data) {
+          const patientList = response.data.map((patient: any) => ({
+            id: patient.id,
+            name: patient.name || `${patient.first_name} ${patient.last_name}` || patient.email
+          }));
+          setPatients(patientList);
+        } else {
+          // Fallback to sample data
+          const fallbackPatients = [
+            { id: 'P-001', name: 'John Smith' },
+            { id: 'P-002', name: 'Sarah Johnson' },
+            { id: 'P-003', name: 'Michael Brown' },
+            { id: 'P-004', name: 'Emily Davis' },
+            { id: 'P-005', name: 'David Wilson' }
+          ];
+          setPatients(fallbackPatients);
+          setError('Using sample patients - Please login as admin to view real data');
+        }
+      } catch (err) {
+        console.error('Error fetching patients:', err);
+        // Fallback to sample data
+        const fallbackPatients = [
+          { id: 'P-001', name: 'John Smith' },
+          { id: 'P-002', name: 'Sarah Johnson' },
+          { id: 'P-003', name: 'Michael Brown' },
+          { id: 'P-004', name: 'Emily Davis' },
+          { id: 'P-005', name: 'David Wilson' }
+        ];
+        setPatients(fallbackPatients);
+        setError('Using sample patients - Please check your connection and login');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (isOpen) {
+      fetchDoctors();
+      fetchPatients();
+    }
+  }, [isOpen]);
+
+  const doctorOptions = [
+    { value: '', label: loading ? 'Loading doctors...' : 'Select Doctor' },
+    ...doctors.map(doctor => ({
+      value: doctor.name,
+      label: doctor.name
+    }))
+  ];
+
+  const patientOptions = [
+    { value: '', label: loading ? 'Loading patients...' : 'Select Patient' },
+    ...patients.map(patient => ({
+      value: patient.name,
+      label: patient.name
+    }))
+  ];
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
-    
+
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({
@@ -47,16 +162,10 @@ const CreateClaimModal: React.FC<CreateClaimModalProps> = ({
   };
 
   const validateForm = () => {
-    const newErrors: {[key: string]: string} = {};
+    const newErrors: { [key: string]: string } = {};
 
     if (!formData.patientName.trim()) {
       newErrors.patientName = 'Patient name is required';
-    }
-    if (!formData.patientId.trim()) {
-      newErrors.patientId = 'Patient ID is required';
-    }
-    if (!formData.appointmentId.trim()) {
-      newErrors.appointmentId = 'Appointment ID is required';
     }
     if (!formData.doctorName.trim()) {
       newErrors.doctorName = 'Doctor name is required';
@@ -80,7 +189,7 @@ const CreateClaimModal: React.FC<CreateClaimModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
@@ -91,8 +200,6 @@ const CreateClaimModal: React.FC<CreateClaimModalProps> = ({
       const claimData = {
         id: `CLM-${Date.now().toString().slice(-3)}`,
         patientName: formData.patientName.trim(),
-        patientId: formData.patientId.trim(),
-        appointmentId: formData.appointmentId.trim(),
         doctorName: formData.doctorName.trim(),
         serviceDate: formData.serviceDate,
         claimDate: new Date().toISOString().split('T')[0],
@@ -103,10 +210,20 @@ const CreateClaimModal: React.FC<CreateClaimModalProps> = ({
         notes: formData.notes.trim()
       };
 
-      onCreateClaim(claimData);
-      handleClose();
+      // Submit to backend
+      const response = await apiService.createInsuranceClaim(claimData);
+      
+      if (response.success) {
+        console.log('Insurance claim created successfully:', response.data);
+        onCreateClaim(response.data);
+        handleClose();
+      } else {
+        console.error('Failed to create insurance claim:', response.error);
+        setError('Failed to create insurance claim. Please try again.');
+      }
     } catch (error) {
       console.error('Error creating claim:', error);
+      setError('An error occurred while creating the claim. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -115,8 +232,6 @@ const CreateClaimModal: React.FC<CreateClaimModalProps> = ({
   const handleClose = () => {
     setFormData({
       patientName: '',
-      patientId: '',
-      appointmentId: '',
       doctorName: '',
       serviceDate: '',
       amount: '',
@@ -172,7 +287,7 @@ const CreateClaimModal: React.FC<CreateClaimModalProps> = ({
           onClick={handleClose}
           className="rounded-md text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
-          <X className="h-6 w-6" />
+          {/* <X className="h-6 w-6" /> */}
         </button>
       </div>
 
@@ -184,18 +299,25 @@ const CreateClaimModal: React.FC<CreateClaimModalProps> = ({
           </div>
 
           <div>
-            <Input
+            <Select
               label="Patient Name"
-              type="text"
               value={formData.patientName}
-              onChange={(e) => handleInputChange('patientName', e.target.value)}
-              placeholder="Enter patient's full name"
-              error={errors.patientName}
+              onChange={(value) => {
+                handleInputChange('patientName', value);
+                const selectedPatient = patients.find(p => p.name === value);
+                handleInputChange('patientId', selectedPatient ? selectedPatient.id : '');
+              }}
+              options={patientOptions}
               required
+              disabled={loading}
+              className="transition-all duration-200 hover:border-blue-400 focus:border-blue-500 h-12 text-base"
             />
+            {error && (
+              <p className="text-red-600 text-sm mt-1">{error}</p>
+            )}
           </div>
 
-          <div>
+          {/* <div>
             <Input
               label="Patient ID"
               type="text"
@@ -205,14 +327,14 @@ const CreateClaimModal: React.FC<CreateClaimModalProps> = ({
               error={errors.patientId}
               required
             />
-          </div>
+          </div> */}
 
           {/* Service Information */}
           <div className="md:col-span-2">
             <h4 className="text-sm font-medium text-gray-900 mb-4 mt-6">Service Information</h4>
           </div>
 
-          <div>
+          {/* <div>
             <Input
               label="Appointment ID"
               type="text"
@@ -222,18 +344,24 @@ const CreateClaimModal: React.FC<CreateClaimModalProps> = ({
               error={errors.appointmentId}
               required
             />
-          </div>
+          </div> */}
 
           <div>
-            <Input
+            <Select
               label="Doctor Name"
-              type="text"
               value={formData.doctorName}
-              onChange={(e) => handleInputChange('doctorName', e.target.value)}
-              placeholder="Enter doctor's name"
-              error={errors.doctorName}
+              onChange={(value) => {
+                handleInputChange('doctorName', value);
+              }}
+              options={doctorOptions}
               required
+              disabled={loading}
+              className="transition-all duration-200 hover:border-blue-400 focus:border-blue-500 h-12 text-base"
+              error={errors.doctorName}
             />
+            {error && (
+              <p className="text-red-600 text-sm mt-1">{error}</p>
+            )}
           </div>
 
           <div>

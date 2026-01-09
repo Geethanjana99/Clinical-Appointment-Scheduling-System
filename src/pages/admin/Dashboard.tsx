@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
+import { apiService } from '../../services/api';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
-import { UsersIcon, UserPlusIcon, CalendarIcon, FileUpIcon, SearchIcon, PlusIcon, AlertCircle } from 'lucide-react';
+import { UsersIcon, UserPlusIcon, CalendarIcon, FileUpIcon, SearchIcon, PlusIcon, AlertCircle, Brain } from 'lucide-react';
 
 interface Patient {
   id: string;
@@ -22,7 +23,7 @@ interface Patient {
 // Placeholder component for the Admin Dashboard
 const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
+  const { user, isAuthenticated } = useAuthStore();
   
   // State for patient data
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -35,6 +36,17 @@ const AdminDashboard: React.FC = () => {
 
   // Fetch patients from API
   const fetchPatients = async () => {
+    const hasValidToken = apiService.getToken();
+    
+    if (!isAuthenticated || !hasValidToken) {
+      console.log('⚠️ Admin Dashboard: Cannot fetch patients - authentication failed', {
+        isAuthenticated,
+        hasValidToken: !!hasValidToken
+      });
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -47,7 +59,19 @@ const AdminDashboard: React.FC = () => {
         status: 'active'
       });
 
-      const response = await fetch(`${API_BASE_URL}/mock/patients?${queryParams}`);
+      const token = apiService.getToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/admin/patients?${queryParams}`, {
+        method: 'GET',
+        headers
+      });
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -74,8 +98,19 @@ const AdminDashboard: React.FC = () => {
 
   // Load patients on component mount and when search term changes
   useEffect(() => {
-    fetchPatients();
-  }, [searchTerm]);
+    const hasValidToken = apiService.getToken();
+    
+    if (isAuthenticated && hasValidToken) {
+      console.log('✅ Admin Dashboard: Fetching patients - authenticated with valid token');
+      fetchPatients();
+    } else {
+      console.log('⚠️ Admin Dashboard: Skipping data fetch', { 
+        isAuthenticated, 
+        hasValidToken: !!hasValidToken 
+      });
+      setLoading(false);
+    }
+  }, [searchTerm, isAuthenticated]);
 
   // Handle search input
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -90,7 +125,7 @@ const AdminDashboard: React.FC = () => {
           Manage patients, doctors, appointments, and medical reports
         </p>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
         {/* Quick Action Cards */}
         <Card className="bg-blue-50 border border-blue-100">
           <div className="flex flex-col items-center text-center p-4">
@@ -126,6 +161,18 @@ const AdminDashboard: React.FC = () => {
             </p>
             <Button variant="primary" size="sm" className="mt-3 bg-purple-600 hover:bg-purple-700 focus:ring-purple-500" onClick={() => navigate('/admin/appointments')}>
               Schedule
+            </Button>
+          </div>
+        </Card>
+        <Card className="bg-orange-50 border border-orange-100">
+          <div className="flex flex-col items-center text-center p-4">
+            <div className="bg-orange-100 rounded-full p-3 mb-3">
+              <Brain className="h-6 w-6 text-orange-600" />
+            </div>
+            <h3 className="font-medium text-orange-800">Health Predictions</h3>
+            <p className="text-sm text-orange-600 mt-1">Process AI predictions</p>
+            <Button variant="primary" size="sm" className="mt-3 bg-orange-600 hover:bg-orange-700 focus:ring-orange-500" onClick={() => navigate('/admin/health-predictions')}>
+              Process AI
             </Button>
           </div>
         </Card>

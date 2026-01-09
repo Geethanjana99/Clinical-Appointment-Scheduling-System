@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { HomeIcon, CalendarIcon, UserIcon, UsersIcon, FileTextIcon, UploadIcon, ClockIcon, ActivityIcon, CreditCardIcon, BarChartIcon, FileIcon, Settings2Icon, ShieldIcon } from 'lucide-react';
+import { HomeIcon, CalendarIcon, UserIcon, UsersIcon, FileTextIcon, UploadIcon, ClockIcon, ActivityIcon, CreditCardIcon, BarChartIcon, FileIcon, Settings2Icon, ShieldIcon, Brain } from 'lucide-react';
 const Sidebar = () => {
   const location = useLocation();
   const {
@@ -74,6 +74,10 @@ const Sidebar = () => {
           path: '/admin/appointments',
           icon: <CalendarIcon className="w-5 h-5" />
         }, {
+          name: 'Health Predictions',
+          path: '/admin/health-predictions',
+          icon: <Brain className="w-5 h-5" />
+        }, {
           name: 'Upload Reports',
           path: '/admin/reports',
           icon: <UploadIcon className="w-5 h-5" />
@@ -100,20 +104,20 @@ const Sidebar = () => {
     }
   };
   const navItems = getNavItems();
-  return <aside className="hidden md:flex md:flex-col md:w-64 bg-white border-r border-gray-200">
-      <div className="flex items-center justify-center h-16 border-b border-gray-200">
-        <span className="text-xl font-semibold text-blue-600">CareSync</span>
+  return <aside className="hidden md:flex md:flex-col md:w-64 bg-gradient-to-b from-blue-50 via-sky-50 to-indigo-50 border-r border-blue-200 shadow-lg">
+      <div className="flex items-center justify-center h-16 border-b border-blue-200 bg-gradient-to-r from-blue-600 to-indigo-600">
+        <span className="text-xl font-bold text-white">CareSync</span>
       </div>
       <div className="flex flex-col flex-grow p-4 overflow-y-auto">
-        <div className="space-y-1">
-          {navItems.map(item => <Link key={item.path} to={item.path} className={`flex items-center px-4 py-3 text-sm font-medium rounded-md group ${isActive(item.path) ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-100'}`}>
+        <div className="space-y-2">
+          {navItems.map(item => <Link key={item.path} to={item.path} className={`flex items-center px-4 py-3 text-sm font-medium rounded-lg group transition-all duration-200 ${isActive(item.path) ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md transform scale-105' : 'text-blue-800 hover:bg-gradient-to-r hover:from-blue-100 hover:to-indigo-100 hover:text-blue-900 hover:shadow-sm'}`}>
               <span className="mr-3">{item.icon}</span>
               {item.name}
             </Link>)}
         </div>
       </div>
-      <div className="p-4 border-t border-gray-200">
-        <Link to="/settings" className="flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100">
+      <div className="p-4 border-t border-blue-200">
+        <Link to="/settings" className="flex items-center px-4 py-3 text-sm font-medium text-blue-800 rounded-lg hover:bg-gradient-to-r hover:from-blue-100 hover:to-indigo-100 hover:text-blue-900 hover:shadow-sm transition-all duration-200">
           <Settings2Icon className="w-5 h-5 mr-3" />
           Settings
         </Link>

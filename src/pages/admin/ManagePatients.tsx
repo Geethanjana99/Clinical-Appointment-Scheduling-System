@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Modal from '../../components/ui/Modal';
-import { UserIcon, SearchIcon, PlusIcon, EditIcon, TrashIcon } from 'lucide-react';
+import { apiService } from '../../services/api';
+import { UserIcon, SearchIcon, PlusIcon, EditIcon } from 'lucide-react';
 
 interface Patient {
   id: string;
@@ -22,6 +23,7 @@ const ManagePatients = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [showPatientRegistration, setShowPatientRegistration] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
@@ -79,7 +81,7 @@ const ManagePatients = () => {
     try {
       console.log('💾 DATA STORAGE FLOW:');
       console.log('1. Frontend: Data collected in React state (formData)');
-      console.log('2. API Call: Sending to backend endpoint /api/mock/patients');
+      console.log('2. API Call: Sending to backend endpoint /api/admin/patients');
       console.log('3. Backend: Node.js server receives data');
       console.log('4. Storage: Data stored in mock API memory (persistent during session)');
       
@@ -114,17 +116,10 @@ const ManagePatients = () => {
         console.log('✅ Patient saved successfully to mock API!');
         console.log('💾 Mock API record created:', result.data);
         
-        alert(`✅ PATIENT SUCCESSFULLY SAVED!
-
-📍 Data Storage Locations:
-• Frontend: Form cleared
-• Backend API: ✅ Processed
-• Mock Storage: ✅ Saved
-  - User ID: ${result.data.user?.id}
-  - Patient ID: ${result.data.patient?.patient_id}
-
-📋 Stored Data:
-${JSON.stringify(result.data, null, 2)}`);
+        setSuccess(`Patient "${patientData.firstName} ${patientData.lastName}" added successfully!`);
+        setError(null);
+        // Clear success message after 5 seconds
+        setTimeout(() => setSuccess(null), 5000);
         
         setShowPatientRegistration(false);
         setFormData({
@@ -145,10 +140,12 @@ ${JSON.stringify(result.data, null, 2)}`);
       } else {
         console.error('❌ Failed to save patient:', result.message);
         setError(result.message || 'Failed to create patient');
+        setSuccess(null);
       }
     } catch (error) {
       console.error('❌ Error creating patient:', error);
       setError(error instanceof Error ? error.message : 'Failed to create patient');
+      setSuccess(null);
     }
   };
 
@@ -170,26 +167,38 @@ ${JSON.stringify(result.data, null, 2)}`);
         status: statusFilter
       });
 
-      // Always try mock endpoint first for reliability
+      // Try the real admin patients endpoint with authentication
       let response;
       try {
-        console.log('📋 Trying mock patients endpoint...');
-        response = await fetch(`http://localhost:5000/api/mock/patients?${queryParams}`);
+        console.log('📋 Trying admin patients endpoint...');
+        const token = apiService.getToken();
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        };
+        
+        if (token) {
+          headers.Authorization = `Bearer ${token}`;
+        }
+
+        response = await fetch(`http://localhost:5000/api/admin/patients?${queryParams}`, {
+          method: 'GET',
+          headers
+        });
         
         if (!response.ok) {
-          throw new Error(`Mock API error! status: ${response.status}`);
+          throw new Error(`Admin API error! status: ${response.status}`);
         }
         
         const result = await response.json();
         
         if (result.success) {
           setPatients(result.data.patients || []);
-          console.log('✅ Patients fetched successfully from mock API:', result.data.patients.length);
+          console.log('✅ Patients fetched successfully from admin API:', result.data.patients.length);
         } else {
-          throw new Error(result.message || 'Failed to fetch patients from mock API');
+          throw new Error(result.message || 'Failed to fetch patients from admin API');
         }
-      } catch (mockError) {
-        console.error('❌ Mock API failed, using fallback data:', mockError);
+      } catch (adminError) {
+        console.error('❌ Admin API failed, using fallback data:', adminError);
         
         // Fallback to hardcoded data if even mock API fails
         setPatients([
@@ -253,76 +262,7 @@ ${JSON.stringify(result.data, null, 2)}`);
     setShowEditModal(true);
   };
 
-  // Handle deleting a patient
-  const handleDeletePatient = async (patient: Patient) => {
-    if (!confirm(`Are you sure you want to delete patient ${patient.name}?`)) {
-      return;
-    }
 
-    try {
-      console.log('🗑️ Deleting patient:', patient.name);
-      
-      const token = localStorage.getItem('token');
-      let response;
-
-      try {
-        if (token) {
-          response = await fetch(`http://localhost:5000/api/admin/patients/${patient.id}`, {
-            method: 'DELETE',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            }
-          });
-        }
-        
-        if (!response || !response.ok) {
-          // Fall back to mock API
-          response = await fetch(`http://localhost:5000/api/mock/patients/${patient.id}`, {
-            method: 'DELETE',
-            headers: {
-              'Content-Type': 'application/json'
-            }
-          });
-        }
-      } catch (authError) {
-        console.log('🔄 Auth endpoint failed, using mock deletion...');
-        response = await fetch(`http://localhost:5000/api/mock/patients/${patient.id}`, {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        });
-      }
-
-      if (response && response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          // Remove from local state
-          setPatients(prevPatients => prevPatients.filter(p => p.id !== patient.id));
-          
-          alert(`✅ Patient ${patient.name} has been deleted successfully!
-          
-📍 Deletion Process:
-• Frontend: ✅ Removed from display
-• Backend API: ✅ Delete request processed
-• Database: ✅ Record removed/deactivated
-
-Note: Patient data has been permanently removed from the system.`);
-        } else {
-          throw new Error(result.message || 'Failed to delete patient');
-        }
-      } else {
-        // Fallback: just remove from local state
-        setPatients(prevPatients => prevPatients.filter(p => p.id !== patient.id));
-        alert(`✅ Patient ${patient.name} has been removed from the display.`);
-      }
-
-    } catch (error) {
-      console.error('❌ Error deleting patient:', error);
-      setError(error instanceof Error ? error.message : 'Failed to delete patient');
-    }
-  };
 
   // Handle updating a patient
   const handleUpdatePatient = async (e: React.FormEvent) => {
@@ -405,16 +345,10 @@ Note: Patient data has been permanently removed from the system.`);
             emergencyPhone: ''
           });
 
-          alert(`✅ Patient ${updatedPatient.name} has been updated successfully!
-          
-📍 Update Process:
-• Frontend: ✅ Form data collected
-• Backend API: ✅ Update request processed
-• Database: ✅ Record updated
-• Display: ✅ Table refreshed
-
-📋 Updated Data:
-${JSON.stringify(updateData, null, 2)}`);
+          setSuccess(`Patient "${updatedPatient.name}" updated successfully!`);
+          setError(null);
+          // Clear success message after 3 seconds
+          setTimeout(() => setSuccess(null), 3000);
         } else {
           throw new Error(result.message || 'Failed to update patient');
         }
@@ -425,10 +359,27 @@ ${JSON.stringify(updateData, null, 2)}`);
     } catch (error) {
       console.error('❌ Error updating patient:', error);
       setError(error instanceof Error ? error.message : 'Failed to update patient');
+      setSuccess(null);
     }
   };
 
   return <div className="space-y-6">
+      {success && (
+        <div className="bg-green-50 border border-green-200 rounded-md p-4">
+          <div className="flex">
+            <svg className="h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            </svg>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-green-800">Success</h3>
+              <div className="mt-2 text-sm text-green-700">
+                <p>{success}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
           Error: {error}
@@ -543,9 +494,6 @@ ${JSON.stringify(updateData, null, 2)}`);
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <Button variant="outline" size="sm" className="mr-2" onClick={() => handleEditPatient(patient)}>
                         <EditIcon className="w-4 h-4" />
-                      </Button>
-                      <Button variant="outline" size="sm" className="text-red-600 hover:text-red-900" onClick={() => handleDeletePatient(patient)}>
-                        <TrashIcon className="w-4 h-4" />
                       </Button>
                     </td>
                   </tr>
