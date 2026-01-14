@@ -137,11 +137,16 @@ const PatientQueue = () => {
           }
         }
       } else {
-        setError(positionResponse.error || 'Failed to fetch queue position');
+        // No appointments found - this is not an error, just clear the appointments
+        setAppointments([]);
+        setNotifications({});
       }
     } catch (err) {
-      setError('Failed to fetch queue position');
+      // Only log the error, don't show it to the user
+      // This prevents error messages when there are simply no appointments
       console.error('Error fetching queue position:', err);
+      setAppointments([]);
+      setNotifications({});
     } finally {
       setIsLoading(false);
     }
