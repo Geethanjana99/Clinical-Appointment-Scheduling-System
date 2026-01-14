@@ -249,19 +249,19 @@ VITE_ENABLE_DARK_MODE=true
 ![Patient Dashboard](./docs/screenshots/patient-dashboard.png)
 *Comprehensive overview of appointments and health metrics*
 
-### Doctor Queue Management
-![Queue Management](./docs/screenshots/queue-management.png)
-*Real-time queue management with patient information*
+### Doctor Dashboard
+![Doctor Dashboard](./docs/screenshots/doctor-dashboard.png)
+*Daily schedule and patient management interface*
 
 ### Admin Analytics
 ![Admin Analytics](./docs/screenshots/admin-analytics.png)
 *System-wide analytics and reporting*
 
-### Appointment Booking
-![Appointment Booking](./docs/screenshots/appointment-booking.png)
-*Intuitive doctor search and appointment scheduling*
+### Cashier Dashboard
+![Cashier Dashboard](./docs/screenshots/cashier-dashboard.png)
+*Financial overview and invoice management*
 
-> **Note**: Add actual screenshots to the `docs/screenshots/` directory
+
 
 ## 🏗️ Architecture
 
