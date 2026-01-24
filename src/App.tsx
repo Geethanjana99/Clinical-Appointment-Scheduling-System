@@ -13,7 +13,7 @@ import Layout from './components/Layout';
 // Patient Pages
 import PatientDashboard from './pages/patient/Dashboard';
 import BookAppointment from './pages/patient/BookAppointment';
-import ViewQueue from './pages/patient/ViewQueue';
+import ViewQueue from './pages/patient/Queue';
 import MedicalReports from './pages/patient/MedicalReports';
 import HealthPredictions from './pages/patient/HealthPredictions';
 import MyAppointments from './pages/patient/MyAppointments';
@@ -24,13 +24,14 @@ import ManageQueue from './pages/doctor/ManageQueue';
 import MyPatients from './pages/doctor/MyPatients';
 import DoctorAppointments from './pages/doctor/Appointments';
 import AIPredictions from './pages/doctor/AIPredictions';
-import DoctorAvailability from './pages/doctor/Availability';
+
 // Admin Pages
 import AdminDashboard from './pages/admin/Dashboard';
 import ManagePatients from './pages/admin/ManagePatients';
 import ManageAppointments from './pages/admin/ManageAppointments';
 import ManageDoctors from './pages/admin/ManageDoctors';
 import UploadReports from './pages/admin/UploadReports';
+import AdminHealthPredictions from './pages/admin/AdminHealthPredictions';
 // Billing Pages
 import BillingDashboard from './pages/billing/Dashboard';
 import Invoices from './pages/billing/Invoices';
@@ -45,7 +46,16 @@ interface ProtectedRouteProps {
 
 // Protected route component
 const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated, isLoading } = useAuthStore();
+  
+  // Show loading while authentication is being initialized
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
   
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
@@ -75,49 +85,68 @@ export function App() {
     <DarkModeProvider>
       <Router>
         <Routes>
-        {/* Landing Page */}
-        <Route path="/" element={<Home />} />
-        
-        {/* Auth Routes */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />        {/* Patient Routes */}
-        <Route path="/patient" element={<ProtectedRoute allowedRoles={['patient']}>
+          {/* Landing Page */}
+          <Route path="/" element={<Home />} />
+          
+          {/* Auth Routes */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          
+          {/* Patient Routes */}
+          <Route path="/patient" element={
+            <ProtectedRoute allowedRoles={['patient']}>
               <Layout />
-            </ProtectedRoute>}>
-          <Route index element={<PatientDashboard />} />
-          <Route path="book-appointment" element={<BookAppointment />} />
-          <Route path="queue" element={<ViewQueue />} />
-          <Route path="medical-reports" element={<MedicalReports />} />
-          <Route path="health-predictions" element={<HealthPredictions />} />
-          <Route path="my-appointments" element={<MyAppointments />} />
-        </Route>{/* Doctor Routes */}
-        <Route path="/doctor" element={<ProtectedRoute allowedRoles={['doctor']}>
+            </ProtectedRoute>
+          }>
+            <Route index element={<PatientDashboard />} />
+            <Route path="book-appointment" element={<BookAppointment />} />
+            <Route path="queue" element={<ViewQueue />} />
+            <Route path="medical-reports" element={<MedicalReports />} />
+            <Route path="health-predictions" element={<HealthPredictions />} />
+            <Route path="my-appointments" element={<MyAppointments />} />
+          </Route>
+          
+          {/* Doctor Routes */}
+          <Route path="/doctor" element={
+            <ProtectedRoute allowedRoles={['doctor']}>
               <Layout />
-            </ProtectedRoute>}>
-          <Route index element={<DoctorDashboard />} />
-          <Route path="patient/:id" element={<PatientDetails />} />
-          <Route path="queue" element={<ManageQueue />} />
-          <Route path="patients" element={<MyPatients />} />
-          <Route path="appointments" element={<DoctorAppointments />} />
-          <Route path="ai-predictions" element={<AIPredictions />} />
-          <Route path="availability" element={<DoctorAvailability />} />
-        </Route>{/* Admin Routes */}
-        <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}>
+            </ProtectedRoute>
+          }>
+            <Route index element={<DoctorDashboard />} />
+            <Route path="patient/:id" element={<PatientDetails />} />
+            <Route path="queue" element={<ManageQueue />} />
+            <Route path="patients" element={<MyPatients />} />
+            <Route path="appointments" element={<DoctorAppointments />} />
+            <Route path="ai-predictions" element={<AIPredictions />} />
+
+          </Route>
+          
+          {/* Admin Routes */}
+          <Route path="/admin" element={
+            <ProtectedRoute allowedRoles={['admin']}>
               <Layout />
-            </ProtectedRoute>}>
-          <Route index element={<AdminDashboard />} />
-          <Route path="patients" element={<ManagePatients />} />
-          <Route path="doctors" element={<ManageDoctors />} />
-          <Route path="appointments" element={<ManageAppointments />} />
-          <Route path="reports" element={<UploadReports />} />
-        </Route>        {/* Billing Routes */}
-        <Route path="/billing" element={<ProtectedRoute allowedRoles={['billing']}>
+            </ProtectedRoute>
+          }>
+            <Route index element={<AdminDashboard />} />
+            <Route path="patients" element={<ManagePatients />} />
+            <Route path="doctors" element={<ManageDoctors />} />
+            <Route path="appointments" element={<ManageAppointments />} />
+            <Route path="health-predictions" element={<AdminHealthPredictions />} />
+            <Route path="reports" element={<UploadReports />} />
+          </Route>
+          
+          {/* Billing Routes */}
+          <Route path="/billing" element={
+            <ProtectedRoute allowedRoles={['billing']}>
               <Layout />
-            </ProtectedRoute>}>
-          <Route index element={<BillingDashboard />} />
-          <Route path="invoices" element={<Invoices />} />
-          <Route path="reports" element={<BillingReports />} />
-          <Route path="insurance-claims" element={<InsuranceClaims />} />          <Route path="analytics" element={<AnalyticsDashboard />} />        </Route>
+            </ProtectedRoute>
+          }>
+            <Route index element={<BillingDashboard />} />
+            <Route path="invoices" element={<Invoices />} />
+            <Route path="reports" element={<BillingReports />} />
+            <Route path="insurance-claims" element={<InsuranceClaims />} />
+            <Route path="analytics" element={<AnalyticsDashboard />} />
+          </Route>
       </Routes>
     </Router>
     </DarkModeProvider>

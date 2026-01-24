@@ -10,14 +10,16 @@
     "preview": "npx vite preview"
   },
   "dependencies": {
+    "chart.js": "^4.5.0",
+    "framer-motion": "^11.5.4",
+    "lucide-react": "^0.441.0",
     "react": "^18.3.1",
+    "react-chartjs-2": "^5.3.0",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.26.2",
-    "zustand": "latest",
-    "lucide-react": "^0.441.0",
-    "framer-motion": "^11.5.4",
     "recharts": "^2.12.7",
-    "sonner": "^2.0.1"
+    "sonner": "^2.0.1",
+    "zustand": "latest"
   },
   "devDependencies": {
     "@types/node": "^20.11.18",
@@ -25,14 +27,14 @@
     "@types/react-dom": "^18.3.1",
     "@typescript-eslint/eslint-plugin": "^5.54.0",
     "@typescript-eslint/parser": "^5.54.0",
-    "@vitejs/plugin-react": "^4.2.1",
+    "@vitejs/plugin-react": "^4.5.0",
+    "autoprefixer": "latest",
     "eslint": "^8.50.0",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.1",
-    "typescript": "^5.5.4",
-    "vite": "^5.2.0",
+    "postcss": "latest",
     "tailwindcss": "3.4.17",
-    "autoprefixer": "latest",
-    "postcss": "latest"
+    "typescript": "^5.5.4",
+    "vite": "^6.3.5"
   }
 }
